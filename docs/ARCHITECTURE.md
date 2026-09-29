@@ -37,8 +37,10 @@
 | core/plan.mjs | 把题库编排成分天学习计划（按轨道、平台、每日时长） | 无 |
 | store/home.mjs | **存储位置与取值域的唯一来源**：HOME 解析、progress/jobs/goals/notes/preferences 的文件名、主题与语言取值域。拆出来是因为 6 个域都要用它，放最底层避免互相依赖 |
 | store/atomic.mjs | **原子写与写锁**：readJsonFile / writeJsonAtomic（临时文件 + rename）/ quarantine（坏文件留档）/ parseRecords / withCompactLock。三个域共用，所以在 home 之上、业务之下 |
+| store/progress.mjs | **进度域**：progress.json 快照（原子替换 + .bak 回退 + 坏文件留档）、progress.ndjson 追加日志、200 条阈值归档、storageHealth、board |
+| store/settings.mjs | **偏好 / 目标 / 笔记**：preferences.json、goals.json、notes.json 三份小存储，同一套原子写 |
 | store/jobs.mjs | **投递域存储**：jobs.json 快照 + jobs.ndjson 操作日志（upsert 幂等、500 条阈值归档、与进度同一套写锁）；名字在 store.mjs 再导出 |
-| store.mjs | **存储对外的唯一入口（壳）**：进度快照与日志、投递、目标、笔记、偏好、运维（状态/迁移/reset）。子模块的名字在这里原样再导出，24 个调用方零改动 |
+| store.mjs | **存储对外的唯一入口**：组合层（导出/导入/迁移/reset）+ barrel。五个子模块（home/atomic/progress/jobs/settings）的名字在这里 import 并原样再导出，24 个调用方零改动 |
 | core/progress.mjs | 进度聚合：完成度、薄弱题、多客户端排行榜 | 无 |
 | core/args.mjs | 统一的 --key value / --key=value / --flag 解析 | 无 |
 | core/packs.mjs | 读取 packs/*.json，校验并合并为任务表 | fs + schema |
