@@ -1,0 +1,148 @@
+{
+  "id": "c-core",
+  "name": "C 语言工程（编译、内存检查、调试）",
+  "track": "c",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "c.compile-warnings",
+      "track": "c",
+      "title": "打开全部警告编译，并输出到 app",
+      "goal": "用 gcc 编译 main.c：打开所有警告与额外警告、优化 2 级、带调试信息，产物叫 app",
+      "hint": "-Wall -Wextra 是警告底线；-O2 优化；-g 保留调试信息",
+      "sample": "gcc -Wall -Wextra -O2 -g -o app main.c",
+      "require": [
+        {
+          "p": "gcc|clang",
+          "tip": "应使用 gcc 或 clang 编译"
+        },
+        {
+          "p": "-Wall",
+          "tip": "缺少 -Wall 打开常见警告"
+        },
+        {
+          "p": "-Wextra",
+          "tip": "缺少 -Wextra 打开额外警告"
+        },
+        {
+          "p": "-O2",
+          "tip": "缺少 -O2 优化"
+        },
+        {
+          "p": "-g\\b",
+          "tip": "缺少 -g，调试时会看不到符号"
+        },
+        {
+          "p": "-o\\s+app",
+          "tip": "产物应命名为 app"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-Wno-|--no-warnings",
+          "tip": "不要把警告一条条关掉（-Wno- / --no-warnings），该改的是代码"
+        }
+      ],
+      "verify": {
+        "cmd": "gcc --version",
+        "expect": "gcc|Apple clang|clang",
+        "note": "前置检查：本机是否有 gcc/clang"
+      },
+      "level": "hard"
+    },
+    {
+      "id": "c.address-sanitizer",
+      "track": "c",
+      "title": "用 AddressSanitizer 抓越界与泄漏",
+      "goal": "带 AddressSanitizer 编译 main.c，并立刻运行它",
+      "hint": "-fsanitize=address 要配合 -g 才能指出源码行",
+      "sample": "gcc -fsanitize=address -g -O1 -o app main.c && ./app",
+      "require": [
+        {
+          "p": "gcc|clang",
+          "tip": "应使用 gcc 或 clang"
+        },
+        {
+          "p": "-fsanitize=(address|undefined)|-fsanitize\\s+address",
+          "tip": "缺少 -fsanitize=address"
+        },
+        {
+          "p": "-g\\b",
+          "tip": "缺少 -g，报错里只有地址没有行号"
+        },
+        {
+          "p": "./app",
+          "tip": "编译完要运行一次，sanitizer 才会报问题"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "valgrind",
+          "tip": "本题用 sanitizer；valgrind 是另一条路（单独考）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "c.gdb-backtrace",
+      "track": "c",
+      "title": "崩溃后拿到完整调用栈",
+      "goal": "用 gdb 跑 app，崩溃时打印调用栈，然后退出调试器",
+      "hint": "-ex 可以顺序执行调试命令：-ex run -ex bt -ex quit",
+      "sample": "gdb -q ./app -ex run -ex bt -ex quit",
+      "require": [
+        {
+          "p": "gdb",
+          "tip": "应使用 gdb"
+        },
+        {
+          "p": "-ex\\s+run|--eval-command=run",
+          "tip": "缺少用 -ex run 启动程序"
+        },
+        {
+          "p": "-ex\\s+bt|backtrace|\\bbt\\b",
+          "tip": "缺少打印调用栈（bt）"
+        },
+        {
+          "p": "quit|q\\b",
+          "tip": "最后要退出调试器，否则批处理会挂住"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "c.static-lib",
+      "track": "c",
+      "title": "打成静态库再链接使用",
+      "goal": "把 math.o 打成静态库 libmath.a，再把 main.c 链接到它，产物叫 app",
+      "hint": "ar rcs 建索引；链接用 -L 指定库目录、-l 指定库名（去掉 lib 前缀与 .a 后缀）",
+      "sample": "ar rcs libmath.a math.o && gcc -o app main.c -L. -lmath",
+      "require": [
+        {
+          "p": "ar\\s+rcs",
+          "tip": "静态库用 ar rcs 创建"
+        },
+        {
+          "p": "libmath\\.a",
+          "tip": "库文件名应为 libmath.a"
+        },
+        {
+          "p": "-L\\.|-L\\s",
+          "tip": "链接时要用 -L 指定库所在目录"
+        },
+        {
+          "p": "-lmath",
+          "tip": "用 -lmath 指定库（不要写成 libmath.a）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "^\\.\\/libmath\\.a",
+          "tip": "不要直接把 .a 当输入文件写，链接库应使用 -l"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

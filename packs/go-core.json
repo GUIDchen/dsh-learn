@@ -1,0 +1,1471 @@
+{
+  "id": "go-core",
+  "name": "Go：构建、模块、测试与性能剖析",
+  "track": "go",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "lang.go-build",
+      "track": "go",
+      "title": "Go 交叉编译出一个能直接扔上服务器的二进制",
+      "goal": "用 Go 为 Linux amd64 静态编译 app：关掉 CGO，产物叫 app",
+      "hint": "CGO_ENABLED=0 才能静态链接；GOOS/GOARCH 决定目标平台——这是 Go 最省事的地方",
+      "sample": "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app .",
+      "require": [
+        {
+          "p": "CGO_ENABLED=0",
+          "tip": "缺少 CGO_ENABLED=0，产物可能依赖 glibc"
+        },
+        {
+          "p": "GOOS=linux",
+          "tip": "缺少 GOOS=linux 指定目标系统"
+        },
+        {
+          "p": "GOARCH=amd64|GOARCH=arm64",
+          "tip": "缺少 GOARCH 指定目标架构"
+        },
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        },
+        {
+          "p": "-o\\s+app",
+          "tip": "产物应命名为 app"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "go\\s+run",
+          "tip": "交付要构建产物，不是 go run 直接跑"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "lang.go-mod-tidy",
+      "track": "go",
+      "title": "整理依赖并确认没有被改动",
+      "goal": "整理 go.mod / go.sum，然后确认工作区没有产生新的改动",
+      "hint": "go mod tidy 会补全与删除依赖；改完用 go mod verify 或 git status 确认",
+      "sample": "go mod tidy && go mod verify",
+      "require": [
+        {
+          "p": "go\\s+mod\\s+tidy",
+          "tip": "应使用 go mod tidy"
+        },
+        {
+          "p": "go\\s+mod\\s+verify",
+          "tip": "缺少 go mod verify 确认依赖完整"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+go\\.(mod|sum)",
+          "tip": "不要删掉模块文件来「解决」依赖问题",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "lang.go-test-bench",
+      "track": "go",
+      "title": "跑 Go 测试并看基准数据",
+      "goal": "跑完整个包的测试，并跑一次基准测试（含内存分配统计）",
+      "hint": "go test ./... 覆盖所有包；-bench=. 跑基准，-benchmem 看每次分配",
+      "sample": "go test ./... && go test -bench=. -benchmem ./...",
+      "require": [
+        {
+          "p": "go\\s+test\\s+\\./\\.\\.\\.",
+          "tip": "缺少 go test ./... 跑全部包"
+        },
+        {
+          "p": "-bench=\\.|-bench\\s+\\.",
+          "tip": "缺少 -bench=. 跑基准测试"
+        },
+        {
+          "p": "-benchmem",
+          "tip": "缺少 -benchmem 查看内存分配"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "go\\s+test.*-run\\s+\\.\\s*-bench=.*-count=0",
+          "tip": "别把 count 设为 0，那等于不跑"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.cross-compile",
+      "track": "go",
+      "title": "一条命令交叉编译到 Linux arm64",
+      "goal": "在 macOS 上把 main.go 编译成 Linux arm64 的可执行文件 server，编译期把版本号写进二进制（变量 version）",
+      "hint": "GOOS/GOARCH 决定目标平台，CGO_ENABLED=0 才能得到静态可执行文件；-ldflags -X 可以把版本号注入变量",
+      "sample": "CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags \"-X main.version=1.2.3\" -o server main.go",
+      "require": [
+        {
+          "p": "GOOS\\s*=\\s*linux",
+          "tip": "目标系统应为 GOOS=linux"
+        },
+        {
+          "p": "GOARCH\\s*=\\s*arm64",
+          "tip": "目标架构应为 GOARCH=arm64"
+        },
+        {
+          "p": "CGO_ENABLED\\s*=\\s*0",
+          "tip": "应关掉 CGO，得到不依赖系统库的可执行文件"
+        },
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        },
+        {
+          "p": "-ldflags",
+          "tip": "版本号要用 -ldflags 注入"
+        },
+        {
+          "p": "-X\\s+main\\.version",
+          "tip": "注入的变量应为 main.version"
+        },
+        {
+          "p": "-o\\s+server",
+          "tip": "输出文件名应为 server"
+        }
+      ],
+      "level": "hard",
+      "verify": {
+        "cmd": "go version",
+        "expect": "go version",
+        "note": "环境前置：交叉编译需要本机有 go 工具链"
+      }
+    },
+    {
+      "id": "go.test-race",
+      "track": "go",
+      "title": "带竞态检测跑测试",
+      "goal": "跑 ./... 下所有测试，打开竞态检测；某个包失败后仍跑完其它包，最多 4 个包并行",
+      "hint": "-race 会插桩内存访问；-count=1 能绕开测试缓存，排查\"改完没生效\"时常用",
+      "sample": "go test -race -count=1 -p 4 ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-race",
+          "tip": "竞态检测开关是 -race"
+        },
+        {
+          "p": "-count=1|-count\\s+1",
+          "tip": "应加 -count=1 绕开测试结果缓存"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "测试范围应为 ./..."
+        }
+      ],
+      "level": "medium",
+      "verify": {
+        "cmd": "go version",
+        "expect": "go version",
+        "note": "环境前置：-race 需要 go 工具链与 CGO 支持"
+      }
+    },
+    {
+      "id": "go.cover-report",
+      "track": "go",
+      "title": "出覆盖率报告并直接看",
+      "goal": "跑测试生成覆盖率文件 coverage.out，再用工具按函数列出覆盖率",
+      "hint": "go test -coverprofile 出的是原始数据，go tool cover 才能渲染；-func 按函数汇总，-html 出可视化页面",
+      "sample": "go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-coverprofile=coverage\\.out|-coverprofile\\s+coverage\\.out",
+          "tip": "应把覆盖率写到 coverage.out"
+        },
+        {
+          "p": "go\\s+tool\\s+cover",
+          "tip": "应使用 go tool cover 渲染"
+        },
+        {
+          "p": "-func|-html",
+          "tip": "应指定 -func（按函数）或 -html（可视化）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.pprof-cpu",
+      "track": "go",
+      "title": "抓 30 秒 CPU 剖析并看 Top",
+      "goal": "用本机 6060 端口的 pprof 抓 30 秒 CPU 剖析到 cpu.pprof，然后打开交互界面看最耗时的函数",
+      "hint": "go tool pprof 支持直接吃 URL（会自己抓）；抓完在交互界面里敲 top 看热点，list 函数名看具体行",
+      "sample": "go tool pprof -seconds=30 -output=cpu.pprof http://127.0.0.1:6060/debug/pprof/profile",
+      "require": [
+        {
+          "p": "go\\s+tool\\s+pprof",
+          "tip": "应使用 go tool pprof"
+        },
+        {
+          "p": "-seconds=30|-seconds\\s+30",
+          "tip": "采样时长应为 30 秒"
+        },
+        {
+          "p": "debug/pprof/profile",
+          "tip": "应抓 profile 端点"
+        },
+        {
+          "p": "6060|127\\.0\\.0\\.1",
+          "tip": "目标应指向本机的 pprof 端口"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kill\\s+-9|pkill\\s+-9",
+          "tip": "抓剖析不要顺手把服务杀了",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.escape-analysis",
+      "track": "go",
+      "title": "看哪些变量被分配到堆上",
+      "goal": "编译时打开逃逸分析，把\"变量逃逸到堆\"的结论打印出来（编译包而不是只编译 main）",
+      "hint": "-gcflags 要把 -m 传给编译器，通常写成 -gcflags=\"-m\"；想看得更细再叠一层 -m",
+      "sample": "go build -gcflags=\"-m\" ./...",
+      "require": [
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        },
+        {
+          "p": "-gcflags",
+          "tip": "要看逃逸分析应加 -gcflags"
+        },
+        {
+          "p": "-m\\b",
+          "tip": "要打开 -m 才会打印逃逸结论"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./... 而不是只编译 main"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.env-check",
+      "track": "go",
+      "title": "一眼看清 Go 的构建环境",
+      "goal": "打印当前的目标系统、目标架构与模块代理设置（只要这三项）",
+      "hint": "go env 可以只查指定变量，比把整个环境打出来再找要快",
+      "sample": "go env GOOS GOARCH GOPROXY",
+      "require": [
+        {
+          "p": "go\\s+env",
+          "tip": "应使用 go env"
+        },
+        {
+          "p": "GOOS",
+          "tip": "应查 GOOS"
+        },
+        {
+          "p": "GOARCH",
+          "tip": "应查 GOARCH"
+        }
+      ],
+      "level": "easy",
+      "verify": {
+        "cmd": "go version",
+        "expect": "go version go",
+        "note": "前置检查：本机是否装了 Go（没有 Go 也能看题面与参考答案）"
+      }
+    },
+    {
+      "id": "go.version-info",
+      "track": "go",
+      "title": "看二进制里到底嵌了哪些模块和版本",
+      "goal": "不跑程序，直接从 server 这个可执行文件里读出构建信息（Go 版本、依赖模块与版本）",
+      "hint": "go version -m 会读二进制里的模块信息，比翻 go.mod 更可信——线上跑的到底是不是这一版，一查便知",
+      "sample": "go version -m server",
+      "require": [
+        {
+          "p": "go\\s+version",
+          "tip": "应使用 go version"
+        },
+        {
+          "p": "\\s-m\\b",
+          "tip": "要读嵌入信息应加 -m"
+        },
+        {
+          "p": "\\bserver\\b",
+          "tip": "目标应为可执行文件 server"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.vet",
+      "track": "go",
+      "title": "编译前先做静态检查",
+      "goal": "对仓库里所有包跑 go vet，把可疑写法（格式化字符串不匹配、锁误用等）报出来",
+      "hint": "go vet 是编译器附带的检查器，比 linter 轻；./... 表示当前模块下所有包",
+      "sample": "go vet ./...",
+      "require": [
+        {
+          "p": "go\\s+vet",
+          "tip": "应使用 go vet"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.build-tags",
+      "track": "go",
+      "title": "带构建标签编译集成测试用的二进制",
+      "goal": "打开 integration 构建标签，把 ./cmd/api 编译成 api，产物放到 bin 目录",
+      "hint": "构建标签决定哪些文件参与编译（常见用法：集成测试、平台特性）；-tags 支持逗号分隔多个",
+      "sample": "go build -tags=integration -o bin/api ./cmd/api",
+      "require": [
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        },
+        {
+          "p": "-tags[=\\s]+integration",
+          "tip": "应打开 integration 构建标签"
+        },
+        {
+          "p": "-o\\s+bin/api",
+          "tip": "产物应输出到 bin/api"
+        },
+        {
+          "p": "\\./cmd/api",
+          "tip": "目标包应为 ./cmd/api"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.test-timeout",
+      "track": "go",
+      "title": "给跑飞的测试设上限",
+      "goal": "跑 ./... 的所有测试，并给整轮测试设 30 秒超时（超时就把卡住的 goroutine 栈打出来）",
+      "hint": "go test 默认 10 分钟才超时，CI 里等不起；-timeout 是对\"整轮测试\"的上限，不是单个用例",
+      "sample": "go test -timeout 30s ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-timeout[=\\s]+30s",
+          "tip": "整轮测试上限应为 30 秒"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.list-deps",
+      "track": "go",
+      "title": "列出构建时实际用到的模块",
+      "goal": "只列出参与构建的模块（不是 go.mod 里声明的全部），用来确认某个依赖到底有没有被链进去",
+      "hint": "go list -m 默认列全部模块，all 参数配合 -deps 才是\"真正参与构建的\"",
+      "sample": "go list -deps ./... >/dev/null && go list -m all",
+      "require": [
+        {
+          "p": "go\\s+list",
+          "tip": "应使用 go list"
+        },
+        {
+          "p": "-m\\b",
+          "tip": "列模块要加 -m"
+        },
+        {
+          "p": "\\ball\\b",
+          "tip": "应列出全部模块（all）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.bench-baseline",
+      "track": "go",
+      "title": "跑基准测试，只看性能不看功能",
+      "goal": "对 ./... 跑所有基准测试并输出内存分配统计，同时跳过单元测试（只跑基准）",
+      "hint": "-run=^$ 是\"不跑任何单元测试\"的惯用写法；-benchmem 才能看到每次操作分配了几次内存",
+      "sample": "go test -bench=. -benchmem -run=^$ ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-bench[=\\s]+\\.|-bench=",
+          "tip": "应跑基准：-bench=."
+        },
+        {
+          "p": "-benchmem",
+          "tip": "应加 -benchmem 看内存分配"
+        },
+        {
+          "p": "-run[=\\s]+\\^\\$",
+          "tip": "应跳过单元测试：-run=^$"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.mod-why",
+      "track": "go",
+      "title": "这个依赖到底是谁引进来的",
+      "goal": "解释为什么当前模块会依赖 github.com/pkg/errors（列出引入链路）",
+      "hint": "go mod why 会沿依赖图给出\"最短引入路径\"；排查\"能不能删掉这个依赖\"时比翻 go.sum 有用",
+      "sample": "go mod why -m github.com/pkg/errors",
+      "require": [
+        {
+          "p": "go\\s+mod\\s+why",
+          "tip": "应使用 go mod why"
+        },
+        {
+          "p": "github\\.com/pkg/errors",
+          "tip": "目标模块应为 github.com/pkg/errors"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.build-race-binary",
+      "track": "go",
+      "title": "编一个带竞态检测的二进制去复现偶发问题",
+      "goal": "把 ./cmd/app 编译成 app-race，并在编译器层面打开竞态检测（用来在测试环境复现线上偶发的数据竞争）",
+      "hint": "-race 会把内存访问插桩，需要 CGO 可用（CGO_ENABLED=0 时用不了）；线上别用，开销很大，只在复现环境用",
+      "sample": "go build -race -o app-race ./cmd/app",
+      "require": [
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        },
+        {
+          "p": "-race",
+          "tip": "应打开竞态检测（-race）"
+        },
+        {
+          "p": "-o\\s+app-race",
+          "tip": "输出应为 app-race"
+        },
+        {
+          "p": "\\./cmd/app",
+          "tip": "目标包应为 ./cmd/app"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "CGO_ENABLED\\s*=\\s*0",
+          "tip": "-race 需要 CGO，关掉 CGO 编不出来",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.clean-cache",
+      "track": "go",
+      "title": "改了代码却像没生效：清掉构建缓存",
+      "goal": "清空 Go 的构建缓存（用来排除\"缓存导致的假象\"），注意不要动模块下载缓存",
+      "hint": "go clean -cache 只清构建缓存；-modcache 才会删掉已下载的模块（慢且要重新下载），排查问题时通常不需要",
+      "sample": "go clean -cache",
+      "require": [
+        {
+          "p": "go\\s+clean",
+          "tip": "应使用 go clean"
+        },
+        {
+          "p": "-cache",
+          "tip": "要清的是构建缓存（-cache）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-modcache",
+          "tip": "别顺手删模块缓存：要重新下载，排查问题用不到",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.vulncheck",
+      "track": "go",
+      "title": "查依赖里的已知漏洞",
+      "goal": "对 ./... 跑漏洞检查，看当前依赖树里有没有命中已知 CVE",
+      "hint": "govulncheck 是官方工具，只看\"代码里真正调用到\"的漏洞，比单纯扫版本号噪音小得多",
+      "sample": "govulncheck ./...",
+      "require": [
+        {
+          "p": "govulncheck",
+          "tip": "应使用 govulncheck"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.toolchain-version",
+      "track": "go",
+      "title": "让 go.mod 说清最低 Go 版本",
+      "goal": "查一下当前模块声明的最低 Go 版本（go.mod 里的 go 指令）与依赖要求，确认和本机工具链对得上",
+      "hint": "go.mod 的 go 指令决定语言特性与依赖解析行为；低于依赖要求时会直接报错而不是降级",
+      "sample": "go list -m -f \"{{.GoVersion}}\" && head -3 go.mod",
+      "require": [
+        {
+          "p": "go\\s+list\\s+-m",
+          "tip": "应使用 go list -m 读模块信息"
+        },
+        {
+          "p": "go\\.mod|GoVersion",
+          "tip": "要看到 go 指令或模块的 GoVersion"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.work-use",
+      "track": "go",
+      "title": "多模块一起改：建一个 work 文件",
+      "goal": "把当前目录与 ../shared 两个模块纳入同一个 go work 工作区，这样改依赖库不用 replace",
+      "hint": "go work init 建工作区、go work use 加入目录；工作区只在本地生效，别把它提交成发布依赖",
+      "sample": "go work init . ../shared",
+      "require": [
+        {
+          "p": "go\\s+work\\s+(init|use)",
+          "tip": "应使用 go work init / go work use"
+        },
+        {
+          "p": "\\.\\./shared|\\.\\s",
+          "tip": "要把 ../shared（或当前目录）纳入工作区"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.test-shuffle",
+      "track": "go",
+      "title": "打乱顺序跑测试，揪出互相依赖的用例",
+      "goal": "以随机顺序跑 ./... 的测试（每次顺序都不同），用来发现\"只有特定顺序才过\"的隐藏依赖",
+      "hint": "-shuffle=on 每次随机；出问题时会打印这次的随机种子，用 -shuffle=<种子里那串数字> 可以复现",
+      "sample": "go test -shuffle=on ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-shuffle=on|-shuffle\\s+on",
+          "tip": "应打开随机顺序"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.mod-graph",
+      "track": "go",
+      "title": "看依赖图里谁把版本顶上去的",
+      "goal": "打印当前模块的依赖图（含版本），用来解释\"某个依赖为什么升到了这个版本\"",
+      "hint": "go mod graph 每行是 A@版本 B@版本 的边；配合 grep 某个模块名就能看到是谁在要求它",
+      "sample": "go mod graph | grep -i grpc | head -20",
+      "require": [
+        {
+          "p": "go\\s+mod\\s+graph",
+          "tip": "应使用 go mod graph"
+        },
+        {
+          "p": "grep|head|sort",
+          "tip": "依赖图很长，应过滤或截断再看"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.bench-cpu",
+      "track": "go",
+      "title": "基准测试固定时长并对比单核与多核",
+      "goal": "只跑名为 BenchmarkParse 的基准，每次跑 3 秒，分别在 1 个和 4 个 CPU 上各跑一遍",
+      "hint": "-benchtime 指定测试时长（默认按次数，跑太快不稳）；-cpu=1,4 会各跑一轮，能看出并发扩展性",
+      "sample": "go test -bench=BenchmarkParse -benchtime=3s -cpu=1,4 ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-bench=?BenchmarkParse|-bench\\s+BenchmarkParse",
+          "tip": "应指定基准名 BenchmarkParse"
+        },
+        {
+          "p": "-benchtime[=\\s]+3s",
+          "tip": "应指定每次 3 秒（-benchtime=3s）"
+        },
+        {
+          "p": "-cpu[=\\s]+1,4",
+          "tip": "应对比 1 核与 4 核（-cpu=1,4）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.test-cover-func",
+      "track": "go",
+      "title": "覆盖率低在哪个函数：按函数排序看",
+      "goal": "跑测试生成覆盖率数据后，只按函数列出覆盖率并挑出最低的几个（先补最有价值的测试）",
+      "hint": "go tool cover -func 输出每行一个函数加百分比；配合 sort 就能先看垫底的",
+      "sample": "go test -coverprofile=cover.out ./... && go tool cover -func=cover.out | sort -k3 -n | head -20",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-coverprofile=cover\\.out",
+          "tip": "应先产出覆盖率文件"
+        },
+        {
+          "p": "go\\s+tool\\s+cover\\s+-func",
+          "tip": "应用 go tool cover -func 按函数看"
+        },
+        {
+          "p": "sort|head",
+          "tip": "要排序或截断，否则几百行看不过来"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.env-proxy",
+      "track": "go",
+      "title": "拉不到依赖：先确认代理与校验和",
+      "goal": "打印当前的模块代理、校验和数据库与 GOMODCACHE 路径（三个值都要，用来判断是网络问题还是缓存问题）",
+      "hint": "GOPROXY 空表示直连；GOSUMDB=off 会跳过校验和校验（公司内网代理场景常见，但要知道代价）",
+      "sample": "go env GOPROXY GOSUMDB GOMODCACHE",
+      "require": [
+        {
+          "p": "go\\s+env",
+          "tip": "应使用 go env"
+        },
+        {
+          "p": "GOPROXY",
+          "tip": "应查 GOPROXY"
+        },
+        {
+          "p": "GOSUMDB",
+          "tip": "应查 GOSUMDB"
+        },
+        {
+          "p": "GOMODCACHE",
+          "tip": "应查 GOMODCACHE"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.test-parallel",
+      "track": "go",
+      "title": "让测试并行跑，并把并行度写死",
+      "goal": "并行执行 ./... 的测试，最多同时跑 4 个包（本地 8 核但磁盘慢，跑太多反而更慢）",
+      "hint": "-p 控制同时构建/测试的包数；-parallel 控制同一个包内 t.Parallel 的并发数，两者不是一回事",
+      "sample": "go test -p 4 ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-p\\s*4|-p=4",
+          "tip": "应把包级并行度设为 4（-p 4）"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.regexp-lint",
+      "track": "go",
+      "title": "用官方 linter 找可疑写法",
+      "goal": "对 ./... 跑静态 linter（比 vet 更细的那种），只看关键问题",
+      "hint": "staticcheck 覆盖 vet 之外的可疑模式；CI 里通常二选一或两个都跑",
+      "sample": "staticcheck ./...",
+      "require": [
+        {
+          "p": "staticcheck|golangci-lint",
+          "tip": "应使用 staticcheck（或 golangci-lint）"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.mod-verify",
+      "track": "go",
+      "title": "依赖被改过吗：校验模块缓存",
+      "goal": "校验本地模块缓存里的依赖与 go.sum 是否一致（怀疑被篡改或半截下载时用）",
+      "hint": "go mod verify 会逐个文件比对哈希，慢但可信；有问题的模块会明确点名",
+      "sample": "go mod verify",
+      "require": [
+        {
+          "p": "go\\s+mod\\s+verify",
+          "tip": "应使用 go mod verify"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.run-tags",
+      "track": "go",
+      "title": "用构建标签跑一次性脚本",
+      "goal": "临时带 integration 标签运行 ./cmd/seed 这个包（不进构建产物）",
+      "hint": "go run 适合一次性脚本与代码片段；-tags 与构建时一样控制哪些文件参与编译",
+      "sample": "go run -tags=integration ./cmd/seed",
+      "require": [
+        {
+          "p": "go\\s+run",
+          "tip": "应使用 go run"
+        },
+        {
+          "p": "-tags[=\\s]+integration",
+          "tip": "应带 integration 构建标签"
+        },
+        {
+          "p": "\\./cmd/seed",
+          "tip": "目标包应为 ./cmd/seed"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.cover-atomic",
+      "track": "go",
+      "title": "并发场景的覆盖率要用原子计数",
+      "goal": "跑测试并生成覆盖率数据，计数方式用 atomic（并发测试用默认的 set 计数会丢数）",
+      "hint": "-covermode=atomic 在并发写计数时不会丢；配合 -race 一起用最稳",
+      "sample": "go test -covermode=atomic -coverprofile=cover.out ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-covermode=atomic",
+          "tip": "并发场景要用 -covermode=atomic"
+        },
+        {
+          "p": "-coverprofile",
+          "tip": "应产出覆盖率文件"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.test-failfast",
+      "track": "go",
+      "title": "第一个失败就停：修 bug 时别等全套跑完",
+      "goal": "跑 ./... 的测试，遇到第一个失败就停下来（改代码时省时间）",
+      "hint": "go test 默认会把所有包的测试都跑完；-failfast 让它在第一个失败后立刻停",
+      "sample": "go test -failfast ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-failfast",
+          "tip": "要第一个失败就停：-failfast"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.env-goproxy-off",
+      "track": "go",
+      "title": "离线构建：只用本地模块缓存",
+      "goal": "在完全不访问网络的前提下构建 ./cmd/api（依赖必须都已在本机缓存里）",
+      "hint": "GOPROXY=off 会让\"要联网才能拿到的依赖\"立刻失败；配合 GOFLAGS=-mod=mod 视情况使用",
+      "sample": "GOPROXY=off go build ./cmd/api",
+      "require": [
+        {
+          "p": "GOPROXY=off|GOPROXY\\s*=\\s*off",
+          "tip": "应设 GOPROXY=off"
+        },
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        },
+        {
+          "p": "\\./cmd/api",
+          "tip": "目标包应为 ./cmd/api"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.convert-tool",
+      "track": "go",
+      "title": "把编译器给的迁移建议一次性做完",
+      "goal": "跑一遍 go fix，让它按当前 Go 版本的 API 变更建议改写代码（先看清 diff 再决定要不要接受）",
+      "hint": "go fix 在新版本里变成 apply 式工具，会直接改文件；先 git commit 或复制一份再跑",
+      "sample": "go fix ./...",
+      "require": [
+        {
+          "p": "go\\s+fix",
+          "tip": "应使用 go fix"
+        },
+        {
+          "p": "\\./\\.\\.\\.|\\S+\\.go",
+          "tip": "范围应为 ./... 或指定文件"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+reset\\s+--hard|git\\s+checkout\\s+--\\s+\\.",
+          "tip": "别用丢弃式命令回滚：先看 diff",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.work-sync",
+      "track": "go",
+      "title": "多模块工作区里同步依赖版本",
+      "goal": "在多模块工作区里同步各模块的依赖版本（把工作区里已选定的版本写回各模块的 go.mod）",
+      "hint": "go work sync 会把工作区的版本选择推回各个模块；改完记得跑一次构建确认没有版本冲突",
+      "sample": "go work sync",
+      "require": [
+        {
+          "p": "go\\s+work\\s+sync",
+          "tip": "应使用 go work sync"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.list-json",
+      "track": "go",
+      "title": "让外部脚本读懂包的元信息",
+      "goal": "以 JSON 输出 ./... 里每个包的导入路径、目录与依赖包数量（给脚本或 CI 用）",
+      "hint": "go list -json 是机器可读的标准做法；用 -f 可以只挑需要的字段，输出更小",
+      "sample": "go list -json ./... | head -40",
+      "require": [
+        {
+          "p": "go\\s+list",
+          "tip": "应使用 go list"
+        },
+        {
+          "p": "-json|-f\\s|{{",
+          "tip": "要机器可读输出（-json 或 -f 模板）"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.test-short-skip",
+      "track": "go",
+      "title": "用 -short 跳过慢用例",
+      "goal": "以 short 模式跑测试（让标了 testing.Short() 的慢用例自己跳过），适合本地快速回归",
+      "hint": "go test -short 只是把标志传进去，是否跳过由测试代码判断；CI 里通常两种都跑一遍",
+      "sample": "go test -short ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-short",
+          "tip": "应加 -short"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.test-pprof",
+      "track": "go",
+      "title": "给测试也做性能剖析",
+      "goal": "跑基准或测试时把 CPU 剖析写到 cpu.out（用测试负载来剖析，不用起真服务）",
+      "hint": "go test -cpuprofile 会把剖析写到文件，之后用 go tool pprof cpu.out 看热点",
+      "sample": "go test -run=^$ -bench=. -cpuprofile=cpu.out ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-cpuprofile[=\\s]+cpu\\.out",
+          "tip": "应写出 CPU 剖析（-cpuprofile）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.env-goflags",
+      "track": "go",
+      "title": "用 GOFLAGS 统一构建开关",
+      "goal": "通过 GOFLAGS 打开 trimpath 并让所有模块都走 vendored 依赖，构建 ./cmd/api（不改代码，只改环境）",
+      "hint": "GOFLAGS=-mod=vendor -trimpath 让 CI 与本地一致；-trimpath 去掉产物里的本机路径，构建可复现",
+      "sample": "GOFLAGS=\"-mod=vendor -trimpath\" go build ./cmd/api",
+      "require": [
+        {
+          "p": "GOFLAGS=",
+          "tip": "应设置 GOFLAGS"
+        },
+        {
+          "p": "-mod=vendor",
+          "tip": "应走 vendored 依赖（-mod=vendor）"
+        },
+        {
+          "p": "-trimpath",
+          "tip": "应加 -trimpath 去掉本机路径"
+        },
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.test-json",
+      "track": "go",
+      "title": "测试结果给 CI 读：JSON 输出",
+      "goal": "跑测试并输出机器可读的事件流（每行一个 JSON），供 CI 报告或脚本解析",
+      "hint": "go test -json 输出的是 test2json 格式事件；管道里它会带时间戳，适合直接喂给解析器",
+      "sample": "go test -json ./... | head -5",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-json",
+          "tip": "要机器可读输出（-json）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.doc-preview",
+      "track": "go",
+      "title": "在终端看包文档，不装 godoc",
+      "goal": "在终端里查看 fmt 包的文档（只看概述即可），确认本机工具链自带文档能力",
+      "hint": "go doc 直接打印包/符号文档；go doc fmt Println 可以精确到函数",
+      "sample": "go doc fmt | head -30",
+      "require": [
+        {
+          "p": "go\\s+doc",
+          "tip": "应使用 go doc"
+        },
+        {
+          "p": "fmt|\\S+",
+          "tip": "要指定包名"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.env-summary",
+      "track": "go",
+      "title": "一条命令看全 Go 环境的关键项",
+      "goal": "打印 Go 工具链版本、目标平台、模块缓存路径与代理设置（交接机器或排查环境问题时的第一手信息）",
+      "hint": "go env 不传参数会打印全部；用 -json 更适合脚本处理，人看的话直接看关键几项",
+      "sample": "go env GOVERSION GOOS GOARCH GOMODCACHE GOPROXY",
+      "require": [
+        {
+          "p": "go\\s+env",
+          "tip": "应使用 go env"
+        },
+        {
+          "p": "GOVERSION|GOOS|GOMODCACHE|GOPROXY",
+          "tip": "要查关键环境项"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.build-ldflags-version",
+      "track": "go",
+      "title": "把构建信息写进二进制（排查\"线上是哪个版本\"）",
+      "goal": "构建时把版本号、提交号与构建时间注入到 main 包变量里，输出 app",
+      "hint": "-ldflags \"-X main.version=… -X main.commit=…\" 可以一次注入多个；配合 -s -w 还能省点体积",
+      "sample": "go build -ldflags \"-X main.version=1.4.0 -X main.commit=$(git rev-parse --short HEAD)\" -o app ./cmd/app",
+      "require": [
+        {
+          "p": "go\\s+build",
+          "tip": "应使用 go build"
+        },
+        {
+          "p": "-ldflags",
+          "tip": "应用 -ldflags 注入"
+        },
+        {
+          "p": "-X\\s+main\\.version",
+          "tip": "应注入 main.version"
+        },
+        {
+          "p": "-o\\s+app",
+          "tip": "输出应为 app"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.test-cover-html",
+      "track": "go",
+      "title": "覆盖率报告出成 HTML 看",
+      "goal": "跑测试生成覆盖率数据，并渲染成 HTML 报告（按行看哪些没覆盖）",
+      "hint": "go tool cover -html 会生成临时页面并尝试打开浏览器；CI 里用 -o 指定输出文件更稳",
+      "sample": "go test -coverprofile=cover.out ./... && go tool cover -html=cover.out -o cover.html",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-coverprofile",
+          "tip": "要先产出覆盖率文件"
+        },
+        {
+          "p": "go\\s+tool\\s+cover\\s+-html",
+          "tip": "应渲染成 HTML（-html）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.test-cpu-count",
+      "track": "go",
+      "title": "让测试按可用核数跑（CI 与本地都合适）",
+      "goal": "并行跑 ./... 的测试，并把并行度设为机器可用核数（本机 8 核，CI 可能只有 2 核）",
+      "hint": "-parallel 控制同一个包内并行用例数；-p 控制同时构建的包数；两者别混",
+      "sample": "go test -parallel 4 ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-parallel\\s+\\d+",
+          "tip": "应指定并行度（-parallel）"
+        },
+        {
+          "p": "\\./\\.\\.\\.",
+          "tip": "范围应为 ./..."
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.mod-edit-require",
+      "track": "go",
+      "title": "加依赖别再手改 go.mod",
+      "goal": "用工具把一个依赖加到 go.mod 的 require 里（不手写文件，避免版本与哈希对不上）",
+      "hint": "go get 负责改 go.mod 与 go.sum 并解析版本；手改 go.mod 常常漏掉 go.sum",
+      "sample": "go get github.com/google/uuid@v1.6.0",
+      "require": [
+        {
+          "p": "go\\s+get",
+          "tip": "应使用 go get"
+        },
+        {
+          "p": "@v?\\d+\\.\\d+\\.\\d+|@latest",
+          "tip": "应指定版本（@v1.6.0 或 @latest）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.buildinfo-extract",
+      "track": "go",
+      "title": "二进制里读出版本与依赖（不用源码）",
+      "goal": "从一个已编译的 Go 二进制里读出它的模块路径、版本、提交号与依赖列表",
+      "hint": "go version -m 读的是二进制里内嵌的构建信息；现场排障时常常只有这个可执行文件，没有源码仓库",
+      "sample": "go version -m ./bin/app",
+      "require": [
+        {
+          "p": "go\\s+version\\s+-m",
+          "tip": "应使用 go version -m"
+        },
+        {
+          "p": "\\./bin/app",
+          "tip": "应指定要读的二进制"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "strings\\s+[^|]*\\|\\s*grep",
+          "tip": "别用 strings 猜版本，构建信息有专门字段",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.tool-pprof-top",
+      "track": "go",
+      "title": "堆内存都花在哪了：pprof 排行前 10",
+      "goal": "用 go tool pprof 分析一个 heap profile，只看占用最高的前 10 个调用点",
+      "hint": "go tool pprof -top -nodecount=10 是标准的\"先看排行榜\"动作；比直接看火焰图更快定位大头",
+      "sample": "go tool pprof -top -nodecount=10 mem.pprof",
+      "require": [
+        {
+          "p": "go\\s+tool\\s+pprof",
+          "tip": "应使用 go tool pprof"
+        },
+        {
+          "p": "-top",
+          "tip": "要看排行（-top）"
+        },
+        {
+          "p": "-nodecount=10|-nodecount\\s+10",
+          "tip": "限制条数，避免刷屏"
+        },
+        {
+          "p": "mem\\.pprof",
+          "tip": "目标是 heap profile 文件"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.fuzz-run",
+      "track": "go",
+      "title": "跑一小会儿模糊测试（不是普通单测）",
+      "goal": "只跑 FuzzParse 这个模糊测试 30 秒，不跑其它用例",
+      "hint": "-run=^$ 才能把普通测试挡掉；-fuzztime 限定时间，别让它无限跑下去",
+      "sample": "go test -run=^$ -fuzz=FuzzParse -fuzztime=30s ./parser",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-run=\\^\\$",
+          "tip": "要先用 -run=^$ 跳过普通用例"
+        },
+        {
+          "p": "-fuzz=FuzzParse",
+          "tip": "应指定要跑的模糊测试"
+        },
+        {
+          "p": "-fuzztime=30s",
+          "tip": "应限制模糊测试时长"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.install-tool-pinned",
+      "track": "go",
+      "title": "装工具要钉版本（@latest 会让团队各装各的）",
+      "goal": "用 go install 安装指定版本的 gopls（写死 v0.16.2），而不是 @latest",
+      "hint": "go install pkg@version 把版本写进命令里，比\"大家自己 go get -u\" 可复现得多；@latest 在不同时间装出来不一样",
+      "sample": "go install golang.org/x/tools/gopls@v0.16.2",
+      "require": [
+        {
+          "p": "go\\s+install",
+          "tip": "应使用 go install"
+        },
+        {
+          "p": "gopls",
+          "tip": "要装的是 gopls"
+        },
+        {
+          "p": "@v0\\.16\\.2",
+          "tip": "版本要钉死为 @v0.16.2"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "@latest",
+          "tip": "别用 @latest：装出来的版本会随时间变化",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "go.test-coverpkg-cross",
+      "track": "go",
+      "title": "覆盖率要算上跨包调用（否则数字虚高）",
+      "goal": "跑测试时把覆盖率统计范围扩到所有包，并把 profile 落盘",
+      "hint": "默认只统计被测包自身：A 包测试里调用的 B 包代码不算进覆盖率；-coverpkg=./... 才是\"整体覆盖率\"",
+      "sample": "go test -coverpkg=./... -coverprofile=cover.out ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-coverpkg=\\./\\.\\.\\.",
+          "tip": "应把统计范围扩到所有包"
+        },
+        {
+          "p": "-coverprofile=cover\\.out",
+          "tip": "应把 profile 落盘（后面生成报告用）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.test-timeout-panic-stack",
+      "track": "go",
+      "title": "测试挂住了要能看到所有 goroutine 的栈",
+      "goal": "把单测超时时间收紧到 30 秒，并在超时/失败时打印 goroutine 栈",
+      "hint": "-timeout 让 go test 在超时时 panic 而不是永远挂着；超时 panic 里带的全量 goroutine 栈就是死锁现场",
+      "sample": "go test -timeout=30s -v ./...",
+      "require": [
+        {
+          "p": "go\\s+test",
+          "tip": "应使用 go test"
+        },
+        {
+          "p": "-timeout=30s",
+          "tip": "应设置超时（-timeout=30s）"
+        },
+        {
+          "p": "-v",
+          "tip": "要详细输出，便于看到超时那一刻的上下文"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "go.build-cross-verify-static",
+      "track": "go",
+      "title": "一次交叉编译到 Linux 静态二进制并确认它真是静态的",
+      "goal": "关掉 CGO、指定 Linux/amd64，用 -trimpath 与去符号的方式构建出 bin/app，然后确认产物是静态链接的 Linux 可执行文件",
+      "hint": "CGO_ENABLED=0 才能得到纯静态；-trimpath 让构建路径不进二进制（可复现）；file 一眼看出架构与是否静态",
+      "sample": "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags \"-s -w\" -o bin/app ./cmd/app && file bin/app",
+      "require": [
+        {
+          "p": "CGO_ENABLED=0",
+          "tip": "要关掉 CGO 才能静态链接"
+        },
+        {
+          "p": "GOOS=linux",
+          "tip": "应指定目标系统"
+        },
+        {
+          "p": "GOARCH=amd64",
+          "tip": "应指定目标架构"
+        },
+        {
+          "p": "-trimpath",
+          "tip": "应去掉构建路径（-trimpath）"
+        },
+        {
+          "p": "-ldflags\\s+\"?-s\\s+-w",
+          "tip": "应去掉符号与调试信息"
+        },
+        {
+          "p": "file\\s+bin/app",
+          "tip": "构建完要真的确认产物类型（file）"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "go.vendor-offline-build",
+      "track": "go",
+      "title": "离线可构建：把依赖拷进仓库再构建",
+      "goal": "把依赖落到 vendor/ 目录，用 -mod=vendor 离线构建出 dist/app，最后校验模块完整性",
+      "hint": "vendor 是给\"构建机不能访问外网\"准备的；构建时显式写 -mod=vendor，不要指望环境变量；收尾用 go mod verify 确认模块没被动过",
+      "sample": "go mod vendor && go mod verify && go build -mod=vendor -trimpath -o dist/app ./cmd/app",
+      "require": [
+        {
+          "p": "go mod vendor",
+          "tip": "先把依赖拷进 vendor/"
+        },
+        {
+          "p": "go mod verify",
+          "tip": "构建前校验模块完整性"
+        },
+        {
+          "p": "go build",
+          "tip": "应执行 go build"
+        },
+        {
+          "p": "-mod=vendor",
+          "tip": "显式声明走 vendor，不要依赖环境变量"
+        },
+        {
+          "p": "-trimpath",
+          "tip": "加 -trimpath，别把本机路径写进二进制"
+        },
+        {
+          "p": "-o dist/app",
+          "tip": "产物应输出到 dist/app"
+        }
+      ],
+      "verify": {
+        "cmd": "go version",
+        "expect": "go version",
+        "note": "前置检查：本机要装 Go 工具链"
+      },
+      "level": "hard"
+    },
+    {
+      "id": "go.benchstat-regression",
+      "track": "go",
+      "title": "性能改动到底有没有变快：同一基准跑两轮对比",
+      "goal": "把改动前的基准跑够 10 轮存成基线，再用 benchstat 对比新旧结果，而不是只看一次数字",
+      "hint": "单次 -bench 结果抖动能到 20%，所以要 -count=10 多轮采样，再用 benchstat 给出统计结论",
+      "sample": "go test -run=^$ -bench=BenchmarkParse -count=10 ./pkg/parser | tee new.txt && benchstat baseline.txt new.txt",
+      "require": [
+        {
+          "p": "go test",
+          "tip": "用 go test 跑基准"
+        },
+        {
+          "p": "-run=\\^\\$",
+          "tip": "用 -run=^$ 跳过普通测试，只跑基准"
+        },
+        {
+          "p": "-bench=BenchmarkParse",
+          "tip": "应指定要跑的基准名"
+        },
+        {
+          "p": "-count=10",
+          "tip": "多轮采样，单次结果没有统计意义"
+        },
+        {
+          "p": "tee new.txt",
+          "tip": "把这次结果留档，才能和基线对比"
+        },
+        {
+          "p": "benchstat baseline.txt new.txt",
+          "tip": "用 benchstat 给出前后对比"
+        }
+      ],
+      "verify": {
+        "cmd": "go version",
+        "expect": "go version",
+        "note": "前置检查：本机要装 Go 工具链"
+      },
+      "level": "hard"
+    },
+    {
+      "id": "go.trace-latency",
+      "track": "go",
+      "title": "接口延迟抖动：抓一份 runtime trace 自己看调度",
+      "goal": "跑一次测试并输出 runtime trace，再用 go tool trace 打开它，从调度延迟看是不是 GC 或调度引起的抖动",
+      "hint": "trace 不是 profile：它看的是\"什么时候被调度、被谁挡住\"；-http 起一个本地查看器，trace.out 要留档",
+      "sample": "go test -run TestLatency -trace trace.out ./pkg/api && go tool trace -http=127.0.0.1:8080 trace.out",
+      "require": [
+        {
+          "p": "go test",
+          "tip": "用 go test 跑出一次可复现的负载"
+        },
+        {
+          "p": "-run TestLatency",
+          "tip": "要指定具体用例，别把整个包都跑了"
+        },
+        {
+          "p": "-trace trace.out",
+          "tip": "要输出 trace 文件"
+        },
+        {
+          "p": "go tool trace",
+          "tip": "用 go tool trace 打开它"
+        },
+        {
+          "p": "-http=127.0.0.1:8080",
+          "tip": "起本地查看器时要限定回环地址"
+        },
+        {
+          "p": "trace.out",
+          "tip": "trace 文件要留档，便于对比"
+        }
+      ],
+      "verify": {
+        "cmd": "go version",
+        "expect": "go version",
+        "note": "前置检查：本机要装 Go 工具链"
+      },
+      "level": "hard"
+    },
+    {
+      "id": "go.binary-size-symbols",
+      "track": "go",
+      "title": "二进制为什么这么大：按符号大小排一遍",
+      "goal": "用 go tool nm 按大小排序，列出占用最大的符号，找出体积大头",
+      "hint": "nm -size 给的是符号大小，-sort size 让最大的排在前面；只看尾部几条就够定位",
+      "sample": "go tool nm -size -sort size build/app | tail -20",
+      "require": [
+        {
+          "p": "go tool nm",
+          "tip": "用 go tool nm 看符号表"
+        },
+        {
+          "p": "-size",
+          "tip": "要带上符号大小"
+        },
+        {
+          "p": "-sort size",
+          "tip": "按大小排序，否则要自己翻"
+        },
+        {
+          "p": "build/app",
+          "tip": "要指定要分析的二进制"
+        },
+        {
+          "p": "tail -20",
+          "tip": "只看最大的那几条"
+        }
+      ],
+      "verify": {
+        "cmd": "go version",
+        "expect": "go version",
+        "note": "前置检查：本机要装 Go 工具链"
+      },
+      "level": "medium"
+    }
+  ]
+}

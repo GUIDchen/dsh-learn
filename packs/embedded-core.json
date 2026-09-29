@@ -1,0 +1,250 @@
+{
+  "id": "embedded-core",
+  "name": "嵌入式工具链（交叉编译、烧录、看固件）",
+  "track": "embedded",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "embedded.cross-compile",
+      "track": "embedded",
+      "title": "交叉编译 Cortex-M4 固件",
+      "goal": "用 arm-none-eabi-gcc 为 Cortex-M4（thumb 指令集）编译 main.c，产物叫 fw.elf",
+      "hint": "-mcpu 指内核，-mthumb 指指令集；两者都写清楚才算可复现",
+      "sample": "arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -O2 -o fw.elf main.c",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器 arm-none-eabi-gcc"
+        },
+        {
+          "p": "-mcpu=cortex-m4",
+          "tip": "缺少 -mcpu=cortex-m4 指定内核"
+        },
+        {
+          "p": "-mthumb",
+          "tip": "缺少 -mthumb（Cortex-M 只有 thumb 模式）"
+        },
+        {
+          "p": "-o\\s+fw\\.elf",
+          "tip": "产物应为 fw.elf"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "^\\s*gcc\\s",
+          "tip": "用本机 gcc 编出来的是 x86 代码，烧不进 Cortex-M"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.size-sections",
+      "track": "embedded",
+      "title": "看固件各段占多大（Flash/RAM 预算）",
+      "goal": "用 arm-none-eabi-size 查看 fw.elf 的段大小，并用更接近十六进制的格式看总量",
+      "hint": "size 默认十进制；-A 显示所有段，-x 用十六进制",
+      "sample": "arm-none-eabi-size -A -x fw.elf",
+      "require": [
+        {
+          "p": "arm-none-eabi-size",
+          "tip": "应使用 arm-none-eabi-size"
+        },
+        {
+          "p": "-A",
+          "tip": "缺少 -A（显示所有段）"
+        },
+        {
+          "p": "fw\\.elf",
+          "tip": "应指定固件文件 fw.elf"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "\\bsize\\s+fw\\.elf",
+          "tip": "本机的 size 是给 x86 用的，交叉工具链要用 arm-none-eabi-size"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.objcopy-bin",
+      "track": "embedded",
+      "title": "把 elf 转成可以直接烧的 bin",
+      "goal": "用 arm-none-eabi-objcopy 把 fw.elf 转成纯二进制 fw.bin",
+      "hint": "-O binary 输出原始二进制；调试信息不会进 bin",
+      "sample": "arm-none-eabi-objcopy -O binary fw.elf fw.bin",
+      "require": [
+        {
+          "p": "arm-none-eabi-objcopy",
+          "tip": "应使用 arm-none-eabi-objcopy"
+        },
+        {
+          "p": "-O\\s+binary",
+          "tip": "缺少 -O binary"
+        },
+        {
+          "p": "fw\\.elf",
+          "tip": "输入应为 fw.elf"
+        },
+        {
+          "p": "fw\\.bin",
+          "tip": "输出应为 fw.bin"
+        }
+      ],
+      "forbid": [
+        {
+          "p": ">\\s*fw\\.bin|cat\\s+fw\\.elf",
+          "tip": "别用重定向/拼接代替 objcopy，elf 头会被一起烧进去"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.openocd-flash",
+      "track": "embedded",
+      "title": "用 openocd 烧录并复位",
+      "goal": "用 openocd 通过 ST-Link 连接 STM32F4：烧录 fw.elf、校验、复位并退出",
+      "hint": "-f 分别指定调试器配置与目标芯片配置；-c 里写 program ... verify reset exit",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program fw.elf verify reset exit\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "-f\\s+interface/stlink",
+          "tip": "缺少调试器配置 interface/stlink.cfg"
+        },
+        {
+          "p": "-f\\s+target/stm32f4",
+          "tip": "缺少目标芯片配置 target/stm32f4x.cfg"
+        },
+        {
+          "p": "program\\s+fw\\.elf",
+          "tip": "缺少 program fw.elf"
+        },
+        {
+          "p": "verify.*reset.*exit|reset.*exit",
+          "tip": "缺少 verify/reset/exit，烧完不复位也不退出"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "dd\\s+if=",
+          "tip": "用 dd 直接写裸设备太危险，烧录交给 openocd"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.objdump-vector",
+      "track": "embedded",
+      "title": "反汇编看中断向量表",
+      "goal": "反汇编 fw.elf，只看前 40 行，确认第一条跳转和向量表布局",
+      "hint": "objdump -d 反汇编；Cortex-M 的向量表在 0x00000000 起",
+      "sample": "arm-none-eabi-objdump -d fw.elf | head -40",
+      "require": [
+        {
+          "p": "arm-none-eabi-objdump",
+          "tip": "应使用 arm-none-eabi-objdump"
+        },
+        {
+          "p": "-d",
+          "tip": "缺少 -d 反汇编"
+        },
+        {
+          "p": "fw\\.elf",
+          "tip": "应指定 fw.elf"
+        },
+        {
+          "p": "head\\s+-40|head\\s+-n\\s*40",
+          "tip": "应只取前 40 行"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.map-file",
+      "track": "embedded",
+      "title": "生成 map 文件定位固件体积从哪来",
+      "goal": "交叉编译 main.c 时让链接器输出 fw.map，产物仍是 fw.elf",
+      "hint": "-Wl,-Map=fw.map 把链接器参数透传给 ld；哪个函数占了 Flash 一看便知",
+      "sample": "arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -Wl,-Map=fw.map -o fw.elf main.c",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器"
+        },
+        {
+          "p": "-Wl,-Map=",
+          "tip": "缺少 -Wl,-Map= 传给链接器"
+        },
+        {
+          "p": "fw\\.map",
+          "tip": "map 文件应为 fw.map"
+        },
+        {
+          "p": "-o\\s+fw\\.elf",
+          "tip": "产物仍是 fw.elf"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.gc-sections",
+      "track": "embedded",
+      "title": "把没用到的函数从固件里丢掉",
+      "goal": "交叉编译时开启函数/数据分节，并让链接器回收未引用段，产物 fw.elf",
+      "hint": "-ffunction-sections -fdata-sections 配合 -Wl,--gc-sections 是固件瘦身标配",
+      "sample": "arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -ffunction-sections -fdata-sections -Wl,--gc-sections -o fw.elf main.c",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器"
+        },
+        {
+          "p": "-ffunction-sections",
+          "tip": "缺少 -ffunction-sections"
+        },
+        {
+          "p": "-fdata-sections",
+          "tip": "缺少 -fdata-sections"
+        },
+        {
+          "p": "--gc-sections",
+          "tip": "缺少 -Wl,--gc-sections"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.gpio-sysfs-read",
+      "track": "embedded",
+      "title": "先看一眼 GPIO 有没有被导出",
+      "goal": "列出 sysfs 里当前已导出的 GPIO 引脚，确认某个脚是不是已经有人在用",
+      "hint": "被导出的脚在 /sys/class/gpio/ 下是 gpioN 目录；没有对应目录说明还没导出（或已经被驱动接管）",
+      "sample": "ls /sys/class/gpio/ | grep -E \"^gpio[0-9]+$\"",
+      "require": [
+        {
+          "p": "ls\\s+/sys/class/gpio",
+          "tip": "应列出 /sys/class/gpio/"
+        },
+        {
+          "p": "grep",
+          "tip": "应过滤出 gpioN 目录，避免把 export/unexport 当成引脚"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "echo\\s+\\d+\\s*>\\s*/sys/class/gpio/export",
+          "tip": "先看再动：直接 export 可能和已经占用该脚的内核驱动打架",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

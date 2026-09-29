@@ -1,0 +1,227 @@
+{
+  "id": "imaging-core",
+  "name": "图像处理（缩放、灰度、元数据、视频抽帧）",
+  "track": "imaging",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "imaging.batch-resize",
+      "track": "imaging",
+      "title": "把当前目录所有 jpg 批量缩到 640x640",
+      "goal": "用命令行把当前目录下的 jpg 全部缩放成 640x640，输出到 out/ 目录",
+      "hint": "for 循环 + imagemagick 的 -resize；magick 是 ImageMagick 7 的新命令名",
+      "sample": "for f in *.jpg; do magick \"$f\" -resize 640x640 \"out/$f\"; done",
+      "require": [
+        {
+          "p": "for\\s+f\\s+in\\s+\\*\\.jpg",
+          "tip": "应遍历 *.jpg"
+        },
+        {
+          "p": "magick|convert",
+          "tip": "应使用 magick 或 convert 做转换"
+        },
+        {
+          "p": "-resize\\s+640x640",
+          "tip": "缺少 -resize 640x640"
+        },
+        {
+          "p": "out/",
+          "tip": "输出应放到 out/ 目录，别覆盖原图"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s",
+          "tip": "批量处理不要顺手删原图",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.grayscale-crop",
+      "track": "imaging",
+      "title": "转灰度并裁出左上 512x512",
+      "goal": "把 in.jpg 转灰度，从左上角裁 512x512，输出 out.png",
+      "hint": "-colorspace Gray 转灰度；-crop 宽x高+起点X+起点Y",
+      "sample": "magick in.jpg -colorspace Gray -crop 512x512+0+0 out.png",
+      "require": [
+        {
+          "p": "magick|convert",
+          "tip": "应使用 magick 或 convert"
+        },
+        {
+          "p": "-colorspace\\s+Gray",
+          "tip": "缺少 -colorspace Gray 转灰度"
+        },
+        {
+          "p": "-crop\\s+512x512\\+0\\+0",
+          "tip": "缺少 -crop 512x512+0+0"
+        },
+        {
+          "p": "out\\.png",
+          "tip": "输出应为 out.png"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-crop\\s+512x512\\s+out",
+          "tip": "crop 的偏移写成 +0+0，不要漏掉偏移参数"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.strip-exif",
+      "track": "imaging",
+      "title": "去掉 EXIF（发图前保护隐私）",
+      "goal": "把 photo.jpg 里的元数据（含 GPS）全部剥掉，生成 clean.jpg",
+      "hint": "-strip 去元数据；也可以同时指定质量",
+      "sample": "magick photo.jpg -strip -quality 85 clean.jpg",
+      "require": [
+        {
+          "p": "magick|convert",
+          "tip": "应使用 magick 或 convert"
+        },
+        {
+          "p": "-strip|exiftool\\s+-all=",
+          "tip": "缺少去元数据的操作（-strip 或 exiftool -all=）"
+        },
+        {
+          "p": "clean\\.jpg",
+          "tip": "输出应为 clean.jpg"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-quality\\s+100",
+          "tip": "剥元数据不需要拉满质量，85 左右即可（体积与观感平衡）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.opencv-shape",
+      "track": "imaging",
+      "title": "用 OpenCV 读图并打印尺寸与通道",
+      "goal": "用 python3 一行读 a.jpg，打印它的形状（高、宽、通道）与数据类型",
+      "hint": "cv2.imread 返回 numpy 数组；shape 是 (h, w, c)，dtype 是 uint8",
+      "sample": "python3 -c \"import cv2; im=cv2.imread('a.jpg'); print(im.shape, im.dtype)\"",
+      "require": [
+        {
+          "p": "import\\s+cv2",
+          "tip": "应导入 cv2"
+        },
+        {
+          "p": "imread",
+          "tip": "缺少 cv2.imread"
+        },
+        {
+          "p": "\\.shape",
+          "tip": "缺少 shape，看不到尺寸与通道"
+        },
+        {
+          "p": "dtype",
+          "tip": "缺少 dtype，看不到像素类型"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.video-frames",
+      "track": "imaging",
+      "title": "从视频里每秒抽一帧",
+      "goal": "用 ffmpeg 把 clip.mp4 每秒抽一帧，存到 frames/ 目录，文件名用 4 位序号",
+      "hint": "-vf fps=1 控制抽帧频率；%04d 是补零序号",
+      "sample": "ffmpeg -i clip.mp4 -vf fps=1 frames/%04d.jpg",
+      "require": [
+        {
+          "p": "ffmpeg\\s+-i\\s+clip\\.mp4",
+          "tip": "应指定输入 clip.mp4"
+        },
+        {
+          "p": "-vf\\s+fps=1",
+          "tip": "缺少 -vf fps=1"
+        },
+        {
+          "p": "frames/",
+          "tip": "输出应放在 frames/ 目录"
+        },
+        {
+          "p": "%04d",
+          "tip": "文件名要用 %04d 补零序号"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "ffmpeg -version",
+        "expect": "ffmpeg version",
+        "note": "前置检查：本机是否有 ffmpeg"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "imaging.gif-optimize",
+      "track": "imaging",
+      "title": "GIF 太大：分层优化压小体积",
+      "goal": "用 magick 把 in.gif 做逐帧优化后输出 out.gif",
+      "hint": "-layers Optimize 会合并相邻帧的相同像素区，动图体积能小一大截",
+      "sample": "magick in.gif -layers Optimize out.gif",
+      "require": [
+        {
+          "p": "magick|convert",
+          "tip": "应使用 magick 或 convert"
+        },
+        {
+          "p": "in\\.gif",
+          "tip": "应处理 in.gif"
+        },
+        {
+          "p": "-layers\\s+Optimize",
+          "tip": "缺少 -layers Optimize"
+        },
+        {
+          "p": "out\\.gif",
+          "tip": "输出应为 out.gif"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.watermark",
+      "track": "imaging",
+      "title": "给图右下角加半透明水印",
+      "goal": "把 logo.png 以 40% 不透明度合成到 in.jpg 的右下角，输出 marked.jpg",
+      "hint": "composite 的 -gravity southeast 定位右下角；-dissolve 控制透明度",
+      "sample": "magick composite -gravity southeast -dissolve 40 logo.png in.jpg marked.jpg",
+      "require": [
+        {
+          "p": "magick\\s+composite|composite",
+          "tip": "应使用 magick composite"
+        },
+        {
+          "p": "-gravity\\s+southeast",
+          "tip": "缺少 -gravity southeast（右下角）"
+        },
+        {
+          "p": "-dissolve\\s+40|--?alpha|compose",
+          "tip": "缺少透明度设置（-dissolve 40）"
+        },
+        {
+          "p": "marked\\.jpg",
+          "tip": "输出应为 marked.jpg"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "marked\\.jpg.*in\\.jpg|in\\.jpg\\s+in\\.jpg",
+          "tip": "不要把结果覆盖回原图",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

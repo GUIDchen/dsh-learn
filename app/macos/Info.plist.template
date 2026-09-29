@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>dsh-learn</string>
+  <key>CFBundleDisplayName</key>
+  <string>dsh-learn</string>
+  <key>CFBundleIdentifier</key>
+  <string>local.dshlearn.app</string>
+  <key>CFBundleExecutable</key>
+  <string>dsh-learn</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.194.0</string>
+  <key>CFBundleVersion</key>
+  <string>19400</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>12.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.developer-tools</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>dsh-learn · 本地命令行学习与验证工具</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
+  <!-- 构建时写入项目目录；也可用环境变量 DSH_LEARN_ROOT 覆盖 -->
+  <key>DSHLearnProjectRoot</key>
+  <string>__PROJECT_ROOT__</string>
+</dict>
+</plist>

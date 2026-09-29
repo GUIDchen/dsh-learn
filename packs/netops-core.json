@@ -1,0 +1,418 @@
+{
+  "id": "netops-core",
+  "name": "网络运维（接口、路由、抓包、带宽）",
+  "track": "netops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "netops.interface-addr",
+      "track": "netops",
+      "title": "看接口地址（macOS 与 Linux 命令不同）",
+      "goal": "列出本机所有网络接口的 IPv4 地址",
+      "hint": "Linux 用 ip -br addr；macOS 没有 ip 命令，用 ifconfig 过滤 inet",
+      "variants": {
+        "darwin": {
+          "sample": "ifconfig | grep 'inet '",
+          "require": [
+            {
+              "p": "ifconfig",
+              "tip": "macOS 用 ifconfig 看接口"
+            },
+            {
+              "p": "grep\\s+['\\\"]?inet",
+              "tip": "缺少过滤 inet（只关心 IPv4 地址）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^\\s*ip\\s",
+              "tip": "macOS 没有 ip 命令（实测 command not found）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "ip -br addr",
+          "require": [
+            {
+              "p": "ip\\s+-br\\s+addr|ip\\s+addr",
+              "tip": "Linux 用 ip addr 看接口"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^\\s*ifconfig\\s*$",
+              "tip": "新版发行版可能没有 ifconfig，用 ip"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-NetIPAddress -AddressFamily IPv4 | Select-Object InterfaceAlias,IPAddress",
+          "require": [
+            {
+              "p": "Get-NetIPAddress",
+              "tip": "Windows 用 Get-NetIPAddress 看接口地址"
+            },
+            {
+              "p": "IPv4|AddressFamily",
+              "tip": "要限定 IPv4（否则会连 IPv6 一起列出来）"
+            },
+            {
+              "p": "IPAddress",
+              "tip": "要看到地址本身（IPAddress）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\bifconfig\\b",
+              "tip": "Windows 没有 ifconfig"
+            },
+            {
+              "p": "^\\s*ip\\s+",
+              "tip": "Windows 没有 ip 命令"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "ifconfig|ip\\s+addr|netstat",
+          "tip": "应使用系统自带的接口查询命令（Linux: ip addr，macOS: ifconfig）"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "netops.routing-table",
+      "track": "netops",
+      "title": "看路由表与默认网关",
+      "goal": "打印本机路由表，确认默认网关走哪个接口",
+      "hint": "macOS 用 netstat -rn；Linux 用 ip route",
+      "variants": {
+        "darwin": {
+          "sample": "netstat -rn | head -20",
+          "require": [
+            {
+              "p": "netstat\\s+-rn",
+              "tip": "macOS 用 netstat -rn 看路由表"
+            },
+            {
+              "p": "head\\s+-20|head\\s+-n\\s*20",
+              "tip": "应只取前 20 行"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^\\s*ip\\s+route",
+              "tip": "macOS 没有 ip route（实测 command not found）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "ip route",
+          "require": [
+            {
+              "p": "ip\\s+route",
+              "tip": "Linux 用 ip route 看路由表"
+            }
+          ],
+          "forbid": []
+        },
+        "win32": {
+          "sample": "Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Select-Object NextHop,InterfaceAlias",
+          "require": [
+            {
+              "p": "Get-NetRoute",
+              "tip": "Windows 用 Get-NetRoute 看路由表"
+            },
+            {
+              "p": "0\\.0\\.0\\.0/0|NextHop",
+              "tip": "要能看出默认网关走哪（0.0.0.0/0 或 NextHop）"
+            },
+            {
+              "p": "NextHop|InterfaceAlias",
+              "tip": "要看下一跳或出接口"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^\\s*ip\\s+route",
+              "tip": "Windows 没有 ip route 命令"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "netstat|ip\\s+route|route\\s+-n",
+          "tip": "应使用系统自带的路由表命令（Linux: ip route，macOS: netstat -rn）"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "netops.tcpdump-port",
+      "track": "netops",
+      "title": "抓 20 个包看 443 上到底在聊什么",
+      "goal": "在 en0 上抓 443 端口的前 20 个包，不解析成域名（避免 DNS 干扰观察）",
+      "hint": "-nn 不做名字解析；-c 限制包数，避免抓不完",
+      "sample": "tcpdump -i en0 -nn port 443 -c 20",
+      "require": [
+        {
+          "p": "tcpdump",
+          "tip": "应使用 tcpdump"
+        },
+        {
+          "p": "-i\\s+\\S+",
+          "tip": "缺少 -i 指定网卡"
+        },
+        {
+          "p": "-nn",
+          "tip": "缺少 -nn，不解析域名/端口名观察更干净"
+        },
+        {
+          "p": "port\\s+443",
+          "tip": "缺少 port 443 过滤"
+        },
+        {
+          "p": "-c\\s+20",
+          "tip": "缺少 -c 20 限制包数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sudo\\s+rm|rm\\s+-rf",
+          "tip": "抓包不需要删除任何东西",
+          "severity": "block"
+        }
+      ],
+      "verify": {
+        "cmd": "tcpdump --version",
+        "expect": "tcpdump|libpcap",
+        "note": "前置检查：本机是否有 tcpdump（抓包通常需要 sudo）"
+      },
+      "level": "hard"
+    },
+    {
+      "id": "netops.dig-chain",
+      "track": "netops",
+      "title": "查 A 记录并追踪解析链路",
+      "goal": "先只输出 example.com 的 A 记录结果，再追踪一次完整解析链路",
+      "hint": "dig +short 只给结果；dig +trace 从根开始追",
+      "sample": "dig +short example.com A && dig +trace example.com",
+      "require": [
+        {
+          "p": "dig\\s+\\+short\\s+example\\.com",
+          "tip": "缺少 dig +short example.com A"
+        },
+        {
+          "p": "A\\b",
+          "tip": "应明确查询 A 记录"
+        },
+        {
+          "p": "\\+trace",
+          "tip": "缺少 +trace 追踪解析链路"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "nslookup",
+          "tip": "本题要求用 dig（nslookup 不给 TTL 与链路信息）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "netops.iperf3",
+      "track": "netops",
+      "title": "测到对端主机的带宽",
+      "goal": "用 iperf3 测到 10.0.0.5 的带宽：持续 10 秒、4 条并行流",
+      "hint": "-c 客户端连对端；-t 时长；-P 并行流数",
+      "sample": "iperf3 -c 10.0.0.5 -t 10 -P 4",
+      "require": [
+        {
+          "p": "iperf3\\s+-c\\s+10\\.0\\.0\\.5",
+          "tip": "缺少 iperf3 -c 10.0.0.5"
+        },
+        {
+          "p": "-t\\s+10",
+          "tip": "缺少 -t 10（测 10 秒）"
+        },
+        {
+          "p": "-P\\s+4",
+          "tip": "缺少 -P 4（4 条并行流）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "iperf3\\s+-s",
+          "tip": "本题是客户端探测；-s 是开启服务端"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "netops.dns-cache-flush",
+      "track": "netops",
+      "title": "刷新本机 DNS 缓存（macOS 与 Linux 完全不同）",
+      "goal": "把本机 DNS 缓存清掉，让下一次解析重新走网络（改了解析记录后最常做的一步）",
+      "hint": "macOS 没有统一的 flush 命令，官方做法是 dscacheutil -flushcache 再 HUP 一下 mDNSResponder；Linux 用 systemd-resolved 的 resolvectl flush-caches",
+      "require": [
+        {
+          "p": "flushcache|flush-caches",
+          "tip": "应真的执行刷新缓存的命令"
+        }
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder",
+          "require": [
+            {
+              "p": "dscacheutil\\s+-flushcache",
+              "tip": "macOS 应使用 dscacheutil -flushcache"
+            },
+            {
+              "p": "killall\\s+-HUP\\s+mDNSResponder",
+              "tip": "还要让 mDNSResponder 重新加载（killall -HUP mDNSResponder）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "resolvectl|systemd-resolve",
+              "tip": "macOS 上没有 systemd-resolved",
+              "severity": "warn"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "sudo resolvectl flush-caches",
+          "require": [
+            {
+              "p": "resolvectl\\s+flush-caches",
+              "tip": "Linux 应使用 resolvectl flush-caches"
+            },
+            {
+              "p": "sudo",
+              "tip": "需要 root 权限"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "dscacheutil|mDNSResponder",
+              "tip": "Linux 上没有 macOS 的缓存守护进程",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Clear-DnsClientCache",
+          "require": [
+            {
+              "p": "Clear-DnsClientCache|ipconfig\\s+/flushdns",
+              "tip": "Windows 上清 DNS 缓存用 Clear-DnsClientCache（或传统的 ipconfig /flushdns）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "dscacheutil",
+              "tip": "dscacheutil 是 macOS 的"
+            },
+            {
+              "p": "resolvectl|systemd-resolve",
+              "tip": "resolvectl 是 Linux 的"
+            }
+          ]
+        }
+      },
+      "level": "medium"
+    },
+    {
+      "id": "netops.time-sync-status",
+      "track": "netops",
+      "title": "看时间同步源状态（时间漂了排查从哪问起）",
+      "goal": "打印本机时间同步的源与同步状态，确认它到底有没有在同步",
+      "hint": "macOS 用 sntp -sS 做一次校时并看结果；Linux 用 chronyc sources -v 看每个源的状态（^* 表示当前选中的源）",
+      "require": [
+        {
+          "p": "sntp|chronyc|timedatectl",
+          "tip": "应使用对应平台的时间同步工具"
+        }
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "sudo sntp -sS time.apple.com",
+          "require": [
+            {
+              "p": "sntp\\s+-sS",
+              "tip": "macOS 应使用 sntp -sS 校时"
+            },
+            {
+              "p": "time\\.apple\\.com",
+              "tip": "应指定时间源"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "chronyc",
+              "tip": "macOS 默认不带 chrony",
+              "severity": "warn"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "chronyc sources -v",
+          "require": [
+            {
+              "p": "chronyc\\s+sources",
+              "tip": "Linux 应使用 chronyc sources"
+            },
+            {
+              "p": "-v",
+              "tip": "要详细输出（-v）才能看出源的状态字符"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "sntp\\s+-sS",
+              "tip": "Linux 上通常用 chrony/systemd-timesyncd，而不是 macOS 的 sntp -sS",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "w32tm /query /status",
+          "require": [
+            {
+              "p": "w32tm",
+              "tip": "Windows 用 w32tm 查时间同步（Windows 时间服务自带）"
+            },
+            {
+              "p": "/query",
+              "tip": "缺少 /query（/query /status 看当前同步源与状态）"
+            },
+            {
+              "p": "/status|/source",
+              "tip": "要看状态或源：/status 或 /source"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "sntp",
+              "tip": "sntp 是 macOS 的"
+            },
+            {
+              "p": "chronyc",
+              "tip": "chronyc 是 Linux 的"
+            },
+            {
+              "p": "timedatectl",
+              "tip": "timedatectl 是 Linux 的"
+            }
+          ]
+        }
+      },
+      "level": "medium"
+    }
+  ]
+}

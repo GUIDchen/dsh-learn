@@ -1,0 +1,342 @@
+{
+  "version": 1,
+  "envelope": {
+    "success": "成功响应带 ok:true（或业务字段，如 meta / project / jobs / matches / plan / markdown）",
+    "failure": "失败响应带 error；部分接口同时给 ok:false"
+  },
+  "routes": [
+    {
+      "path": "/api/analyze",
+      "purpose": "分析一段岗位描述（知识点 / 可练题 / 技术栈）"
+    },
+    {
+      "path": "/api/backup",
+      "purpose": "整机备份计划（GET）与执行（POST create/restore，支持 dryRun）"
+    },
+    {
+      "path": "/api/board",
+      "purpose": "学习排行榜"
+    },
+    {
+      "path": "/api/bootstrap",
+      "purpose": "平台、轨道、全部题目与判分规则（客户端离线判分用）"
+    },
+    {
+      "path": "/api/check",
+      "purpose": "提交答案并判定、记录进度（三端共用）"
+    },
+    {
+      "path": "/api/commands",
+      "purpose": "命令面板的命令表与快捷键（网页/原生/CLI 共用 core/commands.mjs）"
+    },
+    {
+      "path": "/api/corpus",
+      "purpose": "语料全文检索（跨项目，带行号）"
+    },
+    {
+      "path": "/api/daily",
+      "purpose": "每日一题（同一天稳定）"
+    },
+    {
+      "path": "/api/describe",
+      "purpose": "描述与提取（岗位/文档/截图 → 技术栈与知识点）"
+    },
+    {
+      "path": "/api/doctor",
+      "purpose": "数据体检（GET 只读；POST {fix:true} 做保守修复）"
+    },
+    {
+      "path": "/api/draft",
+      "purpose": "项目草案：GET 列表；POST 预览 / 转正式包"
+    },
+    {
+      "path": "/api/drill",
+      "purpose": "按给定题号或权重给出练习清单"
+    },
+    {
+      "path": "/api/export",
+      "purpose": "导出进度备份（含笔记与目标）"
+    },
+    {
+      "path": "/api/flow",
+      "purpose": "求职闭环动作（简历 / 推荐 / 搜集 / 投递 / 题包 / 计划构建）"
+    },
+    {
+      "path": "/api/goal",
+      "purpose": "学习目标读写"
+    },
+    {
+      "path": "/api/history",
+      "purpose": "练习历史（按题目与客户端过滤）"
+    },
+    {
+      "path": "/api/i18n",
+      "purpose": "界面文案表（zh-CN / en），core/i18n.mjs 为唯一事实源"
+    },
+    {
+      "path": "/api/import",
+      "purpose": "导入进度备份"
+    },
+    {
+      "path": "/api/jobs",
+      "purpose": "投递记录增改删查 + JD 分析 + 跟进视图"
+    },
+    {
+      "path": "/api/knowledge",
+      "purpose": "知识点字典与命中情况"
+    },
+    {
+      "path": "/api/mastery",
+      "purpose": "知识点掌握度（最弱先补 + 今天先练哪几道）"
+    },
+    {
+      "path": "/api/metrics",
+      "purpose": "运行指标：请求量/延迟/错误率/事件分布 + 本地数据量"
+    },
+    {
+      "path": "/api/note",
+      "purpose": "题目笔记读写"
+    },
+    {
+      "path": "/api/ocr",
+      "purpose": "截图识别（能力矩阵 / 文本）"
+    },
+    {
+      "path": "/api/onboarding",
+      "purpose": "首次运行引导：六步走到哪、下一步跑什么（三端同一份口径）"
+    },
+    {
+      "path": "/api/pack",
+      "purpose": "题包：生成模板 / 深度校验（口径 + 参考答案自测）/ 全库体检"
+    },
+    {
+      "path": "/api/plan",
+      "purpose": "学习计划（按岗位缺口生成）"
+    },
+    {
+      "path": "/api/prefs",
+      "purpose": "界面偏好（外观主题 auto/light/dark），三端共用"
+    },
+    {
+      "path": "/api/probe",
+      "purpose": "平台探针（只读，默认 dry-run）"
+    },
+    {
+      "path": "/api/progress",
+      "purpose": "学习进度汇总（含连续学习天数）"
+    },
+    {
+      "path": "/api/project",
+      "purpose": "项目管理：元数据 / 来源 / 索引 / 开练清单 / JD 清单 / 回填 / 重命名 / 删除 / 刷新 / 导入"
+    },
+    {
+      "path": "/api/reminder",
+      "purpose": "目标提醒（今天的练习量 vs 每日目标；level none/info/warn）"
+    },
+    {
+      "path": "/api/report",
+      "purpose": "Markdown 学习报告"
+    },
+    {
+      "path": "/api/research",
+      "purpose": "搜索并解析（搜到 → 抓回 → 抽知识点与草案）"
+    },
+    {
+      "path": "/api/review",
+      "purpose": "间隔复习队列"
+    },
+    {
+      "path": "/api/runners",
+      "purpose": "可用执行后端（本地 / 容器 / 远程）"
+    },
+    {
+      "path": "/api/scorecard",
+      "purpose": "进度趋势与成绩单（days 窗口；format=markdown 出 Markdown）"
+    },
+    {
+      "path": "/api/search",
+      "purpose": "搜索命令用法（多引擎，带 tried 记录）"
+    },
+    {
+      "path": "/api/storage",
+      "purpose": "存储 schema 状态（GET）与迁移（POST，支持 dryRun）"
+    },
+    {
+      "path": "/api/survey",
+      "purpose": "多岗位调研（texts）与分方向调研（groups）"
+    },
+    {
+      "path": "/api/understand",
+      "purpose": "文字理解（硬要求 / 加分项 / 技术栈结构）"
+    },
+    {
+      "path": "/api/verify",
+      "purpose": "题目验证（只读白名单，默认 dry-run）"
+    }
+  ],
+  "actions": [
+    {
+      "name": "analyze",
+      "route": "/api/jobs",
+      "identifiers": [
+        "id"
+      ],
+      "note": "分析岗位记录里的 JD，结果存回记录"
+    },
+    {
+      "name": "apply",
+      "route": "/api/flow",
+      "identifiers": [
+        "id"
+      ],
+      "note": "把岗位记录置为已投（状态时间线留痕）"
+    },
+    {
+      "name": "backfill",
+      "route": "/api/project",
+      "identifiers": [],
+      "note": "旧数据回填原文；不需要项目名（批量）"
+    },
+    {
+      "name": "build",
+      "route": "/api/flow",
+      "identifiers": [],
+      "note": "按现状生成学习计划文件"
+    },
+    {
+      "name": "collect",
+      "route": "/api/flow",
+      "identifiers": [],
+      "note": "搜集招聘信息（搜索 / 粘 JD / 截图 / 链接）"
+    },
+    {
+      "name": "create",
+      "route": "/api/backup",
+      "identifiers": [
+        "out"
+      ],
+      "note": "生成整机备份包（progress/jobs/goals/notes/projects/trust），支持 dryRun"
+    },
+    {
+      "name": "delete",
+      "route": "/api/jobs 或 /api/project",
+      "identifiers": [
+        "id",
+        "name"
+      ],
+      "note": "删除记录 / 项目（项目需 confirm）"
+    },
+    {
+      "name": "drill",
+      "route": "/api/project",
+      "identifiers": [
+        "project",
+        "prefix"
+      ],
+      "note": "开练清单；行里同时给 id 与 taskId"
+    },
+    {
+      "name": "import",
+      "route": "/api/project",
+      "identifiers": [],
+      "note": "按目录批量导入；不需要项目名（批量）"
+    },
+    {
+      "name": "index",
+      "route": "/api/project",
+      "identifiers": [
+        "name"
+      ],
+      "note": "项目索引（知识点 / 可练题 / 草案）"
+    },
+    {
+      "name": "init",
+      "route": "/api/project",
+      "identifiers": [
+        "name"
+      ],
+      "note": "建项目；响应同时给 project 与 meta 两个别名"
+    },
+    {
+      "name": "jdplan",
+      "route": "/api/project",
+      "identifiers": [
+        "name",
+        "project"
+      ],
+      "note": "岗位描述 → 练习清单（计划草案）"
+    },
+    {
+      "name": "new",
+      "route": "/api/pack",
+      "identifiers": [
+        "id"
+      ],
+      "note": "按 id/轨道/参考答案生成**开箱即通过深度校验**的题包模板（只生成不落盘）"
+    },
+    {
+      "name": "pack",
+      "route": "/api/flow",
+      "identifiers": [],
+      "note": "把当前进展整理成题包草案"
+    },
+    {
+      "name": "recommend",
+      "route": "/api/flow",
+      "identifiers": [],
+      "note": "岗位推荐；响应同时给 jobs 与 matches（core 返回数组）"
+    },
+    {
+      "name": "refresh",
+      "route": "/api/project",
+      "identifiers": [
+        "name"
+      ],
+      "note": "重算知识点并重建索引（补题包后用）"
+    },
+    {
+      "name": "rename",
+      "route": "/api/project",
+      "identifiers": [
+        "name"
+      ],
+      "note": "项目重命名（改目录 + 元数据）"
+    },
+    {
+      "name": "restore",
+      "route": "/api/backup",
+      "identifiers": [
+        "file"
+      ],
+      "note": "从备份包恢复；支持 dryRun；覆盖前把原文件留到 pre-restore 目录"
+    },
+    {
+      "name": "resume",
+      "route": "/api/flow",
+      "identifiers": [],
+      "note": "按真实练习生成简历要点"
+    },
+    {
+      "name": "tasks",
+      "route": "/api/project",
+      "identifiers": [
+        "name"
+      ],
+      "note": "项目可练题清单"
+    },
+    {
+      "name": "validate",
+      "route": "/api/pack",
+      "identifiers": [
+        "pack"
+      ],
+      "note": "深度校验：结构 + 难度口径 + 参考答案必须自测满分"
+    },
+    {
+      "name": "validate-all",
+      "route": "/api/pack",
+      "identifiers": [],
+      "note": "全库体检：packs/ 下每个包都过一遍深度校验"
+    }
+  ]
+}

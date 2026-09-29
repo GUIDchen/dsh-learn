@@ -1,0 +1,514 @@
+{
+  "id": "network-core",
+  "name": "网络排障（BSD 与 GNU 工具链差异明显）",
+  "track": "network",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "network.listen-ports",
+      "track": "network",
+      "title": "查看本机正在监听的 TCP 端口",
+      "goal": "列出所有处于 LISTEN 状态的 TCP 端口与对应进程",
+      "hint": "macOS 没有 ss：BSD 上用 lsof -nP，Linux 上用 ss -ltnp",
+      "variants": {
+        "darwin": {
+          "sample": "lsof -nP -iTCP -sTCP:LISTEN",
+          "require": [
+            {
+              "p": "lsof",
+              "tip": "macOS 上排查监听端口用 lsof"
+            },
+            {
+              "p": "-n|--numeric",
+              "tip": "加 -n 不做主机名反解，输出更快更稳定"
+            },
+            {
+              "p": "-P|--no-port",
+              "tip": "加 -P 让端口号保持数字形式"
+            },
+            {
+              "p": "LISTEN",
+              "tip": "要过滤 LISTEN 状态（-sTCP:LISTEN）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\bss\\s+-",
+              "tip": "macOS 没有 ss 命令，会报 command not found"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "ss -ltnp",
+          "require": [
+            {
+              "p": "\\bss\\b",
+              "tip": "Linux 上优先用 ss 查看套接字"
+            },
+            {
+              "p": "-l",
+              "tip": "缺少 -l 只看监听态"
+            },
+            {
+              "p": "-t",
+              "tip": "缺少 -t 只看 TCP"
+            },
+            {
+              "p": "-n|-p",
+              "tip": "建议加 -n（不反解）与 -p（显示进程）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "lsof",
+              "tip": "Linux 上 lsof 往往没装，ss 是内建的更快选择"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-NetTCPConnection -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess",
+          "require": [
+            {
+              "p": "Get-NetTCPConnection",
+              "tip": "Windows 上看监听端口用 Get-NetTCPConnection"
+            },
+            {
+              "p": "Listen",
+              "tip": "要过滤 Listen 状态"
+            },
+            {
+              "p": "LocalPort",
+              "tip": "要看到端口号（LocalPort）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\blsof\\b",
+              "tip": "Windows 没有 lsof"
+            },
+            {
+              "p": "\\bss\\s+-",
+              "tip": "Windows 没有 ss 命令"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "LISTEN|lsof|ss",
+          "tip": "应体现出只看监听态"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "network.dns-resolve",
+      "track": "network",
+      "title": "用系统自带工具做一次域名解析",
+      "goal": "查 example.com 解析到哪些地址",
+      "hint": "macOS 没有 getent：用 dscacheutil 查目录服务缓存；Linux 用 getent hosts 走 NSS",
+      "variants": {
+        "darwin": {
+          "sample": "dscacheutil -q host -a name example.com",
+          "require": [
+            {
+              "p": "dscacheutil",
+              "tip": "macOS 上用 dscacheutil 查主机名解析"
+            },
+            {
+              "p": "-a\\s*name|name\\s+example\\.com",
+              "tip": "要指定属性 -a name example.com"
+            },
+            {
+              "p": "example\\.com",
+              "tip": "应查询 example.com"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "getent",
+              "tip": "macOS 没有 getent，那是 glibc 的工具"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "getent hosts example.com",
+          "require": [
+            {
+              "p": "getent\\s+hosts",
+              "tip": "Linux 上用 getent hosts 走 NSS 解析"
+            },
+            {
+              "p": "example\\.com",
+              "tip": "应查询 example.com"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "dscacheutil",
+              "tip": "Linux 上没有 dscacheutil，那是 macOS 的工具"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Resolve-DnsName example.com | Select-Object Name,IPAddress",
+          "require": [
+            {
+              "p": "Resolve-DnsName",
+              "tip": "Windows 上用 Resolve-DnsName（PowerShell）"
+            },
+            {
+              "p": "example\\.com",
+              "tip": "要解析的就是 example.com"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "dscacheutil|getent\\s+hosts",
+              "tip": "dscacheutil / getent 是 macOS 与 Linux 的写法",
+              "severity": "warn"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "example\\.com",
+          "tip": "应查询 example.com"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "network.port-reachable",
+      "track": "network",
+      "title": "探测远端端口是否可达",
+      "goal": "不发送任何业务数据，只判断 127.0.0.1:8080 的 TCP 端口是否开着",
+      "hint": "nc 的 -z 是零 I/O 扫描模式，-v 打印结果，-w 控制超时",
+      "sample": "nc -z -v -w 2 127.0.0.1 8080",
+      "require": [
+        {
+          "p": "\\bnc\\b|netcat",
+          "tip": "应使用 nc 做端口探测"
+        },
+        {
+          "p": "-z",
+          "tip": "缺少 -z，会真的建立会话而不是只探测"
+        },
+        {
+          "p": "127\\.0\\.0\\.1|localhost",
+          "tip": "应指定目标主机"
+        },
+        {
+          "p": "8080",
+          "tip": "应指定端口 8080"
+        },
+        {
+          "p": "-w\\s*\\d|--wait|--timeout",
+          "tip": "加超时参数，避免默认超时太长"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "curl|wget",
+          "tip": "本题只要探测端口可达，不需要发 HTTP 请求"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "network.http-status",
+      "track": "network",
+      "title": "用一条命令只取回 HTTP 状态码",
+      "goal": "请求 http://localhost:8080/health，并且只把状态码打印出来（响应体丢弃）",
+      "hint": "curl 的 -o /dev/null 丢弃响应体，-w 控制输出格式",
+      "sample": "curl -sS -o /dev/null -w '%{http_code}\\n' http://localhost:8080/health",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "-o\\s*/dev/null|--output\\s+/dev/null",
+          "tip": "缺少 -o /dev/null，会把整个响应体打到屏幕上"
+        },
+        {
+          "p": "-w|--write-out",
+          "tip": "缺少 -w 无法只输出状态码"
+        },
+        {
+          "p": "http_code",
+          "tip": "格式串里要取 http_code"
+        },
+        {
+          "p": "http://localhost:8080/health|http://127\\.0\\.0\\.1:8080/health",
+          "tip": "应请求 http://localhost:8080/health"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-I\\s*$|--head",
+          "tip": "HEAD 请求与 GET 的状态码不一定一致，本题要求 GET 并丢弃响应体"
+        }
+      ],
+      "verify": {
+        "cmd": "curl --version",
+        "expect": "curl",
+        "note": "前置检查：本机是否有 curl"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "network.curl-multipart",
+      "track": "network",
+      "title": "用 curl 上传文件（multipart 表单）",
+      "goal": "把 report.pdf 以字段名 file 上传到 https://api.example.com/upload，并期待响应为 JSON",
+      "hint": "-F 走 multipart：@文件名 才是读文件内容；-H Accept 告诉服务端你想要 JSON",
+      "sample": "curl -sS -F 'file=@report.pdf' -H 'Accept: application/json' https://api.example.com/upload",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "-F\\s+'?file=@report\\.pdf",
+          "tip": "缺少 -F file=@report.pdf（multipart 字段）"
+        },
+        {
+          "p": "Accept:\\s*application/json",
+          "tip": "缺少 Accept 头，响应可能不是 JSON"
+        },
+        {
+          "p": "api\\.example\\.com",
+          "tip": "应指向目标接口"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--data-binary\\s+@report",
+          "tip": "文件上传要用 -F（multipart），--data-binary 不会带表单边界"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "network.curl-token-header",
+      "track": "network",
+      "title": "带鉴权调接口：令牌从环境变量来",
+      "goal": "用 curl 请求 /api/orders，带上 Bearer 令牌（从 $API_TOKEN 读取），失败时让脚本置非零退出",
+      "hint": "-f 让 4xx/5xx 变成非零退出，是流水线里必须加的一步；令牌不要写死",
+      "sample": "curl -fsS -H \"Authorization: Bearer $API_TOKEN\" https://api.example.com/api/orders",
+      "require": [
+        {
+          "p": "Authorization:\\s*Bearer",
+          "tip": "缺少 Authorization: Bearer 头"
+        },
+        {
+          "p": "API_TOKEN|\\$\\{?[A-Z_]*TOKEN",
+          "tip": "令牌应从环境变量读取"
+        },
+        {
+          "p": "-f\\b|--fail",
+          "tip": "缺少 -f：HTTP 4xx/5xx 时 curl 仍会以 0 退出"
+        },
+        {
+          "p": "api\\.example\\.com",
+          "tip": "应指向目标接口"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Bearer\\s+[A-Za-z0-9]{12,}",
+          "tip": "不要把令牌明文写在命令里",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "network.curl-retry-timeout",
+      "track": "network",
+      "title": "给接口调用加重试与超时（别让脚本挂死）",
+      "goal": "用 curl 请求 /health：连接超时 3 秒、总超时 10 秒、失败重试 3 次（每次间隔 2 秒）",
+      "hint": "--connect-timeout 管握手、--max-time 管整体、--retry 管失败重试；三个都写全才是健壮的调用",
+      "sample": "curl -fsS --connect-timeout 3 --max-time 10 --retry 3 --retry-delay 2 https://api.example.com/health",
+      "require": [
+        {
+          "p": "--connect-timeout\\s+3",
+          "tip": "缺少 --connect-timeout 3"
+        },
+        {
+          "p": "--max-time\\s+10",
+          "tip": "缺少 --max-time 10"
+        },
+        {
+          "p": "--retry\\s+3",
+          "tip": "缺少 --retry 3"
+        },
+        {
+          "p": "--retry-delay\\s+2|--retry-connrefused",
+          "tip": "缺少重试间隔或连接拒绝重试策略"
+        },
+        {
+          "p": "-f\\b|--fail",
+          "tip": "缺少 -f（失败要置非零退出）"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "network.ping-loss-stats",
+      "track": "network",
+      "title": "用 ping 统计丢包率（不是打一下就走）",
+      "goal": "对 8.8.8.8 发 10 个包，间隔 0.5 秒，最后看统计里的丢包率",
+      "hint": "-c 发包数、-i 间隔；统计行里的 packet loss 才是要看的数字",
+      "sample": "ping -c 10 -i 0.5 8.8.8.8",
+      "require": [
+        {
+          "p": "ping",
+          "tip": "应使用 ping"
+        },
+        {
+          "p": "-c\\s+10",
+          "tip": "缺少 -c 10（发 10 个包）"
+        },
+        {
+          "p": "-i\\s+0?\\.5|-i\\s+1\\b",
+          "tip": "缺少 -i 指定发包间隔"
+        },
+        {
+          "p": "8\\.8\\.8\\.8",
+          "tip": "应指定目标 8.8.8.8"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "ping\\s+\\S+\\s*$|ping\\s+-c\\s+1\\b",
+          "tip": "只发一个包看不出丢包率与抖动"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "network.listener-detail",
+      "track": "network",
+      "title": "谁在监听这个端口（lsof 与 ss 的两套写法）",
+      "goal": "只查 8080 端口的监听进程，且不把 IP 反解成域名（反解会卡住几秒）",
+      "hint": "macOS 用 lsof -nP -iTCP:8080 -sTCP:LISTEN（-n 不做反解、-P 不把端口显示成服务名）；Linux 用 ss -lntp sport = :8080",
+      "require": [
+        {
+          "p": "lsof|ss\\s+-l",
+          "tip": "应使用对应平台的端口查看工具"
+        }
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "lsof -nP -iTCP:8080 -sTCP:LISTEN",
+          "require": [
+            {
+              "p": "lsof\\s+-nP",
+              "tip": "macOS 应用 lsof -nP（免反解、端口用数字）"
+            },
+            {
+              "p": "-iTCP:8080",
+              "tip": "应限定 TCP 8080 端口"
+            },
+            {
+              "p": "-sTCP:LISTEN",
+              "tip": "应只看监听态（-sTCP:LISTEN）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "ss\\s+-lntp",
+              "tip": "macOS 自带没有 ss，这条命令在 mac 上跑不起来",
+              "severity": "warn"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "ss -lntp 'sport = :8080'",
+          "require": [
+            {
+              "p": "ss\\s+-lntp",
+              "tip": "Linux 应使用 ss -lntp"
+            },
+            {
+              "p": "sport\\s*=\\s*:8080",
+              "tip": "应用过滤表达式只看 8080"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "lsof\\s+-nP",
+              "tip": "Linux 上优先用 ss/ss -p，lsof 未必装",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "netstat -ano | findstr :8080",
+          "require": [
+            {
+              "p": "netstat\\s+-ano",
+              "tip": "Windows 上用 netstat -ano 看端口与 PID"
+            },
+            {
+              "p": "findstr\\s+:8080",
+              "tip": "用 findstr 过滤（Windows 没有 grep）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "lsof|ss\\s+-lntp",
+              "tip": "Windows 上没有 lsof/ss，这两条命令跑不起来",
+              "severity": "warn"
+            }
+          ]
+        }
+      },
+      "level": "medium"
+    },
+    {
+      "id": "network.dig-latency-chain",
+      "track": "network",
+      "title": "解析慢在哪一段：先用 +stats 看耗时，再 +trace 看链路",
+      "goal": "先量一次解析耗时看是哪一段慢，再沿解析链逐级查，并对照用公共 DNS 直查的结果",
+      "hint": "dig 的 Query time 只算服务端往返；+trace 会从根开始逐级问，能看出是哪一级慢；换成 8.8.8.8 直查可以排除本机 resolver 的问题",
+      "sample": "dig +stats example.com && dig +trace example.com && dig @8.8.8.8 +tcp example.com",
+      "require": [
+        {
+          "p": "dig \\+stats",
+          "tip": "先带 +stats 量一次耗时"
+        },
+        {
+          "p": "example.com",
+          "tip": "要指定要查的域名"
+        },
+        {
+          "p": "dig \\+trace",
+          "tip": "用 +trace 沿解析链逐级查"
+        },
+        {
+          "p": "dig @8.8.8.8",
+          "tip": "要换一个 DNS 直查做对照"
+        },
+        {
+          "p": "\\+tcp",
+          "tip": "要试一次 TCP 查询（UDP 被截断/被丢时会露出来）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "systemctls+(restart|stop)s+.*(resolved|named|dnsmasq)",
+          "severity": "block",
+          "tip": "别在排查阶段就重启本机解析服务：先取证，重启会把现场冲掉"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

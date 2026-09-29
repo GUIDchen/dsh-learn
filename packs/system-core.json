@@ -1,0 +1,900 @@
+{
+  "id": "system-core",
+  "name": "系统信息与桌面命令（macOS 与 Linux 差异最大的一块）",
+  "track": "system",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "system.cpu-count",
+      "track": "system",
+      "title": "取本机 CPU 核数",
+      "goal": "打印本机逻辑 CPU 核数（只输出数字）",
+      "hint": "macOS 用 sysctl 读内核参数，Linux 有专门的 nproc；两边互不认（实测 macOS 上没有 nproc，Linux 上 sysctl 也没有 hw.ncpu）",
+      "variants": {
+        "darwin": {
+          "sample": "sysctl -n hw.ncpu",
+          "require": [
+            {
+              "p": "sysctl",
+              "tip": "macOS 上用 sysctl 读内核参数"
+            },
+            {
+              "p": "-n",
+              "tip": "缺少 -n，会连键名一起打印出来"
+            },
+            {
+              "p": "hw\\.ncpu",
+              "tip": "核数对应的键是 hw.ncpu"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\bnproc\\b",
+              "tip": "macOS 没有 nproc（实测 command not found）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "nproc",
+          "require": [
+            {
+              "p": "\\bnproc\\b|getconf\\s+_NPROCESSORS_ONLN",
+              "tip": "Linux 上用 nproc（或用 getconf _NPROCESSORS_ONLN）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "sysctl\\s+-n\\s+hw\\.ncpu",
+              "tip": "Linux 上没有 hw.ncpu 这个键"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"(Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors\"",
+          "require": [
+            {
+              "p": "Get-CimInstance",
+              "tip": "用 CIM 查询拿硬件信息（wmic 已废弃）"
+            },
+            {
+              "p": "Win32_ComputerSystem",
+              "tip": "要查 Win32_ComputerSystem 这个类"
+            },
+            {
+              "p": "NumberOfLogicalProcessors",
+              "tip": "要看的是逻辑处理器数量"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "cpu|ncpu|nproc|NPROCESSORS",
+          "tip": "要体现出取的是 CPU 核数"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "uname -s",
+        "expect": "Darwin|Linux",
+        "note": "前置检查：先确认平台，再决定用哪套命令"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "system.memory-usage",
+      "track": "system",
+      "title": "看本机内存使用情况",
+      "goal": "用一条命令看当前内存占用（人类可读）",
+      "hint": "macOS 没有 free（实测 command not found），要么 vm_stat 要么 top -l 1；Linux 直接 free -h",
+      "variants": {
+        "darwin": {
+          "sample": "top -l 1 | grep PhysMem",
+          "require": [
+            {
+              "p": "top\\s+-l\\s*1|vm_stat",
+              "tip": "macOS 上用 top -l 1（或 vm_stat）看内存"
+            },
+            {
+              "p": "PhysMem|vm_stat|Page",
+              "tip": "要落在内存相关输出上"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\bfree\\s+-",
+              "tip": "macOS 没有 free 命令"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "free -h",
+          "require": [
+            {
+              "p": "\\bfree\\b",
+              "tip": "Linux 上用 free 看内存"
+            },
+            {
+              "p": "-h|--human",
+              "tip": "建议加 -h 输出人类可读单位"
+            }
+          ],
+          "forbid": []
+        },
+        "win32": {
+          "sample": "powershell -c \"Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory,TotalVisibleMemorySize\"",
+          "require": [
+            {
+              "p": "Win32_OperatingSystem",
+              "tip": "内存用量在 Win32_OperatingSystem 类里"
+            },
+            {
+              "p": "FreePhysicalMemory",
+              "tip": "要取可用物理内存"
+            },
+            {
+              "p": "TotalVisibleMemorySize",
+              "tip": "要取可见内存总量（两个一起才是\"用了多少\"）"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "mem|Mem|PhysMem|free|vm_stat",
+          "tip": "要体现出看的是内存"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "system.total-memory",
+      "track": "system",
+      "title": "取本机物理内存总量",
+      "goal": "打印本机物理内存总量（原始数值即可）",
+      "hint": "macOS 用 sysctl hw.memsize（字节）；Linux 从 /proc/meminfo 里取 MemTotal",
+      "variants": {
+        "darwin": {
+          "sample": "sysctl -n hw.memsize",
+          "require": [
+            {
+              "p": "sysctl",
+              "tip": "macOS 上用 sysctl"
+            },
+            {
+              "p": "hw\\.memsize",
+              "tip": "内存总量对应的键是 hw.memsize"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "/proc/meminfo",
+              "tip": "macOS 没有 /proc 文件系统"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "grep MemTotal /proc/meminfo",
+          "require": [
+            {
+              "p": "/proc/meminfo",
+              "tip": "Linux 上从 /proc/meminfo 取"
+            },
+            {
+              "p": "MemTotal",
+              "tip": "要取 MemTotal 这一行"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "sysctl",
+              "tip": "Linux 上没有 hw.memsize"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory\"",
+          "require": [
+            {
+              "p": "Get-CimInstance",
+              "tip": "用 CIM 查询拿内存总量"
+            },
+            {
+              "p": "Win32_ComputerSystem",
+              "tip": "TotalPhysicalMemory 挂在 Win32_ComputerSystem 上"
+            },
+            {
+              "p": "TotalPhysicalMemory",
+              "tip": "要取 TotalPhysicalMemory 属性"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "mem|Mem",
+          "tip": "要体现出取的是内存"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "system.open-path",
+      "track": "system",
+      "title": "用系统默认程序打开一个文件或网址",
+      "goal": "让系统用默认应用打开当前目录下的 report.html",
+      "hint": "macOS 是 open，Linux 桌面环境是 xdg-open；这两个命令在对方系统上都不存在",
+      "variants": {
+        "darwin": {
+          "sample": "open report.html",
+          "require": [
+            {
+              "p": "^open\\s|\\bopen\\s+report\\.html",
+              "tip": "macOS 上用 open 打开文件"
+            },
+            {
+              "p": "report\\.html",
+              "tip": "应指定目标文件 report.html"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "xdg-open",
+              "tip": "macOS 没有 xdg-open"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "xdg-open report.html",
+          "require": [
+            {
+              "p": "xdg-open",
+              "tip": "Linux 上用 xdg-open"
+            },
+            {
+              "p": "report\\.html",
+              "tip": "应指定目标文件 report.html"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^open\\s",
+              "tip": "Linux 上没有 macOS 的 open（那是 X11 里另一个同名程序）"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"Invoke-Item report.html\"",
+          "require": [
+            {
+              "p": "Invoke-Item",
+              "tip": "用 Invoke-Item 让系统默认程序打开它"
+            },
+            {
+              "p": "report.html",
+              "tip": "要打开的是 report.html"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "report\\.html",
+          "tip": "应指定目标文件 report.html"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "system.clipboard-copy",
+      "track": "system",
+      "title": "把命令输出复制到剪贴板",
+      "goal": "把 uname -a 的输出放进系统剪贴板，方便粘到别处",
+      "hint": "macOS 是 pbcopy；Linux 上按会话类型用 xclip 或 wl-copy",
+      "variants": {
+        "darwin": {
+          "sample": "uname -a | pbcopy",
+          "require": [
+            {
+              "p": "pbcopy",
+              "tip": "macOS 上用 pbcopy"
+            },
+            {
+              "p": "uname|\\|",
+              "tip": "应把某条命令的输出通过管道交给 pbcopy"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "xclip|wl-copy",
+              "tip": "macOS 没有 xclip / wl-copy"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "uname -a | xclip -selection clipboard",
+          "require": [
+            {
+              "p": "xclip|wl-copy",
+              "tip": "Linux 上用 xclip（X11）或 wl-copy（Wayland）"
+            },
+            {
+              "p": "uname|\\|",
+              "tip": "应把命令输出通过管道交进去"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "pbcopy",
+              "tip": "Linux 上没有 pbcopy"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"Get-CimInstance Win32_OperatingSystem | Select-Object Caption | Set-Clipboard\"",
+          "require": [
+            {
+              "p": "Get-CimInstance",
+              "tip": "先把要复制的内容取出来"
+            },
+            {
+              "p": "Set-Clipboard",
+              "tip": "用 Set-Clipboard 写进剪贴板"
+            },
+            {
+              "p": "Caption",
+              "tip": "要复制的是系统名称这一项"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "uname",
+          "tip": "应复制 uname -a 的输出"
+        }
+      ],
+      "forbid": [],
+      "level": "medium",
+      "verify": {
+        "cmd": "uname -s",
+        "expect": "Darwin|Linux",
+        "note": "环境前置：剪贴板命令随平台不同（pbcopy / xclip）"
+      }
+    },
+    {
+      "id": "system.port-owner",
+      "track": "system",
+      "title": "查 8080 端口被哪个进程占用",
+      "goal": "找出监听本机 8080 端口的进程（含 PID）",
+      "hint": "macOS 用 lsof 直接按端口过滤；Linux 用 ss 并带上进程信息（都实测过：macOS 没有 ss，Linux 常用镜像里也没装 lsof）",
+      "variants": {
+        "darwin": {
+          "sample": "lsof -nP -iTCP:8080 -sTCP:LISTEN",
+          "require": [
+            {
+              "p": "lsof",
+              "tip": "macOS 上用 lsof"
+            },
+            {
+              "p": "-i|iTCP",
+              "tip": "要用 -i 按网络地址过滤"
+            },
+            {
+              "p": "8080",
+              "tip": "应指定端口 8080"
+            },
+            {
+              "p": "LISTEN|-sTCP",
+              "tip": "应限定 LISTEN 状态"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\bss\\s",
+              "tip": "macOS 没有 ss（实测 command not found）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "ss -ltnp 'sport = :8080'",
+          "require": [
+            {
+              "p": "\\bss\\b",
+              "tip": "Linux 上用 ss"
+            },
+            {
+              "p": "-l|-t|-n|-p",
+              "tip": "应带 -l/-t/-n/-p 之类的参数"
+            },
+            {
+              "p": "8080",
+              "tip": "应指定端口 8080"
+            },
+            {
+              "p": "-p|processes",
+              "tip": "要看到进程需要 -p"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "lsof",
+              "tip": "很多 Linux 环境没装 lsof，优先用 ss"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-NetTCPConnection -LocalPort 8080 -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess",
+          "require": [
+            {
+              "p": "Get-NetTCPConnection",
+              "tip": "Windows 用 Get-NetTCPConnection 查端口占用（netstat -ano 也行，但没有对象化的字段）"
+            },
+            {
+              "p": "8080",
+              "tip": "应指定端口 8080"
+            },
+            {
+              "p": "Listen",
+              "tip": "应限定 Listen 状态"
+            },
+            {
+              "p": "-State|Listen",
+              "tip": "用 -State Listen 过滤，否则会把一堆连接都列出来"
+            },
+            {
+              "p": "OwningProcess",
+              "tip": "要拿到占用进程的 PID：OwningProcess"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\blsof\\b",
+              "tip": "Windows 没有 lsof 命令"
+            },
+            {
+              "p": "\\bss\\s+-",
+              "tip": "Windows 没有 ss 命令"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "8080",
+          "tip": "应指定端口 8080"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "system.top-snapshot",
+      "track": "system",
+      "title": "取一次进程快照（不要持续刷屏）",
+      "goal": "只跑一次 top，看 CPU 占用最高的进程，命令结束后立刻返回",
+      "hint": "macOS 的 top 用 -l 1 表示跑 1 次；Linux 用 -b 批处理模式配合 -n 1，否则会一直刷",
+      "variants": {
+        "darwin": {
+          "sample": "top -l 1 -o cpu -n 5",
+          "require": [
+            {
+              "p": "top",
+              "tip": "应使用 top"
+            },
+            {
+              "p": "-l\\s*1",
+              "tip": "macOS 用 -l 1 只跑一次"
+            },
+            {
+              "p": "-o\\s*cpu|-n\\s*\\d+",
+              "tip": "建议按 CPU 排序（-o cpu）并限定条数（-n）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "-b\\b|--batch",
+              "tip": "macOS 的 top 没有 -b（那是 Linux 的批处理模式）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "top -bn1 | head -20",
+          "require": [
+            {
+              "p": "top",
+              "tip": "应使用 top"
+            },
+            {
+              "p": "-b|--batch",
+              "tip": "Linux 上要用 -b 批处理模式，否则会刷屏"
+            },
+            {
+              "p": "-n\\s*1|-n1",
+              "tip": "缺少 -n 1（只跑一次）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "-l\\s*\\d",
+              "tip": "Linux 的 top 没有 -l（那是 macOS 的写法）"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-Process | Sort-Object CPU -Descending | Select-Object -First 5",
+          "require": [
+            {
+              "p": "Get-Process",
+              "tip": "Windows 用 Get-Process 取一次进程快照（不是 top）"
+            },
+            {
+              "p": "Sort-Object",
+              "tip": "要按 CPU 占用排序"
+            },
+            {
+              "p": "-Descending",
+              "tip": "占用高的排在前面"
+            },
+            {
+              "p": "-First",
+              "tip": "只取前几条，避免刷屏"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\btop\\b",
+              "tip": "Windows 没有 top 命令"
+            },
+            {
+              "p": "\\bps\\s",
+              "tip": "Windows 没有 ps（那是 Unix 的）"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "top",
+          "tip": "应使用 top"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "system.disk-usage",
+      "track": "system",
+      "title": "看哪个挂载点快满了（人类可读 + 只看本地盘）",
+      "goal": "查看本地文件系统的使用率，人类可读并按使用率一目了然",
+      "hint": "df -h 是容量；-l 只看本地文件系统（排除网络挂载），排障时更干净",
+      "sample": "df -hl",
+      "require": [
+        {
+          "p": "df\\s+-[a-z]*h",
+          "tip": "缺少 -h 人类可读"
+        },
+        {
+          "p": "l\\b|-l\\b|--local",
+          "tip": "缺少 -l（只看本地文件系统）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "df\\s+-h\\s+.*/dev/disk.*>|rm\\s",
+          "tip": "查容量不要顺带清盘",
+          "severity": "block"
+        }
+      ],
+      "level": "medium",
+      "variants": {
+        "win32": {
+          "sample": "Get-PSDrive -PSProvider FileSystem | Select-Object Name,Used,Free",
+          "require": [
+            {
+              "p": "Get-PSDrive",
+              "tip": "Windows 上用 Get-PSDrive 看各盘用量"
+            },
+            {
+              "p": "-PSProvider\\s+FileSystem",
+              "tip": "应只取文件系统提供程序（排除注册表等）"
+            },
+            {
+              "p": "Select-Object\\s+Name,Used,Free|Select\\s+Name,Used,Free",
+              "tip": "只需 Name / Used / Free 三列"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\bdf\\b",
+              "tip": "Windows 的 cmd/PowerShell 里没有 df（Git Bash 里才有）",
+              "severity": "warn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "system.load-average",
+      "track": "system",
+      "title": "看负载与运行时长（判断是不是真卡）",
+      "goal": "打印系统运行时长与 1/5/15 分钟负载",
+      "hint": "uptime 一行给全；负载要结合核数看（8 核上 load 8 才算跑满）",
+      "sample": "sysctl -n vm.loadavg && sysctl -n hw.ncpu",
+      "require": [
+        {
+          "p": "loadavg|uptime|sysctl",
+          "tip": "Linux 读 /proc/loadavg，macOS 用 sysctl -n vm.loadavg"
+        },
+        {
+          "p": "nproc|hw\\.ncpu|lscpu|cpuinfo",
+          "tip": "要一起看 CPU 核数，负载单独看没意义"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "system.process-top-mem",
+      "track": "system",
+      "title": "按内存占用排出前 10 个进程",
+      "goal": "列出内存占用最高的 10 个进程（显示 PID、命令与内存占比），不做名字截断",
+      "hint": "ps -eo 自定义列；--sort=-%mem 按内存倒序；-ww 不截断长命令",
+      "sample": "ps -eo pid,comm,%mem --sort=-%mem -ww | head -10",
+      "require": [
+        {
+          "p": "ps\\s+-e|ps\\s+aux|ps\\s+-A",
+          "tip": "应使用 ps 列出所有进程"
+        },
+        {
+          "p": "%mem|rss|mem",
+          "tip": "应包含内存相关列"
+        },
+        {
+          "p": "--sort=-?\\s*-?%?mem|sort\\s+-k|sort\\s+-r",
+          "tip": "缺少按内存排序"
+        },
+        {
+          "p": "head\\s+-10|head\\s+-n\\s*10",
+          "tip": "应只取前 10 行"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "system.command-origin",
+      "track": "system",
+      "title": "同名命令到底跑的是哪一个（PATH 里谁先命中）",
+      "goal": "打印 node 在 PATH 里的所有候选路径，并显示当前实际使用的那个",
+      "hint": "type -a 与 which -a 都能列全部命中；确认是本机 PATH 顺序问题的最快手段",
+      "sample": "type -a node || which -a node",
+      "require": [
+        {
+          "p": "type\\s+-a|which\\s+-a",
+          "tip": "应使用 type -a 或 which -a 列出全部候选"
+        },
+        {
+          "p": "node",
+          "tip": "应查询 node 命令"
+        }
+      ],
+      "forbid": [],
+      "level": "medium",
+      "variants": {
+        "win32": {
+          "sample": "where.exe node",
+          "require": [
+            {
+              "p": "where(\\.exe)?\\s+node",
+              "tip": "Windows 上用 where 列出 PATH 里的所有候选"
+            },
+            {
+              "p": "node",
+              "tip": "应查询 node 命令"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "type\\s+-a|which\\s+-a",
+              "tip": "Windows 的 type 是「看文件内容」，不是列命令来源",
+              "severity": "warn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "system.memory-snapshot",
+      "track": "system",
+      "title": "看内存还剩多少（BSD 与 GNU 工具不同）",
+      "goal": "打印当前内存使用概览：总量、已用、可用、缓存（只跑一条命令，不要进交互界面）",
+      "hint": "Linux 用 free -h（-h 人类可读）；macOS 没有 free，用 vm_stat（页为单位，页大小通常 16K）或 top -l 1 | head",
+      "sample": "vm_stat",
+      "require": [
+        {
+          "p": "free|vm_stat|top",
+          "tip": "Linux 用 free -h，macOS 用 vm_stat（或 top -l 1）"
+        },
+        {
+          "p": "total|Pages|PhysMem|-h|-m",
+          "tip": "要能看到总量与可用量"
+        }
+      ],
+      "variants": {
+        "linux": {
+          "title": "内存概览（GNU）",
+          "hint": "free -h 输出 total/used/free/buff-cache/available 一行看懂",
+          "sample": "free -h",
+          "require": [
+            {
+              "p": "\\bfree\\b",
+              "tip": "Linux 上应使用 free"
+            },
+            {
+              "p": "-h|--human|-m|-g",
+              "tip": "应加人类可读或单位参数（-h / -m）"
+            }
+          ]
+        },
+        "darwin": {
+          "title": "内存概览（macOS）",
+          "hint": "macOS 用 vm_stat 看各页计数；想快速看一眼也可以 top -l 1 的 PhysMem 一行",
+          "sample": "vm_stat",
+          "require": [
+            {
+              "p": "vm_stat|top\\s+-l\\s*1",
+              "tip": "macOS 上应使用 vm_stat（或 top -l 1）"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory,TotalVisibleMemorySize",
+          "require": [
+            {
+              "p": "Get-CimInstance\\s+Win32_OperatingSystem",
+              "tip": "Windows 上用 Get-CimInstance 取内存信息"
+            },
+            {
+              "p": "FreePhysicalMemory",
+              "tip": "要看可用物理内存"
+            },
+            {
+              "p": "TotalVisibleMemorySize",
+              "tip": "也要看总内存"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\bfree\\s+-h\\b|vm_stat",
+              "tip": "free / vm_stat 是 Linux 与 macOS 的命令",
+              "severity": "warn"
+            }
+          ]
+        }
+      },
+      "level": "medium"
+    },
+    {
+      "id": "ops.file-owner-package",
+      "track": "system",
+      "title": "这个文件是哪个包装的（pkgutil 与 dpkg）",
+      "goal": "查出某个已安装命令属于哪个软件包，判断它是包管理器装的还是手工拷进去的",
+      "hint": "macOS 没有 dpkg，用 pkgutil --file-info 查文件归属；Linux 用 dpkg -S 反查包名。查不到往往说明是手工装的，升级时最容易踩",
+      "require": [
+        {
+          "p": "pkgutil|dpkg|rpm",
+          "tip": "应使用对应平台的包管理器反查"
+        }
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "pkgutil --file-info /usr/local/bin/terraform",
+          "require": [
+            {
+              "p": "pkgutil\\s+--file-info",
+              "tip": "macOS 应使用 pkgutil --file-info"
+            },
+            {
+              "p": "/usr/local/bin/terraform",
+              "tip": "应指定要查的文件路径"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "dpkg\\s+-S",
+              "tip": "macOS 上没有 dpkg",
+              "severity": "warn"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "dpkg -S /usr/bin/terraform",
+          "require": [
+            {
+              "p": "dpkg\\s+-S",
+              "tip": "Debian 系应使用 dpkg -S 反查包名"
+            },
+            {
+              "p": "/usr/bin/terraform",
+              "tip": "应指定要查的文件路径"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "pkgutil",
+              "tip": "Linux 上没有 macOS 的 pkgutil",
+              "severity": "warn"
+            }
+          ]
+        }
+      },
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ]
+    },
+    {
+      "id": "system.load-per-cpu",
+      "track": "system",
+      "title": "负载高不高，先除以核数",
+      "goal": "打印负载均值与可用核数，判断 1 分钟负载是否超过了核数",
+      "hint": "load average 是\"可运行队列长度\"，4 核机器上 4.0 才刚跑满；不除以核数就说\"负载 8 好高\"会误判",
+      "sample": "uptime && nproc",
+      "require": [
+        {
+          "p": "uptime",
+          "tip": "应使用 uptime 看负载"
+        },
+        {
+          "p": "nproc|sysctl\\s+-n\\s+hw\\.ncpu",
+          "tip": "还要拿到核数（Linux 用 nproc，macOS 用 sysctl -n hw.ncpu）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "system.port-owner-forensics",
+      "track": "system",
+      "title": "端口被占了：从监听地址一路查到是哪个进程、跑了多久",
+      "goal": "先列出占用该端口的监听项（不解析域名、不查服务名），再按 PID 查进程的父子关系与启动时长，最后给出确认要不要动它的依据",
+      "hint": "lsof -nP 不去解析域名与端口名，输出稳定又快；拿到 PID 后 ps -o pid,ppid,etime,command 看它是不是被某个守护进程拉起来的、跑了多久",
+      "sample": "lsof -nP -iTCP:8080 -sTCP:LISTEN && ps -o pid,ppid,etime,command -p $(lsof -tiTCP:8080 -sTCP:LISTEN)",
+      "require": [
+        {
+          "p": "lsof -nP",
+          "tip": "要加 -nP，避免解析域名与端口名拖慢输出"
+        },
+        {
+          "p": "-iTCP:8080",
+          "tip": "要指定被占的端口"
+        },
+        {
+          "p": "-sTCP:LISTEN",
+          "tip": "只看监听状态的连接"
+        },
+        {
+          "p": "ps -o",
+          "tip": "要查进程详情，不能只留 PID"
+        },
+        {
+          "p": "ppid",
+          "tip": "要带父进程，判断是不是被守护进程拉起来的"
+        },
+        {
+          "p": "etime|start",
+          "tip": "要带启动时长，判断它是老服务还是刚卡住的临时进程"
+        },
+        {
+          "p": "lsof -tiTCP:8080",
+          "tip": "取 PID 用 -t，避免把表头一起喂给 ps"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "id": "cpp-modern",
+  "name": "现代 C++ 检查（RAII、STL、静态分析）",
+  "track": "cpp",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "cpp.syntax-only",
+      "track": "cpp",
+      "title": "只做语法检查，不产出二进制",
+      "goal": "用 C++20 标准只做语法与语义检查（不链接、不产出可执行文件），并打开全部警告",
+      "hint": "-fsyntax-only 只做前端检查，改完一个头文件时比完整构建快得多",
+      "sample": "g++ -std=c++20 -Wall -Wextra -fsyntax-only main.cpp",
+      "require": [
+        {
+          "p": "g\\+\\+|clang\\+\\+",
+          "tip": "应使用 g++ 或 clang++"
+        },
+        {
+          "p": "-std=c\\+\\+20|c\\+\\+20",
+          "tip": "缺少 -std=c++20"
+        },
+        {
+          "p": "-fsyntax-only",
+          "tip": "缺少 -fsyntax-only（只做检查）"
+        },
+        {
+          "p": "-Wall",
+          "tip": "缺少 -Wall"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-o\\s+\\S+",
+          "tip": "本题只检查语法，不要产出可执行文件"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.clang-tidy",
+      "track": "cpp",
+      "title": "用 clang-tidy 检查 RAII 与现代写法",
+      "goal": "对 main.cpp 跑 clang-tidy，只启用 modernize-use-* 与 cppcoreguidelines-owning-memory 这几组检查（用 C++20 标准）",
+      "hint": "clang-tidy 的 checks 用逗号分隔、支持通配；-- 后面是编译参数",
+      "sample": "clang-tidy -checks='modernize-use-*,cppcoreguidelines-owning-memory' main.cpp -- -std=c++20",
+      "require": [
+        {
+          "p": "clang-tidy",
+          "tip": "应使用 clang-tidy"
+        },
+        {
+          "p": "-checks",
+          "tip": "缺少 -checks 指定检查项"
+        },
+        {
+          "p": "modernize-use",
+          "tip": "缺少 modernize-use-* 检查组"
+        },
+        {
+          "p": "--\\s+",
+          "tip": "编译参数要写在 -- 之后"
+        },
+        {
+          "p": "-std=c\\+\\+20",
+          "tip": "缺少 -std=c++20"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-fix\\b|-fix-errors",
+          "tip": "先看报告再改代码：自动修复要单独 review"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.smart-pointer-symbols",
+      "track": "cpp",
+      "title": "从符号表确认智能指针真的在管资源",
+      "goal": "用 nm 查看 app 的符号，过滤出与 unique_ptr/shared_ptr 相关的符号并只看前 20 行（C++ 名字要 demangle）",
+      "hint": "RAII 生效时析构函数会出现在符号表里；-C 让 C++ 名字可读",
+      "sample": "nm -C app | grep -i 'unique_ptr\\|shared_ptr' | head -20",
+      "require": [
+        {
+          "p": "nm\\s",
+          "tip": "应使用 nm 查看符号表"
+        },
+        {
+          "p": "-C|--demangle",
+          "tip": "缺少 -C（demangle）"
+        },
+        {
+          "p": "unique_ptr|shared_ptr",
+          "tip": "应筛选智能指针相关符号"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应限制输出行数"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.stl-algorithm-check",
+      "track": "cpp",
+      "title": "STL 排序与去重：先排再 unique，最后 erase",
+      "goal": "对 vector<int> 做去重：先 sort，再用 unique 配合 erase（不要手写循环）。这道题只看命令，不需要真的编译运行",
+      "hint": "unique 只把重复元素挪到末尾并返回新逻辑结尾，必须配合 erase 才真的删掉",
+      "sample": "g++ -std=c++20 -Wall -Wextra -fsyntax-only -x c++ - <<< '#include <algorithm>\\n#include <vector>\\nint main(){ std::vector<int> v{3,1,3,2}; std::sort(v.begin(), v.end()); v.erase(std::unique(v.begin(), v.end()), v.end()); }'",
+      "require": [
+        {
+          "p": "std::sort|\\bsort\\(",
+          "tip": "缺少排序"
+        },
+        {
+          "p": "std::unique|\\bunique\\(",
+          "tip": "缺少 unique"
+        },
+        {
+          "p": "erase",
+          "tip": "缺少 erase：unique 之后必须真的删掉尾部"
+        },
+        {
+          "p": "-fsyntax-only",
+          "tip": "缺少 -fsyntax-only（本题只做检查）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "for\\s*\\(.*\\bpush_back|std::set<",
+          "tip": "本题要求用标准算法；手写循环或换容器不算"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

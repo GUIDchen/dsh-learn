@@ -1,0 +1,131 @@
+{
+  "id": "mlops-core",
+  "name": "MLOps（实验记录、数据版本、任务调度）",
+  "track": "mlops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "mlops.mlflow-run",
+      "track": "mlops",
+      "title": "用 MLflow 记录一次训练并提供参数覆盖",
+      "goal": "用 mlflow run 跑当前项目，把 epochs 覆盖成 5",
+      "hint": "mlflow run . 会按 MLproject 入口执行；-P 传参数，别把参数塞进命令行参数里",
+      "sample": "mlflow run . -P epochs=5",
+      "require": [
+        {
+          "p": "mlflow\\s+run",
+          "tip": "应使用 mlflow run"
+        },
+        {
+          "p": "\\.",
+          "tip": "应指定项目目录 ."
+        },
+        {
+          "p": "-P\\s+epochs=5|--param-list\\s+epochs=5",
+          "tip": "缺少 -P epochs=5 覆盖参数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "mlflow\\s+run\\s+.*--epochs",
+          "tip": "MLflow 的参数要用 -P 传，直接写 --epochs 会被当成项目参数报错"
+        }
+      ],
+      "verify": {
+        "cmd": "python3 --version",
+        "expect": "Python 3",
+        "note": "前置检查：MLflow 跑在 python 环境里"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "mlops.mlflow-ui",
+      "track": "mlops",
+      "title": "起 MLflow UI 看实验对比",
+      "goal": "在 5000 端口起 MLflow 界面，并把数据目录指向 mlruns",
+      "hint": "--backend-store-uri 决定数据在哪；本地目录写 file:./mlruns 最省事",
+      "sample": "mlflow ui --backend-store-uri file:./mlruns --port 5000",
+      "require": [
+        {
+          "p": "mlflow\\s+ui",
+          "tip": "应使用 mlflow ui"
+        },
+        {
+          "p": "--backend-store-uri",
+          "tip": "缺少 --backend-store-uri 指定数据位置"
+        },
+        {
+          "p": "mlruns",
+          "tip": "数据目录应指向 mlruns"
+        },
+        {
+          "p": "--port\\s+5000",
+          "tip": "缺少 --port 5000"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--host\\s+0\\.0\\.0\\.0",
+          "tip": "实验界面默认只在本机开；要对外暴露得先想清楚鉴权"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "mlops.dvc-add-push",
+      "track": "mlops",
+      "title": "把数据集纳入 DVC 版本管理",
+      "goal": "把 data/ 目录交给 DVC 跟踪，并把数据推到远端存储",
+      "hint": "dvc add 会在仓库里留下 .dvc 指针文件；真正的数据用 dvc push 传到远端（默认 .dvc/config 里的 remote）",
+      "sample": "dvc add data/ && dvc push",
+      "require": [
+        {
+          "p": "dvc\\s+add\\s+data/?",
+          "tip": "应使用 dvc add data/"
+        },
+        {
+          "p": "dvc\\s+push",
+          "tip": "缺少 dvc push 把数据推到远端"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+add\\s+data/(?!.*\\.dvc)",
+          "tip": "别把原始数据集直接 git add 进仓库（.dvc 指针才是要提交的）",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "mlops.airflow-dag-check",
+      "track": "mlops",
+      "title": "上线前先确认 DAG 能被解析",
+      "goal": "列出所有 DAG，并单独测试 train_dag 里的 train_task（逻辑日期用 2026-09-26）",
+      "hint": "airflow dags list 看解析结果；airflow tasks test 会真跑一个任务的函数，不落调度记录",
+      "sample": "airflow dags list && airflow tasks test train_dag train_task 2026-09-26",
+      "require": [
+        {
+          "p": "airflow\\s+dags\\s+list",
+          "tip": "缺少 airflow dags list 确认 DAG 能解析"
+        },
+        {
+          "p": "airflow\\s+tasks\\s+test\\s+train_dag\\s+train_task",
+          "tip": "缺少 airflow tasks test train_dag train_task"
+        },
+        {
+          "p": "2026-09-26",
+          "tip": "缺少逻辑日期参数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "airflow\\s+(dags\\s+)?(trigger|backfill)",
+          "tip": "调试用 tasks test；trigger/backfill 会影响调度记录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

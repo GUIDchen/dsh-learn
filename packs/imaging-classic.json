@@ -1,0 +1,227 @@
+{
+  "id": "imaging-classic",
+  "name": "经典图像处理（阈值、边缘、直方图、形态学）",
+  "track": "imaging",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "imaging.edge-canny",
+      "track": "imaging",
+      "title": "用 Canny 提边缘并落盘",
+      "goal": "用 python3 + OpenCV 读 in.jpg，转灰度、做 Canny 边缘检测（阈值 100/200），写到 edges.png",
+      "hint": "Canny 必须先转灰度；两个阈值分别管「弱边」与「强边」",
+      "sample": "python3 -c \"import cv2; im = cv2.imread('in.jpg'); gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY); edges = cv2.Canny(gray, 100, 200); cv2.imwrite('edges.png', edges)\"",
+      "require": [
+        {
+          "p": "imread",
+          "tip": "应读入图片"
+        },
+        {
+          "p": "cvtColor.*GRAY|IMREAD_GRAYSCALE",
+          "tip": "Canny 前必须转灰度"
+        },
+        {
+          "p": "Canny",
+          "tip": "缺少 cv2.Canny"
+        },
+        {
+          "p": "100",
+          "tip": "缺少低阈值 100"
+        },
+        {
+          "p": "200",
+          "tip": "缺少高阈值 200"
+        },
+        {
+          "p": "imwrite",
+          "tip": "缺少 imwrite 把结果落盘"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "imwrite\\('in\\.jpg'",
+          "tip": "不要把结果覆盖到原图",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "imaging.threshold-otsu",
+      "track": "imaging",
+      "title": "自动阈值二值化（Otsu）",
+      "goal": "用 python3 + OpenCV 对灰度图做 Otsu 自动阈值二值化，写出 bw.png",
+      "hint": "THRESH_OTSU 要和 THRESH_BINARY 组合使用；阈值参数写 0 即可",
+      "sample": "python3 -c \"import cv2; gray = cv2.imread('in.jpg', cv2.IMREAD_GRAYSCALE); _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU); cv2.imwrite('bw.png', bw)\"",
+      "require": [
+        {
+          "p": "IMREAD_GRAYSCALE|cvtColor",
+          "tip": "应拿到灰度图"
+        },
+        {
+          "p": "cv2\\.threshold",
+          "tip": "缺少 cv2.threshold"
+        },
+        {
+          "p": "THRESH_OTSU",
+          "tip": "缺少 THRESH_OTSU 自动阈值"
+        },
+        {
+          "p": "imwrite\\('bw\\.png'",
+          "tip": "缺少写出 bw.png"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.morphology-clean",
+      "track": "imaging",
+      "title": "用形态学开运算去掉小噪点",
+      "goal": "对二值图先做开运算（3x3 核：先腐蚀再膨胀），写出 clean.png",
+      "hint": "MORPH_OPEN 等价于先腐蚀再膨胀；小噪点会消失，大区域基本不变",
+      "sample": "python3 -c \"import cv2, numpy as np; bw = cv2.imread('bw.png', cv2.IMREAD_GRAYSCALE); kernel = np.ones((3,3), np.uint8); clean = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel); cv2.imwrite('clean.png', clean)\"",
+      "require": [
+        {
+          "p": "np\\.ones|ones\\(",
+          "tip": "应构造结构化核"
+        },
+        {
+          "p": "3,\\s*3",
+          "tip": "核大小应为 3x3"
+        },
+        {
+          "p": "morphologyEx",
+          "tip": "应使用 morphologyEx"
+        },
+        {
+          "p": "MORPH_OPEN",
+          "tip": "缺少 MORPH_OPEN 开运算"
+        },
+        {
+          "p": "imwrite\\('clean\\.png'",
+          "tip": "缺少写出 clean.png"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "MORPH_CLOSE",
+          "tip": "本题要去噪点：开运算（先腐蚀）才对，闭运算会把噪点连起来"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.histogram-equalize",
+      "track": "imaging",
+      "title": "直方图均衡化，把暗图拉亮",
+      "goal": "用 python3 + OpenCV 对灰度图做直方图均衡化，写出 eq.png",
+      "hint": "equalizeHist 只接受单通道灰度图；彩色图要先转 YCrCb 只均衡 Y 通道",
+      "sample": "python3 -c \"import cv2; gray = cv2.imread('in.jpg', cv2.IMREAD_GRAYSCALE); eq = cv2.equalizeHist(gray); cv2.imwrite('eq.png', eq)\"",
+      "require": [
+        {
+          "p": "IMREAD_GRAYSCALE|cvtColor",
+          "tip": "需要灰度图"
+        },
+        {
+          "p": "equalizeHist",
+          "tip": "缺少 cv2.equalizeHist"
+        },
+        {
+          "p": "imwrite\\('eq\\.png'",
+          "tip": "缺少写出 eq.png"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "imaging.compare-ssim",
+      "track": "imaging",
+      "title": "量化两张图的差异（SSIM 而不是肉眼）",
+      "goal": "用 magick compare 计算 a.jpg 与 b.jpg 的 SSIM 指标",
+      "hint": "compare -metric SSIM 输出相似度（越接近 1 越像）；做回归对比时比\"看起来差不多\"靠谱",
+      "sample": "magick compare -metric SSIM a.jpg b.jpg diff.png",
+      "require": [
+        {
+          "p": "magick\\s+compare|compare",
+          "tip": "应使用 magick compare"
+        },
+        {
+          "p": "-metric\\s+SSIM|SSIM",
+          "tip": "缺少 -metric SSIM"
+        },
+        {
+          "p": "a\\.jpg",
+          "tip": "应指定第一张图 a.jpg"
+        },
+        {
+          "p": "b\\.jpg",
+          "tip": "应指定第二张图 b.jpg"
+        },
+        {
+          "p": "diff\\.png",
+          "tip": "应输出差异图 diff.png"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.montage-contact-sheet",
+      "track": "imaging",
+      "title": "把一批图拼成联系表（一眼看完）",
+      "goal": "用 magick montage 把 frames/ 下的图拼成 4 列、每格缩到 200x200，输出 sheet.jpg",
+      "hint": "montage -tile 4x 控制列数、-geometry 控制每格尺寸与间距",
+      "sample": "magick montage frames/*.jpg -tile 4x -geometry 200x200+4+4 sheet.jpg",
+      "require": [
+        {
+          "p": "magick\\s+montage|montage",
+          "tip": "应使用 magick montage"
+        },
+        {
+          "p": "-tile\\s+4x",
+          "tip": "缺少 -tile 4x 指定 4 列"
+        },
+        {
+          "p": "-geometry\\s+200x200",
+          "tip": "缺少 -geometry 200x200"
+        },
+        {
+          "p": "sheet\\.jpg",
+          "tip": "输出应为 sheet.jpg"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "imaging.identify-verbose",
+      "track": "imaging",
+      "title": "一次看全图片属性（尺寸、色彩空间、EXIF）",
+      "goal": "用 magick identify 打印 a.jpg 的所有属性（详细模式）",
+      "hint": "identify 不带参数只给尺寸；-verbose 才是全量属性，含 EXIF 与色彩空间",
+      "sample": "magick identify -verbose a.jpg | head -40",
+      "require": [
+        {
+          "p": "magick\\s+identify|identify",
+          "tip": "应使用 magick identify"
+        },
+        {
+          "p": "-verbose|-format",
+          "tip": "缺少 -verbose（或 -format）看属性"
+        },
+        {
+          "p": "a\\.jpg",
+          "tip": "应指定 a.jpg"
+        },
+        {
+          "p": "head\\s+-40|head\\s+-n\\s*40",
+          "tip": "应限制输出行数"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    }
+  ]
+}

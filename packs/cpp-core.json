@@ -1,0 +1,346 @@
+{
+  "id": "cpp-core",
+  "name": "C++ 工程（标准、构建、检查、分析）",
+  "track": "cpp",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "cpp.std-version",
+      "track": "cpp",
+      "title": "明确指定 C++ 标准编译",
+      "goal": "用 C++20 标准编译 main.cpp：全警告、优化 2 级，产物叫 app",
+      "hint": "-std=c++20 明确标准；不写就跟着编译器默认走，换机器就翻车",
+      "sample": "g++ -std=c++20 -Wall -Wextra -O2 -o app main.cpp",
+      "require": [
+        {
+          "p": "g\\+\\+|clang\\+\\+",
+          "tip": "应使用 g++ 或 clang++"
+        },
+        {
+          "p": "-std=(c\\+\\+|gnu\\+\\+)20",
+          "tip": "缺少 -std=c++20"
+        },
+        {
+          "p": "-Wall",
+          "tip": "缺少 -Wall"
+        },
+        {
+          "p": "-Wextra",
+          "tip": "缺少 -Wextra"
+        },
+        {
+          "p": "-o\\s+app",
+          "tip": "产物应命名为 app"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-std=(c\\+\\+|gnu\\+\\+)(98|03|11)\\b",
+          "tip": "本题要求 C++20，用更老的标准会被判不通过"
+        }
+      ],
+      "verify": {
+        "cmd": "g++ --version",
+        "expect": "g\\+\\+|Apple clang|clang",
+        "note": "前置检查：本机是否有 g++/clang++"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "cpp.ubsan",
+      "track": "cpp",
+      "title": "同时打开未定义行为与内存检查",
+      "goal": "编译 main.cpp 时同时打开 AddressSanitizer 与 UndefinedBehaviorSanitizer，并运行一次",
+      "hint": "两个 sanitizer 可以用逗号连写：-fsanitize=address,undefined",
+      "sample": "g++ -std=c++20 -fsanitize=address,undefined -g -o app main.cpp && ./app",
+      "require": [
+        {
+          "p": "g\\+\\+|clang\\+\\+",
+          "tip": "应使用 g++ 或 clang++"
+        },
+        {
+          "p": "address",
+          "tip": "缺少 address 检查"
+        },
+        {
+          "p": "undefined",
+          "tip": "缺少 undefined 检查"
+        },
+        {
+          "p": "-g\\b",
+          "tip": "缺少 -g，报错里看不到源码行"
+        },
+        {
+          "p": "./app",
+          "tip": "编译完要运行一次"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.nm-symbols",
+      "track": "cpp",
+      "title": "确认哪些符号被导出（符号表怎么看）",
+      "goal": "用 nm 查看 app 的符号表：C++ 名字要还原成人看得懂的形式，只看已定义的文本段符号，取前 20 行",
+      "hint": "nm -C 会做 demangle；大写的 T 表示在 .text 段里定义",
+      "sample": "nm -C app | grep ' T ' | head -20",
+      "require": [
+        {
+          "p": "nm\\s",
+          "tip": "应使用 nm 查看符号表"
+        },
+        {
+          "p": "-C|--demangle",
+          "tip": "缺少 -C，C++ 符号是一串乱码"
+        },
+        {
+          "p": "T",
+          "tip": "缺少筛选已定义文本段符号（T）"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应只取前 20 行"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.cmake-build",
+      "track": "cpp",
+      "title": "用 CMake 配置 Release 并构建",
+      "goal": "配置构建目录 build（Release 模式），然后构建它，启用并行",
+      "hint": "现代写法：cmake -S . -B build；构建用 cmake --build build -j",
+      "sample": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j",
+      "require": [
+        {
+          "p": "cmake\\s+-S\\s+\\.\\s+-B\\s+build",
+          "tip": "应写成 cmake -S . -B build"
+        },
+        {
+          "p": "CMAKE_BUILD_TYPE=Release",
+          "tip": "缺少 -DCMAKE_BUILD_TYPE=Release"
+        },
+        {
+          "p": "cmake\\s+--build\\s+build",
+          "tip": "构建要用 cmake --build build"
+        },
+        {
+          "p": "-j\\b|-j\\s*[0-9]+",
+          "tip": "构建时启用并行（-j）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "make\\s+-C\\s+build",
+          "tip": "直接用 make 会绕过 CMake 的重新配置，构建目录变化后就错"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.valgrind-leaks",
+      "track": "cpp",
+      "title": "用 valgrind 把内存泄漏查干净",
+      "goal": "用 valgrind 跑 app，打开完整泄漏检查并显示所有类型的泄漏",
+      "hint": "--leak-check=full 与 --show-leak-kinds=all 是查泄漏的标准组合",
+      "sample": "valgrind --leak-check=full --show-leak-kinds=all ./app",
+      "require": [
+        {
+          "p": "valgrind",
+          "tip": "应使用 valgrind"
+        },
+        {
+          "p": "--leak-check=full",
+          "tip": "缺少 --leak-check=full"
+        },
+        {
+          "p": "--show-leak-kinds=all",
+          "tip": "缺少 --show-leak-kinds=all，只能看到一部分泄漏类型"
+        },
+        {
+          "p": "\\./app",
+          "tip": "要指定被检查的程序"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.make-flags",
+      "track": "cpp",
+      "title": "不改进代码，用 make 变量打开调试构建",
+      "goal": "用 make 构建，把 CXXFLAGS 设为 -O0 -g（不优化、带调试信息），目标为 app",
+      "hint": "make CXXFLAGS=... 会覆盖 Makefile 里的默认值，是排查构建问题最省事的开关",
+      "sample": "make CXXFLAGS=\"-O0 -g\" app",
+      "require": [
+        {
+          "p": "make\\b",
+          "tip": "应使用 make"
+        },
+        {
+          "p": "CXXFLAGS=",
+          "tip": "缺少 CXXFLAGS= 覆盖编译参数"
+        },
+        {
+          "p": "-O0|-g\\b",
+          "tip": "调试构建应包含 -O0 或 -g"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "应指定目标 app"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "make\\s+clean\\s*$",
+          "tip": "排查问题时先别 clean，保留已有产物更好对比"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.core-dump-backtrace",
+      "track": "cpp",
+      "title": "从 core dump 里看崩溃现场（不重跑程序）",
+      "goal": "用 lldb 加载 app 与 core 文件，打印调用栈后退出",
+      "hint": "lldb -c core ./app 直接进入崩溃现场；-o 可以顺序执行命令，适合写进脚本",
+      "sample": "lldb -c core ./app -o bt -o quit",
+      "require": [
+        {
+          "p": "lldb|gdb",
+          "tip": "应使用 lldb（macOS）或 gdb（Linux）"
+        },
+        {
+          "p": "-c\\s+core|core\\s+core",
+          "tip": "缺少 core 文件参数"
+        },
+        {
+          "p": "\\./app|app\\b",
+          "tip": "应指定可执行文件 app"
+        },
+        {
+          "p": "-o\\s+bt|\\bbt\\b|backtrace",
+          "tip": "缺少打印调用栈的命令"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+core|--core-",
+          "tip": "core dump 是现场证据，别删",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.dynamic-deps",
+      "track": "cpp",
+      "title": "看可执行文件依赖了哪些动态库（两个平台命令不同）",
+      "goal": "列出 ./app 依赖的动态库（macOS 用 otool，Linux 用 ldd）",
+      "hint": "macOS 没有 ldd，要用 otool -L；Linux 上则是 ldd",
+      "variants": {
+        "darwin": {
+          "sample": "otool -L ./app",
+          "require": [
+            {
+              "p": "otool\\s+-L",
+              "tip": "macOS 用 otool -L 看依赖"
+            },
+            {
+              "p": "\\./app",
+              "tip": "应指定 ./app"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^\\s*ldd\\s",
+              "tip": "macOS 没有 ldd（实测 command not found）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "ldd ./app",
+          "require": [
+            {
+              "p": "ldd\\s+\\./app",
+              "tip": "Linux 用 ldd ./app"
+            }
+          ],
+          "forbid": []
+        },
+        "win32": {
+          "sample": "dumpbin /dependents app.exe",
+          "require": [
+            {
+              "p": "dumpbin\\s+/dependents|objdump\\s+-p",
+              "tip": "Windows 上看 PE 依赖用 dumpbin /dependents（没有 VS 时用 objdump -p）"
+            },
+            {
+              "p": "\\.exe",
+              "tip": "要针对具体的可执行文件（.exe）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\botool\\b",
+              "tip": "otool 是 macOS 的"
+            },
+            {
+              "p": "^\\s*ldd\\s",
+              "tip": "ldd 是 Linux 的"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "otool|ldd",
+          "tip": "应使用平台对应的依赖查看命令"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "cpp.sanitizer-ctest-repro",
+      "track": "cpp",
+      "title": "崩溃只在某条用例出现：带 ASan+UBSan 构建，只跑那条用例复现",
+      "goal": "用 ASan+UBSan 构建后只运行有名的那条测试复现问题，并让 sanitizer 在第一次出错时就中止",
+      "hint": "两个 sanitizer 可以一起开；-fno-omit-frame-pointer 才有可读栈；ASAN_OPTIONS=abort_on_error=1 让它在第一次错误就停（方便 gdb 接住）",
+      "sample": "cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-omit-frame-pointer -g\" && cmake --build build && ASAN_OPTIONS=abort_on_error=1 ctest --test-dir build -R parse_offsets --output-on-failure",
+      "require": [
+        {
+          "p": "cmake -B build",
+          "tip": "构建目录要明确"
+        },
+        {
+          "p": "CMAKE_BUILD_TYPE=Debug",
+          "tip": "Debug 构建才有调试信息"
+        },
+        {
+          "p": "fsanitize=address,undefined",
+          "tip": "要同时打开 ASan 与 UBSan"
+        },
+        {
+          "p": "-fno-omit-frame-pointer",
+          "tip": "缺了它栈会不可读"
+        },
+        {
+          "p": "ASAN_OPTIONS=abort_on_error=1",
+          "tip": "让 sanitizer 第一次出错就中止"
+        },
+        {
+          "p": "ctest --test-dir build -R parse_offsets",
+          "tip": "只跑复现那条用例，别整套跑"
+        },
+        {
+          "p": "--output-on-failure",
+          "tip": "失败时要打印输出"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

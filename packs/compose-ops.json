@@ -1,0 +1,189 @@
+{
+  "id": "compose-ops",
+  "name": "Compose 生产实践（profiles、健康依赖、扩缩容）",
+  "track": "docker",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "compose.profiles",
+      "track": "docker",
+      "title": "把调试工具收进 profile，按需启动",
+      "goal": "让 adminer 服务只在显式启用 debug 这个 profile 时才启动",
+      "hint": "profiles 写在服务上，启动时用 --profile 指定；不带 --profile 时该服务不会被创建",
+      "sample": "services: adminer: { image: adminer, profiles: [debug] } → docker compose --profile debug up -d",
+      "require": [
+        {
+          "p": "profiles",
+          "tip": "服务里应声明 profiles"
+        },
+        {
+          "p": "debug",
+          "tip": "profile 名应为 debug"
+        },
+        {
+          "p": "--profile\\s+debug|--profile=debug",
+          "tip": "启动时要显式带上 --profile debug"
+        },
+        {
+          "p": "adminer",
+          "tip": "被收进 profile 的应是 adminer 服务"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "compose.depends-on-healthy",
+      "track": "docker",
+      "title": "等数据库真正可用后再启动应用",
+      "goal": "让 web 依赖 db，但必须等到 db 的健康检查通过才启动",
+      "hint": "只写 depends_on 只保证启动顺序，不保证服务就绪；condition: service_healthy 才等健康",
+      "sample": "services: web: { depends_on: { db: { condition: service_healthy } } }",
+      "require": [
+        {
+          "p": "depends_on",
+          "tip": "应声明 depends_on"
+        },
+        {
+          "p": "condition",
+          "tip": "缺少 condition"
+        },
+        {
+          "p": "service_healthy|service_started",
+          "tip": "应使用 condition: service_healthy（或至少说明区别）"
+        },
+        {
+          "p": "db",
+          "tip": "应依赖 db 服务"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "compose.scale",
+      "track": "docker",
+      "title": "把 web 服务扩到 3 个副本",
+      "goal": "把 web 扩到 3 个实例，并说明为什么它会报端口冲突",
+      "hint": "服务写死了 host 端口就不能多副本；应该去掉 ports 映射，由前置代理或端口范围处理",
+      "sample": "docker compose up -d --scale web=3   # 若 compose 里 web 写了 \"8080:80\" 会报端口冲突",
+      "require": [
+        {
+          "p": "docker\\s+compose\\s+up",
+          "tip": "应使用 docker compose up"
+        },
+        {
+          "p": "--scale[= ]web=3",
+          "tip": "缺少 --scale web=3"
+        },
+        {
+          "p": "端口|port|conflict|冲突",
+          "tip": "应说明固定端口会与多副本冲突"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "compose.config-validate",
+      "track": "docker",
+      "title": "上线前校验并渲染 compose 文件",
+      "goal": "不改动任何容器，只检查 docker-compose.yml 是否合法，并列出它定义的服务名",
+      "hint": "compose config 会把变量插值后的最终配置打印出来，--services 只看服务名",
+      "sample": "docker compose config -q && docker compose config --services",
+      "require": [
+        {
+          "p": "docker\\s+compose\\s+config",
+          "tip": "应使用 docker compose config"
+        },
+        {
+          "p": "--services|-q|--quiet|-f\\s+docker-compose\\.yml|--file",
+          "tip": "应指明要校验的文件或用它列出服务名"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+compose\\s+up",
+          "tip": "本题只校验配置，不要真的启动容器"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "compose.ps-format",
+      "track": "docker",
+      "title": "用机器可读的格式看服务状态",
+      "goal": "把 compose 项目的服务状态输出成 JSON，方便脚本解析",
+      "hint": "compose ps 支持 --format json；默认的表格格式不适合脚本",
+      "sample": "docker compose ps --format json",
+      "require": [
+        {
+          "p": "docker\\s+compose\\s+ps",
+          "tip": "应使用 docker compose ps"
+        },
+        {
+          "p": "--format\\s+json|--format=json",
+          "tip": "缺少 --format json"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "compose.down-keep-volumes",
+      "track": "docker",
+      "title": "停掉整套服务但保留数据",
+      "goal": "停止并移除 compose 创建的容器与网络，同时保留数据库的数据卷",
+      "hint": "compose down 默认不动命名卷；加 -v 会连卷一起删",
+      "sample": "docker compose down",
+      "require": [
+        {
+          "p": "docker\\s+compose\\s+down",
+          "tip": "应使用 docker compose down"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-v\\b|--volumes",
+          "tip": "加 -v 会把命名卷一起删掉，数据库数据不可恢复",
+          "severity": "block"
+        },
+        {
+          "p": "rm\\s+-rf\\s+/",
+          "tip": "不要在宿主机上删除数据目录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "compose.env-file",
+      "track": "docker",
+      "title": "用 env_file 注入配置而不是写死",
+      "goal": "让 web 服务从 .env.production 读取环境变量，而不是把密码写在 compose 文件里",
+      "hint": "env_file 指定文件路径；environment 里内联写密码会进 Git",
+      "sample": "services: web: { env_file: [.env.production] }",
+      "require": [
+        {
+          "p": "env_file",
+          "tip": "应使用 env_file"
+        },
+        {
+          "p": "\\.env\\.production|\\.env",
+          "tip": "应指向 .env.production"
+        },
+        {
+          "p": "web",
+          "tip": "应作用在 web 服务上"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "PASSWORD=|SECRET=|TOKEN=",
+          "tip": "不要把密码明文写进 compose 文件，应放进 env_file 或密钥管理"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

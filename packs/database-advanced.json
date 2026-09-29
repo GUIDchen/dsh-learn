@@ -1,0 +1,241 @@
+{
+  "id": "database-advanced",
+  "name": "数据库进阶（消费积压、文档库备份、连接数）",
+  "track": "database",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "db.kafka-consumer-lag",
+      "track": "database",
+      "title": "看消费组积压到哪了",
+      "goal": "用 kafka-consumer-groups 查看 order-worker 这个消费组在每个分区上的积压情况",
+      "hint": "--describe 给出 LAG 列；--bootstrap-server 指定 broker，别再写已废弃的 --zookeeper",
+      "sample": "kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group order-worker",
+      "require": [
+        {
+          "p": "kafka-consumer-groups(\\.sh)?",
+          "tip": "应使用 kafka-consumer-groups 工具"
+        },
+        {
+          "p": "--bootstrap-server",
+          "tip": "缺少 --bootstrap-server 指定 broker"
+        },
+        {
+          "p": "--describe",
+          "tip": "缺少 --describe，看不到 LAG"
+        },
+        {
+          "p": "--group\\s+order-worker",
+          "tip": "应指定消费组 order-worker"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--zookeeper",
+          "tip": "新版本已移除 --zookeeper，用 --bootstrap-server"
+        },
+        {
+          "p": "delete|reset-offsets.*to-earliest",
+          "tip": "只读巡检：不要顺手重置位点或删 topic",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.mongo-dump",
+      "track": "database",
+      "title": "备份一个 MongoDB 库（压缩归档）",
+      "goal": "把 app 库备份成压缩归档 app.archive.gz",
+      "hint": "mongodump 的 --archive 配合 --gzip 边导边压缩，比先导出目录再打包干净",
+      "sample": "mongodump --db app --archive=app.archive.gz --gzip",
+      "require": [
+        {
+          "p": "mongodump",
+          "tip": "应使用 mongodump"
+        },
+        {
+          "p": "--db\\s+app",
+          "tip": "缺少 --db app 指定库"
+        },
+        {
+          "p": "--archive",
+          "tip": "缺少 --archive（归档成单文件）"
+        },
+        {
+          "p": "--gzip",
+          "tip": "缺少 --gzip 压缩"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "mongorestore|drop\\b",
+          "tip": "备份操作不要顺带 restore 或删库",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.mysql-connections",
+      "track": "database",
+      "title": "连接数快满了：看当前连接与上限",
+      "goal": "一条命令查出 MySQL 当前连接数、历史最大连接数与最大连接上限",
+      "hint": "SHOW STATUS LIKE 'Threads%' 给当前与历史峰值；max_connections 是上限",
+      "sample": "mysql -u root -p -e \"SHOW STATUS LIKE 'Threads_%'; SHOW VARIABLES LIKE 'max_connections'\"",
+      "require": [
+        {
+          "p": "mysql\\s+-u\\s+root",
+          "tip": "应使用 mysql -u root 连接"
+        },
+        {
+          "p": "-e\\s+",
+          "tip": "缺少 -e 直接执行 SQL"
+        },
+        {
+          "p": "Threads_",
+          "tip": "缺少 Threads_% 状态查询"
+        },
+        {
+          "p": "max_connections",
+          "tip": "缺少 max_connections 上限查询"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "set\\s+global|kill\\s+",
+          "tip": "巡检只读：不要改参数或杀连接",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.mysql-dump-single-transaction",
+      "track": "database",
+      "title": "在线备份：不锁表的一致性导出",
+      "goal": "备份 app 库时使用单事务模式（保证一致性且尽量不锁表），并跳过锁表语句",
+      "hint": "--single-transaction 适合 InnoDB；--skip-lock-tables 避免 FLUSH TABLES WITH READ LOCK 影响线上",
+      "sample": "mysqldump --single-transaction --skip-lock-tables -u root -p app > app-consistent.sql",
+      "require": [
+        {
+          "p": "mysqldump",
+          "tip": "应使用 mysqldump"
+        },
+        {
+          "p": "--single-transaction",
+          "tip": "缺少 --single-transaction（一致性快照）"
+        },
+        {
+          "p": "--skip-lock-tables|--lock-tables=false",
+          "tip": "缺少跳过锁表（线上备份关键）"
+        },
+        {
+          "p": "app-consistent\\.sql",
+          "tip": "输出文件应为 app-consistent.sql"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--all-databases|--master-data",
+          "tip": "本题只备份 app 库；全库/主从信息导出是另一件事"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.redis-bigkeys",
+      "track": "database",
+      "title": "找大 key：Redis 内存被谁吃了",
+      "goal": "用 redis-cli 的离线分析扫一遍大 key（不阻塞业务）",
+      "hint": "--bigkeys 基于 SCAN 采样统计，比 KEYS * 安全；结果会按类型列出最大的键",
+      "sample": "redis-cli --bigkeys",
+      "require": [
+        {
+          "p": "redis-cli",
+          "tip": "应使用 redis-cli"
+        },
+        {
+          "p": "--bigkeys|--memkeys",
+          "tip": "缺少 --bigkeys 大键分析"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "keys\\s+\\*|\\bflushall\\b",
+          "tip": "分析大键不要用 KEYS * 或清库",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.es-cluster-health",
+      "track": "database",
+      "title": "ES 集群状态体检",
+      "goal": "用 curl 查看 Elasticsearch 集群健康（人类可读），包含分片与节点数",
+      "hint": "_cluster/health 给状态与分片统计，加 v=true 带表头；red/yellow 要立刻查",
+      "sample": "curl -s 'http://localhost:9200/_cluster/health?v=true'",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "_cluster/health",
+          "tip": "缺少 _cluster/health 接口"
+        },
+        {
+          "p": "v=true|\\?v\\b|pretty",
+          "tip": "缺少可读化参数（v/pretty）"
+        },
+        {
+          "p": "9200",
+          "tip": "应指向 9200 端口"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "_cluster/settings.*persistent|-X\\s+PUT|-X\\s+POST",
+          "tip": "体检只读：不要改集群设置",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.redis-slowlog",
+      "track": "database",
+      "title": "Redis 慢查询：最近 10 条",
+      "goal": "从当前连接的 Redis 里取最近 10 条慢查询记录",
+      "hint": "slowlog get 读的是服务端记录的命令耗时；阈值由 slowlog-log-slower-than 决定（单位微秒）",
+      "sample": "redis-cli slowlog get 10",
+      "require": [
+        {
+          "p": "redis-cli",
+          "tip": "应使用 redis-cli"
+        },
+        {
+          "p": "slowlog",
+          "tip": "要查慢查询日志 slowlog"
+        },
+        {
+          "p": "get",
+          "tip": "用 slowlog get 读记录"
+        },
+        {
+          "p": "\\b10\\b",
+          "tip": "取最近 10 条"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "slowlog\\s+reset",
+          "tip": "看慢查询不要顺手清空记录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

@@ -1,0 +1,431 @@
+{
+  "id": "docker-advanced",
+  "name": "Docker 进阶（构建、排障与安全清理）",
+  "track": "docker",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "docker.build-arg",
+      "track": "docker",
+      "title": "构建镜像时注入构建参数",
+      "goal": "用构建参数 APP_ENV=prod 构建镜像 myste:1.0，并把构建参数传给 Dockerfile",
+      "hint": "构建参数用 --build-arg 传入，Dockerfile 里要用 ARG 声明才能取到",
+      "sample": "docker build --build-arg APP_ENV=prod -t myste:1.0 .",
+      "require": [
+        {
+          "p": "docker\\s+build",
+          "tip": "应使用 docker build"
+        },
+        {
+          "p": "--build-arg",
+          "tip": "缺少 --build-arg 传构建参数"
+        },
+        {
+          "p": "APP_ENV=prod",
+          "tip": "参数应写成 APP_ENV=prod"
+        },
+        {
+          "p": "-t\\s*myste:1\\.0",
+          "tip": "缺少 -t myste:1.0 指定镜像名与标签"
+        },
+        {
+          "p": "\\.\\s*$",
+          "tip": "结尾要加 . 指定构建上下文"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "ENV\\s+APP_ENV",
+          "tip": "ENV 是 Dockerfile 指令，不是命令行参数"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.exec-root",
+      "track": "docker",
+      "title": "以 root 身份进入运行中的容器",
+      "goal": "容器 web 里的默认用户权限不足，用 root 身份开一个交互式 shell",
+      "hint": "exec 的 -u 指定用户，0 就是 root；-it 保证交互体验",
+      "sample": "docker exec -u 0 -it web bash",
+      "require": [
+        {
+          "p": "docker\\s+exec",
+          "tip": "应使用 docker exec"
+        },
+        {
+          "p": "-u\\s*0|--user[= ]0",
+          "tip": "缺少 -u 0 以 root 身份进入"
+        },
+        {
+          "p": "-it|-i\\s+-t|--interactive",
+          "tip": "缺少 -it 无法交互"
+        },
+        {
+          "p": "web",
+          "tip": "应指定容器名 web"
+        },
+        {
+          "p": "bash|sh",
+          "tip": "应指定要在容器内运行的 shell"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+run",
+          "tip": "容器已在运行，进入现有容器应用 exec 而不是 run"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.stats-snapshot",
+      "track": "docker",
+      "title": "取一次资源占用快照而不是实时流",
+      "goal": "打印一次所有容器的 CPU 与内存占用后立即退出，方便写进脚本",
+      "hint": "docker stats 默认是实时流，脚本里要加停止参数",
+      "sample": "docker stats --no-stream",
+      "require": [
+        {
+          "p": "docker\\s+stats",
+          "tip": "应使用 docker stats"
+        },
+        {
+          "p": "--no-stream",
+          "tip": "缺少 --no-stream，命令会一直刷屏不退出"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "while|watch",
+          "tip": "不要用外部循环模拟，stats 自带一次性快照参数"
+        }
+      ],
+      "verify": {
+        "cmd": "docker ps",
+        "expect": "CONTAINER ID|NAMES",
+        "note": "前置检查：确认 Docker 守护进程与 CLI 连通（守护进程未启动时这里会失败并说明原因）"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "docker.volume-format",
+      "track": "docker",
+      "title": "只打印所有卷的名字",
+      "goal": "列出所有数据卷，但只输出卷名，方便管道继续处理",
+      "hint": "docker 子命令普遍支持 --format 加 Go 模板",
+      "sample": "docker volume ls --format '{{.Name}}'",
+      "require": [
+        {
+          "p": "docker\\s+volume\\s+ls",
+          "tip": "应使用 docker volume ls"
+        },
+        {
+          "p": "--format",
+          "tip": "缺少 --format 只取需要字段"
+        },
+        {
+          "p": "\\.Name",
+          "tip": "模板应取 .Name"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "awk|sed|cut",
+          "tip": "原生 --format 就能做到，不必再走文本处理"
+        }
+      ],
+      "verify": {
+        "cmd": "docker volume ls",
+        "expect": "DRIVER",
+        "note": "前置检查：卷子系统是否可达"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "docker.network-inspect",
+      "track": "docker",
+      "title": "取自定义网络的网关地址",
+      "goal": "从 mysite-net 网络的详情里只输出网关地址",
+      "hint": "network inspect 的输出是嵌套结构，IPAM.Config 里才有 Gateway",
+      "sample": "docker network inspect mysite-net --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}'",
+      "require": [
+        {
+          "p": "docker\\s+network\\s+inspect",
+          "tip": "应使用 docker network inspect"
+        },
+        {
+          "p": "mysite-net",
+          "tip": "应指定网络名 mysite-net"
+        },
+        {
+          "p": "--format",
+          "tip": "缺少 --format"
+        },
+        {
+          "p": "IPAM",
+          "tip": "网关在 .IPAM.Config 里，模板要定位到它"
+        },
+        {
+          "p": "Gateway",
+          "tip": "模板应取 .Gateway"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "docker network ls",
+        "expect": "DRIVER",
+        "note": "前置检查：网络子系统是否可达"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "docker.compose-logs-tail",
+      "track": "docker",
+      "title": "查看 compose 某服务最近的日志并跟随",
+      "goal": "只看 web 服务最近 50 行日志，并持续跟随新输出",
+      "hint": "compose logs 支持 --tail 与 -f，顺序上先限定条数再看新内容",
+      "sample": "docker compose logs -f --tail 50 web",
+      "require": [
+        {
+          "p": "docker\\s+compose\\s+logs",
+          "tip": "应使用 docker compose logs"
+        },
+        {
+          "p": "-f|--follow",
+          "tip": "缺少 -f 无法持续跟随"
+        },
+        {
+          "p": "--tail\\s*=?\\s*50",
+          "tip": "应限定最近 50 行：--tail 50"
+        },
+        {
+          "p": "web",
+          "tip": "应指定服务名 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker-compose\\s+logs",
+          "tip": "docker-compose 是 v1 写法，v2 应为 docker compose"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.system-prune-safe",
+      "track": "docker",
+      "title": "安全清理：只删停止的容器与无用网络",
+      "goal": "清理掉已停止的容器、未被使用的网络与悬空镜像，但不要动还在用的镜像和数据卷",
+      "hint": "system prune 默认不动数据卷；加 -a 会连未被容器使用的镜像一起删，加 --volumes 会删数据",
+      "sample": "docker system prune",
+      "require": [
+        {
+          "p": "docker\\s+system\\s+prune",
+          "tip": "应使用 docker system prune"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--volumes|-v\\b",
+          "tip": "不要把 --volumes 混进来，数据卷删了不可恢复",
+          "severity": "block"
+        },
+        {
+          "p": "\\s-a\\b|--all",
+          "tip": "本题要求保守清理，-a 会删掉未被使用的镜像，想全删应单独确认"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.inspect-health",
+      "track": "docker",
+      "title": "只看容器的健康检查状态",
+      "goal": "从容器 web 的详情里只输出健康检查状态字段",
+      "hint": "健康状态在 .State.Health.Status，但只有镜像声明了 HEALTHCHECK 才有这个字段",
+      "sample": "docker inspect --format '{{.State.Health.Status}}' web",
+      "require": [
+        {
+          "p": "docker\\s+inspect",
+          "tip": "应使用 docker inspect"
+        },
+        {
+          "p": "--format",
+          "tip": "缺少 --format"
+        },
+        {
+          "p": "State\\.Health\\.Status",
+          "tip": "模板应取 .State.Health.Status"
+        },
+        {
+          "p": "web",
+          "tip": "应指定容器名 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "grep|awk|jq",
+          "tip": "原生 --format 足够，不必再做文本过滤"
+        }
+      ],
+      "verify": {
+        "cmd": "docker ps",
+        "expect": "CONTAINER ID|NAMES",
+        "note": "前置检查：确认守护进程可用"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "docker.build-secret",
+      "track": "docker",
+      "title": "构建时挂载密钥，但不留在镜像里",
+      "goal": "把本机的 ~/.npmrc 作为构建密钥挂进构建过程（id 叫 npmrc），镜像名 app:1.0，构建上下文是当前目录",
+      "hint": "BuildKit 的 --secret id=名字,src=路径：Dockerfile 里用 RUN --mount=type=secret,id=npmrc 读它，构建历史里查不到内容",
+      "sample": "DOCKER_BUILDKIT=1 docker build --secret id=npmrc,src=$HOME/.npmrc -t app:1.0 .",
+      "require": [
+        {
+          "p": "docker\\s+build",
+          "tip": "应使用 docker build"
+        },
+        {
+          "p": "--secret",
+          "tip": "用 --secret 挂载密钥，而不是把密钥写进镜像"
+        },
+        {
+          "p": "id\\s*[= ]\\s*npmrc",
+          "tip": "密钥 id 应为 npmrc"
+        },
+        {
+          "p": "src\\s*=\\s*\\S*npmrc",
+          "tip": "应指定 src 指向 ~/.npmrc"
+        },
+        {
+          "p": "-t\\s+app:1\\.0|--tag\\s+app:1\\.0",
+          "tip": "镜像名应为 app:1.0"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--build-arg\\s+\\w*(TOKEN|PASSWORD|SECRET)\\w*",
+          "tip": "密钥不要当 build-arg 传：镜像历史里查得到",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "docker.buildx-push-multiarch",
+      "track": "docker",
+      "title": "一次构建推双架构（amd64 + arm64）",
+      "goal": "用 buildx 构建 linux/amd64 与 linux/arm64 两个平台并直接推到镜像仓库",
+      "hint": "多平台构建必须 --push（或 --output），不能 --load：本地镜像库放不下多架构清单",
+      "sample": "docker buildx build --platform linux/amd64,linux/arm64 -t registry.example.com/app:1.0 --push .",
+      "require": [
+        {
+          "p": "docker\\s+buildx\\s+build",
+          "tip": "应使用 docker buildx build"
+        },
+        {
+          "p": "--platform\\s+linux/amd64,linux/arm64",
+          "tip": "应指定两个平台"
+        },
+        {
+          "p": "-t\\s+registry",
+          "tip": "要推到仓库就得写完整镜像名"
+        },
+        {
+          "p": "--push",
+          "tip": "多平台要 --push 才能落到仓库"
+        },
+        {
+          "p": "\\s\\.\\s*$",
+          "tip": "别忘了最后的构建上下文（.）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--load",
+          "tip": "多平台构建不能 --load：本地镜像库装不下多架构清单",
+          "severity": "block"
+        }
+      ],
+      "level": "hard",
+      "verify": {
+        "cmd": "docker version --format {{.Server.Version}}",
+        "expect": "\\d+\\.\\d+",
+        "note": "环境前置：buildx 需要可用的 Docker 守护进程"
+      }
+    },
+    {
+      "id": "docker.run-with-healthcheck",
+      "track": "docker",
+      "title": "起服务要带健康检查，别让编排以为它好了",
+      "goal": "后台起 api:1.0，映射 8080，配好重启策略与健康检查（探测命令、间隔、重试次数一次写全）",
+      "hint": "只有 running 不等于\"能用\"：容器起得来但应用还在初始化时，编排会照样把流量打进来；--health-cmd 才是\"能不能服务\"的判据",
+      "sample": "docker run -d --name api --restart=unless-stopped -p 8080:8080 --health-cmd='curl -fsS localhost:8080/health' --health-interval=10s --health-retries=3 api:1.0",
+      "require": [
+        {
+          "p": "docker\\s+run\\s+-d",
+          "tip": "应后台运行（-d）"
+        },
+        {
+          "p": "--name\\s+api",
+          "tip": "应命名容器"
+        },
+        {
+          "p": "--restart=unless-stopped|--restart\\s+unless-stopped",
+          "tip": "应配重启策略"
+        },
+        {
+          "p": "--health-cmd=",
+          "tip": "应配健康检查命令"
+        },
+        {
+          "p": "--health-interval=",
+          "tip": "应配检查间隔"
+        },
+        {
+          "p": "--health-retries=",
+          "tip": "应配重试次数"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "docker.compose-up-wait-prod",
+      "track": "docker",
+      "title": "生产编排：等它真起来再返回",
+      "goal": "用 compose 指定生产变量文件，后台构建并启动，等所有服务健康后再返回，同时清理废弃容器",
+      "hint": "--wait 把\"命令返回\"与\"服务可用\"绑在一起；--remove-orphans 处理改了服务名之后遗留的旧容器",
+      "sample": "docker compose --env-file .env.prod -f compose.yaml up -d --build --wait --remove-orphans",
+      "require": [
+        {
+          "p": "docker\\s+compose",
+          "tip": "应使用 docker compose"
+        },
+        {
+          "p": "--env-file\\s+\\.env\\.prod",
+          "tip": "应指定生产变量文件"
+        },
+        {
+          "p": "-d",
+          "tip": "应后台运行"
+        },
+        {
+          "p": "--build",
+          "tip": "应重新构建"
+        },
+        {
+          "p": "--wait",
+          "tip": "应等健康后再返回"
+        },
+        {
+          "p": "--remove-orphans",
+          "tip": "应清理废弃容器"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

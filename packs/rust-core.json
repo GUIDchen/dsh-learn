@@ -1,0 +1,1266 @@
+{
+  "id": "rust-core",
+  "name": "Rust：构建、检查与依赖审计",
+  "track": "rust",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "rust.fmt-check",
+      "track": "rust",
+      "title": "CI 里的格式检查（只查不改）",
+      "goal": "检查全仓格式是否规范，不改动文件；不符合就算失败",
+      "hint": "cargo fmt 默认会直接改文件，CI 要用 --check；--all 把工作区所有 crate 都算上",
+      "sample": "cargo fmt --all -- --check",
+      "require": [
+        {
+          "p": "cargo\\s+fmt",
+          "tip": "应使用 cargo fmt"
+        },
+        {
+          "p": "--all",
+          "tip": "应覆盖工作区所有 crate（--all）"
+        },
+        {
+          "p": "--check",
+          "tip": "CI 里只查不改，要加 --check"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "cargo\\s+fmt\\s*$|cargo\\s+fmt\\s+--all\\s*$",
+          "tip": "不要不带 --check 直接改文件",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium",
+      "verify": {
+        "cmd": "cargo --version",
+        "expect": "cargo",
+        "note": "前置检查：本机是否装了 Rust 工具链"
+      }
+    },
+    {
+      "id": "rust.clippy-deny",
+      "track": "rust",
+      "title": "把 clippy 警告当错误",
+      "goal": "对全部目标（含测试与示例）跑 clippy，把所有警告升级成错误",
+      "hint": "cargo clippy 后面的 -- 属于\"传给 clippy 本身\"的参数区，-D warnings 要放在它后面；特性组合不同会走不同代码分支，CI 里通常一起检查",
+      "sample": "cargo clippy --all-targets --all-features -- -D warnings",
+      "require": [
+        {
+          "p": "cargo\\s+clippy",
+          "tip": "应使用 cargo clippy"
+        },
+        {
+          "p": "--all-targets",
+          "tip": "应覆盖测试与示例等全部目标"
+        },
+        {
+          "p": "--\\s*-D\\s+warnings|--\\s+-Dwarnings",
+          "tip": "警告要升级成错误：-- -D warnings"
+        },
+        {
+          "p": "--all-features",
+          "tip": "特性组合也要检查：--all-features"
+        }
+      ],
+      "level": "medium",
+      "verify": {
+        "cmd": "cargo --version",
+        "expect": "cargo",
+        "note": "环境前置：clippy 跟随 cargo 工具链"
+      }
+    },
+    {
+      "id": "rust.test-filter",
+      "track": "rust",
+      "title": "只跑名字里带 parser 的测试（并打印输出）",
+      "goal": "只运行名字包含 parser 的测试，顺带把测试里的打印也显示出来",
+      "hint": "cargo test 的第一个位置参数就是名字过滤；--nocapture 才能看到 println! 的输出",
+      "sample": "cargo test parser -- --nocapture",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "\\bparser\\b",
+          "tip": "过滤词应为 parser"
+        },
+        {
+          "p": "--nocapture",
+          "tip": "要看到打印需加 --nocapture"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.tree-duplicates",
+      "track": "rust",
+      "title": "找出被重复引入的依赖",
+      "goal": "列出依赖树里同一 crate 存在多个版本的情况",
+      "hint": "同一个 crate 多版本会同时链进二进制（体积与行为都可能出问题）；cargo tree -d 是它的简写",
+      "sample": "cargo tree --duplicates",
+      "require": [
+        {
+          "p": "cargo\\s+tree",
+          "tip": "应使用 cargo tree"
+        },
+        {
+          "p": "(-d\\b|--duplicates)",
+          "tip": "要看重复版本，用 -d / --duplicates"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.doc-tests",
+      "track": "rust",
+      "title": "只跑文档示例测试",
+      "goal": "只运行文档注释里的示例代码（不跑单元测试），并把每个示例的输出显示出来",
+      "hint": "cargo test --doc 专跑 doc test；这类测试常被忽略，但它们是给使用者看的第一手示例",
+      "sample": "cargo test --doc -- --show-output",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--doc",
+          "tip": "只跑文档测试要加 --doc"
+        },
+        {
+          "p": "--show-output",
+          "tip": "要看到示例输出应加 --show-output"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.build-static-musl",
+      "track": "rust",
+      "title": "交叉编译静态 aarch64 二进制",
+      "goal": "构建 aarch64 Linux（musl 静态）的 release 产物：指定 target、显式指定交叉链接器环境变量，并打开 LTO",
+      "hint": "cargo 不会自己找交叉链接器，得用 CARGO_TARGET_<三斜线大写的 target>_LINKER；LTO 可以用 --config 临时打开，不必改 Cargo.toml",
+      "sample": "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc cargo build --release --target aarch64-unknown-linux-musl --config profile.release.lto=true",
+      "require": [
+        {
+          "p": "cargo\\s+build",
+          "tip": "应使用 cargo build"
+        },
+        {
+          "p": "--release",
+          "tip": "应为 release 构建"
+        },
+        {
+          "p": "--target\\s+aarch64-unknown-linux-musl",
+          "tip": "目标三元组应为 aarch64-unknown-linux-musl"
+        },
+        {
+          "p": "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER",
+          "tip": "交叉链接器要用 CARGO_TARGET_..._LINKER 指定"
+        },
+        {
+          "p": "--config",
+          "tip": "用 --config 临时改配置"
+        },
+        {
+          "p": "profile\\.release\\.lto",
+          "tip": "要打开 release 的 LTO"
+        }
+      ],
+      "level": "hard",
+      "verify": {
+        "cmd": "cargo --version",
+        "expect": "cargo",
+        "note": "环境前置：静态目标需要 cargo 与对应 target"
+      }
+    },
+    {
+      "id": "rust.locked-build",
+      "track": "rust",
+      "title": "可复现构建：锁死版本、不联网",
+      "goal": "release 构建时严格按 Cargo.lock（不允许悄悄升级依赖），并且不访问网络（依赖已在本机缓存里）",
+      "hint": "CI 里用 --locked 保证\"本地能跑、线上同版本\"；--offline 能在无网环境尽早暴露\"缺依赖\"而不是卡在拉包",
+      "sample": "cargo build --release --locked --offline",
+      "require": [
+        {
+          "p": "cargo\\s+build",
+          "tip": "应使用 cargo build"
+        },
+        {
+          "p": "--release",
+          "tip": "应为 release 构建"
+        },
+        {
+          "p": "--locked",
+          "tip": "应按 Cargo.lock 严格构建：--locked"
+        },
+        {
+          "p": "--offline",
+          "tip": "应加 --offline 走本地缓存"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.test-single-thread",
+      "track": "rust",
+      "title": "串行跑测试，排查互相干扰",
+      "goal": "在 release 模式下串行跑测试（同一时刻只跑一个），用来复现\"并行跑才失败\"的问题",
+      "hint": "cargo test 的参数要放在 -- 之后才传给测试二进制；--test-threads=1 关掉并行",
+      "sample": "cargo test --release -- --test-threads=1",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--release",
+          "tip": "应在 release 模式下跑"
+        },
+        {
+          "p": "--test-threads=1|--test-threads\\s+1",
+          "tip": "应串行执行：--test-threads=1"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.override-toolchain",
+      "track": "rust",
+      "title": "给当前项目固定工具链版本",
+      "goal": "把当前目录（含子目录）的 Rust 工具链固定为 1.75.0，避免\"别人机器上是 nightly 才能编过\"",
+      "hint": "rustup override set 只影响当前目录树（写进 rustup 的配置），比改全机默认工具链安全；也可以放 rust-toolchain.toml 进仓库",
+      "sample": "rustup override set 1.75.0",
+      "require": [
+        {
+          "p": "rustup\\s+override\\s+set",
+          "tip": "应使用 rustup override set"
+        },
+        {
+          "p": "1\\.75\\.0|stable|nightly|1\\.[0-9]+\\.[0-9]+",
+          "tip": "应指定工具链版本"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.check-fast",
+      "track": "rust",
+      "title": "只做类型检查，不产生二进制",
+      "goal": "对工作区所有包做类型检查（比 cargo build 快，适合开发中反复跑）",
+      "hint": "cargo check 不生成机器码，编译速度明显快；--workspace 覆盖工作区，--all-features 打开全部特性",
+      "sample": "cargo check --workspace --all-features",
+      "require": [
+        {
+          "p": "cargo\\s+check",
+          "tip": "应使用 cargo check"
+        },
+        {
+          "p": "--workspace|-p\\s+\\S+",
+          "tip": "应指定检查范围（--workspace 或 -p 包名）"
+        },
+        {
+          "p": "--all-features",
+          "tip": "应覆盖所有特性组合"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.features-list",
+      "track": "rust",
+      "title": "看清这个包有哪些特性开关",
+      "goal": "列出当前包里定义的所有 Cargo 特性（含默认开启的），方便判断该关哪些",
+      "hint": "cargo metadata 是机器可读的依赖与特性信息；手写解析 Cargo.toml 容易漏掉继承来的特性",
+      "sample": "cargo metadata --no-deps --format-version 1 | python3 -m json.tool | head -40",
+      "require": [
+        {
+          "p": "cargo\\s+metadata",
+          "tip": "应使用 cargo metadata"
+        },
+        {
+          "p": "--no-deps|--no-default-features|--format-version",
+          "tip": "应带上必要的输出参数（如 --no-deps / --format-version）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.dep-invert",
+      "track": "rust",
+      "title": "反过来查：谁依赖了这个 crate",
+      "goal": "查出依赖树里谁引入了 serde（反向依赖），确认升级它会影响哪些包",
+      "hint": "cargo tree -i 是反向查询（invert）；不加 -i 是顺着看依赖，方向正好相反",
+      "sample": "cargo tree -i serde",
+      "require": [
+        {
+          "p": "cargo\\s+tree",
+          "tip": "应使用 cargo tree"
+        },
+        {
+          "p": "(-i\\b|--invert)",
+          "tip": "反向查询要加 -i"
+        },
+        {
+          "p": "serde",
+          "tip": "目标 crate 应为 serde"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.release-slim",
+      "track": "rust",
+      "title": "release 产物再瘦一圈：strip + LTO",
+      "goal": "release 构建时打开 LTO 并剥离符号表（不改 Cargo.toml，用命令行临时指定）",
+      "hint": "--config 可以临时覆盖 profile 设置：profile.release.lto=true 与 profile.release.strip=true；strip 掉的符号在线上排障时要用 debuginfo 单独留",
+      "sample": "cargo build --release --config profile.release.lto=true --config profile.release.strip=true",
+      "require": [
+        {
+          "p": "cargo\\s+build",
+          "tip": "应使用 cargo build"
+        },
+        {
+          "p": "--release",
+          "tip": "应为 release 构建"
+        },
+        {
+          "p": "--config",
+          "tip": "应使用 --config 临时改配置"
+        },
+        {
+          "p": "profile\\.release\\.lto",
+          "tip": "应打开 LTO"
+        },
+        {
+          "p": "profile\\.release\\.strip",
+          "tip": "应剥离符号表（strip）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.target-installed",
+      "track": "rust",
+      "title": "本机装了哪些目标平台",
+      "goal": "列出当前工具链已经安装的目标平台（交叉编译前先确认目标在不在）",
+      "hint": "rustup target list --installed 只看已装的；不加 --installed 会把所有可安装目标都列出来",
+      "sample": "rustup target list --installed",
+      "require": [
+        {
+          "p": "rustup\\s+target\\s+list",
+          "tip": "应使用 rustup target list"
+        },
+        {
+          "p": "--installed",
+          "tip": "只看已安装的要加 --installed"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-no-run",
+      "track": "rust",
+      "title": "只编译测试，不运行",
+      "goal": "编译所有测试目标但不执行（快速确认\"改完还能编过\"，CI 里也常用于预热缓存）",
+      "hint": "cargo test --no-run 只构建；--all-targets 把集成测试与示例一起编",
+      "sample": "cargo test --all-targets --no-run",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--no-run",
+          "tip": "只编译不跑：--no-run"
+        },
+        {
+          "p": "--all-targets",
+          "tip": "应覆盖全部测试目标"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.doc-build",
+      "track": "rust",
+      "title": "本地出文档，只看自己的 crate",
+      "goal": "生成文档并打开，且不要把依赖的文档一起生成（太慢）",
+      "hint": "cargo doc --no-deps 只文档化当前 crate；--document-private-items 会连私有项一起出来，发布前别开",
+      "sample": "cargo doc --no-deps --open",
+      "require": [
+        {
+          "p": "cargo\\s+doc",
+          "tip": "应使用 cargo doc"
+        },
+        {
+          "p": "--no-deps",
+          "tip": "应跳过依赖文档（--no-deps）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.update-dry-run",
+      "track": "rust",
+      "title": "先看看依赖能升到哪些版本（不动 lock）",
+      "goal": "在不修改 Cargo.lock 的前提下，列出所有依赖可以升级到哪些版本",
+      "hint": "cargo update --dry-run 只打印会发生什么；确认无误再真跑 cargo update，避免一次升一堆出问题",
+      "sample": "cargo update --dry-run",
+      "require": [
+        {
+          "p": "cargo\\s+update",
+          "tip": "应使用 cargo update"
+        },
+        {
+          "p": "--dry-run",
+          "tip": "要只看结果不动 lock：--dry-run"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "cargo\\s+update\\s*$|cargo\\s+update\\s+--precise\\s+\\S+\\s*$",
+          "tip": "别不看就真升依赖",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.test-doc-target",
+      "track": "rust",
+      "title": "只跑某一条测试（精确到名字）",
+      "goal": "只运行名字完全等于 parse_handles_empty 的那条测试（排除名字里含它的其它测试）",
+      "hint": "cargo test 的过滤是子串匹配，想精确匹配要加 --exact；--nocapture 才能看到打印",
+      "sample": "cargo test parse_handles_empty -- --exact --nocapture",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "parse_handles_empty",
+          "tip": "过滤词应为那条测试名"
+        },
+        {
+          "p": "--exact",
+          "tip": "要精确匹配应加 --exact"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.clippy-fix-dry",
+      "track": "rust",
+      "title": "让 clippy 给出修改建议但别动代码",
+      "goal": "让 clippy 输出可以直接套用的修改建议，但不要真的改文件（先把建议看一遍再决定）",
+      "hint": "cargo clippy --fix 会直接改源码；加 --allow-dirty --allow-staged 才允许在脏工作区动手，评审前通常先看建议",
+      "sample": "cargo clippy --all-targets -- -W clippy::all",
+      "require": [
+        {
+          "p": "cargo\\s+clippy",
+          "tip": "应使用 cargo clippy"
+        },
+        {
+          "p": "-W\\s+clippy::all|--warn\\s+clippy::all|-D\\s+warnings",
+          "tip": "应把 clippy 规则显式打开"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "cargo\\s+clippy[^|]*--fix",
+          "tip": "这题只要求看建议，不要顺手写回源码",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.test-ignored",
+      "track": "rust",
+      "title": "跑平时被跳过的测试",
+      "goal": "只运行标了 #[ignore] 的测试（这类通常是要真连外部服务的慢用例）",
+      "hint": "cargo test -- --ignored 专门跑被忽略的；CI 里通常另开一个 job 跑它们",
+      "sample": "cargo test -- --ignored",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--ignored",
+          "tip": "只跑被忽略的用例：--ignored"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.lock-diff",
+      "track": "rust",
+      "title": "升级前先看清 lock 会变成什么样",
+      "goal": "把依赖升级后的 Cargo.lock 写到一个临时文件里（不动仓库里的 lock），用来先看 diff",
+      "hint": "cargo update --dry-run 只打印；要拿到文件可以先用 CP 备份再对比，或者用 cargo update --precise 单点升级",
+      "sample": "cp Cargo.lock /tmp/Cargo.lock.bak && cargo update && diff -u /tmp/Cargo.lock.bak Cargo.lock",
+      "require": [
+        {
+          "p": "cp\\s+Cargo\\.lock|cp\\s+.*Cargo\\.lock",
+          "tip": "先备份 Cargo.lock 再升级"
+        },
+        {
+          "p": "cargo\\s+update",
+          "tip": "应使用 cargo update"
+        },
+        {
+          "p": "diff\\s+-u|git\\s+diff",
+          "tip": "升级后要和备份做对比"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+checkout\\s+--\\s+\\.|git\\s+reset\\s+--hard",
+          "tip": "别用丢弃式命令回滚：先看 diff 再决定",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.check-target",
+      "track": "rust",
+      "title": "不改锁文件，先给目标平台做一次类型检查",
+      "goal": "对 x86_64-unknown-linux-musl 目标做类型检查，并且锁死依赖版本（本地已装好该目标）",
+      "hint": "cargo check --target 能在不产出二进制的短时间内验证\"换平台能不能编过\"；--locked 保证不悄悄改 lock",
+      "sample": "cargo check --target x86_64-unknown-linux-musl --locked",
+      "require": [
+        {
+          "p": "cargo\\s+check",
+          "tip": "应使用 cargo check"
+        },
+        {
+          "p": "--target\\s+x86_64-unknown-linux-musl",
+          "tip": "目标应为 x86_64-unknown-linux-musl"
+        },
+        {
+          "p": "--locked",
+          "tip": "应加 --locked 不修改 lock"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.tree-features",
+      "track": "rust",
+      "title": "看清特性打开后依赖树变成什么样",
+      "goal": "只列出 tls 特性打开时的依赖树（不打开默认特性），确认到底多进来哪些包",
+      "hint": "cargo tree -e features 会把特性边画出来；--no-default-features --features tls 是精确对比的常用组合",
+      "sample": "cargo tree --no-default-features --features tls -e features",
+      "require": [
+        {
+          "p": "cargo\\s+tree",
+          "tip": "应使用 cargo tree"
+        },
+        {
+          "p": "--no-default-features",
+          "tip": "应关掉默认特性"
+        },
+        {
+          "p": "--features\\s+tls",
+          "tip": "应只打开 tls 特性"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.build-timing",
+      "track": "rust",
+      "title": "编译为什么这么慢：按耗时排序看",
+      "goal": "构建时输出每个 crate 的耗时报告，并按耗时排序（先看谁最拖后腿）",
+      "hint": "cargo build --timings 会生成报告文件并打印摘要；CI 里加它能解释\"构建时间怎么涨上去的\"",
+      "sample": "cargo build --release --timings",
+      "require": [
+        {
+          "p": "cargo\\s+build",
+          "tip": "应使用 cargo build"
+        },
+        {
+          "p": "--timings",
+          "tip": "要输出耗时报告：--timings"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "cargo\\s+clean",
+          "tip": "别为了\"重新计时\"把整个 target 清掉：增量信息也一起没了",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.test-doc-single",
+      "track": "rust",
+      "title": "只跑一个文档示例",
+      "goal": "只运行文档测试里名字包含 parse_header 的那一个（快速验证 README 示例没写错）",
+      "hint": "cargo test --doc 后跟过滤词；文档测试的名字是「文件路径 - 示例序号/函数名」的形式",
+      "sample": "cargo test --doc parse_header",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--doc",
+          "tip": "只跑文档测试要加 --doc"
+        },
+        {
+          "p": "parse_header",
+          "tip": "过滤词应为 parse_header"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.cargo-vendor",
+      "track": "rust",
+      "title": "离线环境怎么带依赖：把 crates 拷进仓库",
+      "goal": "把当前所有依赖下载到 vendor 目录，并生成 .cargo/config.toml 让构建走本地目录（内网/离线构建）",
+      "hint": "cargo vendor 会在当前目录铺好源码并打印需要写进 .cargo/config.toml 的片段；vendor 目录通常很大，注意仓库体积",
+      "sample": "cargo vendor > .cargo/config.toml",
+      "require": [
+        {
+          "p": "cargo\\s+vendor",
+          "tip": "应使用 cargo vendor"
+        },
+        {
+          "p": "\\.cargo/config\\.toml|config\\.toml",
+          "tip": "要把输出写进 .cargo/config.toml"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+add\\s+-A|git\\s+commit\\s+-am",
+          "tip": "vendor 目录很大，先确认仓库策略再提交",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.test-name-list",
+      "track": "rust",
+      "title": "先看有哪些测试，再决定跑哪个",
+      "goal": "只列出所有测试名字（不执行它们），方便挑一个来跑",
+      "hint": "cargo test -- --list 只列不跑；配合 grep 能快速找某个模块的用例",
+      "sample": "cargo test -- --list",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--list",
+          "tip": "只列不跑要加 --list"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.lint-manifest",
+      "track": "rust",
+      "title": "检查 Cargo.toml 本身写对没有",
+      "goal": "检查清单文件里的依赖与元信息是否合法（不看代码，只看 Cargo.toml）",
+      "hint": "cargo metadata 解析失败通常就是清单有问题；它能给出具体哪一行不合法",
+      "sample": "cargo metadata --format-version 1 --no-deps > /dev/null && echo manifest-ok",
+      "require": [
+        {
+          "p": "cargo\\s+metadata",
+          "tip": "应使用 cargo metadata 解析清单"
+        },
+        {
+          "p": "--no-deps|--format-version",
+          "tip": "应带上必要参数（--no-deps / --format-version）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-exact-module",
+      "track": "rust",
+      "title": "只跑某个模块下的测试",
+      "goal": "只运行名字以 parser:: 开头的测试（一个模块里的全部用例），并显示输出",
+      "hint": "cargo test 的位置参数是子串过滤，写模块路径就能圈定一个模块；--nocapture 看打印",
+      "sample": "cargo test parser:: -- --nocapture",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "parser::",
+          "tip": "过滤词应为模块路径 parser::"
+        },
+        {
+          "p": "--nocapture",
+          "tip": "要看到打印需加 --nocapture"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.build-incremental-off",
+      "track": "rust",
+      "title": "怀疑增量编译串味：关掉它重编一次",
+      "goal": "完全关闭增量编译重编一次（排查\"增量缓存导致的诡异行为\"）",
+      "hint": "CARGO_INCREMENTAL=0 会让 rustc 每次全量编译，慢但干净；增量缓存不参与正确性，只影响速度",
+      "sample": "CARGO_INCREMENTAL=0 cargo build --release",
+      "require": [
+        {
+          "p": "CARGO_INCREMENTAL=0",
+          "tip": "应设 CARGO_INCREMENTAL=0"
+        },
+        {
+          "p": "cargo\\s+build",
+          "tip": "应使用 cargo build"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.check-offline",
+      "track": "rust",
+      "title": "离线状态下能不能编过",
+      "goal": "在完全不联网的前提下做类型检查（确认依赖都在本地缓存，CI 离线机也能跑）",
+      "hint": "cargo check --offline 缺依赖会立刻报哪一条缺失；比等到编译中途失败快得多",
+      "sample": "cargo check --offline",
+      "require": [
+        {
+          "p": "cargo\\s+check",
+          "tip": "应使用 cargo check"
+        },
+        {
+          "p": "--offline",
+          "tip": "应加 --offline"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-single-integration",
+      "track": "rust",
+      "title": "只跑一个集成测试文件",
+      "goal": "只运行 tests/api.rs 这个集成测试（不跑单元测试与文档测试）",
+      "hint": "cargo test --test <文件stem> 只跑那个集成测试目标；--no-fail-fast 会继续跑完其它目标",
+      "sample": "cargo test --test api",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--test\\s+api|--test[= ]api",
+          "tip": "应只跑 tests/api.rs：--test api"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.expand-less",
+      "track": "rust",
+      "title": "看宏展开后到底变成了什么（只看前 100 行）",
+      "goal": "把 main.rs 的宏展开结果输出到文件并只看前 100 行（排查宏生成的代码问题时用）",
+      "hint": "cargo expand 需要单独安装；没有它时 rustc -Zunpretty=expanded 是 nightly 的等价物",
+      "sample": "cargo expand --bin app | head -100",
+      "require": [
+        {
+          "p": "cargo\\s+expand|unpretty=expanded",
+          "tip": "应用 cargo expand（或 rustc -Zunpretty=expanded）"
+        },
+        {
+          "p": "head|less|sed",
+          "tip": "展开结果很长，要截断再看"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.check-workspace-empty",
+      "track": "rust",
+      "title": "工作区里没有包时先看清单",
+      "goal": "打印工作区包含哪些包（成员列表），确认路径写对没有",
+      "hint": "cargo metadata 的 workspace_members 就是成员列表；workspace 路径写错时这里会少包",
+      "sample": "cargo metadata --no-deps --format-version 1 | python3 -c \"import json,sys; print(len(json.load(sys.stdin)['packages']))\"",
+      "require": [
+        {
+          "p": "cargo\\s+metadata",
+          "tip": "应使用 cargo metadata"
+        },
+        {
+          "p": "workspace|packages|--no-deps",
+          "tip": "要看清成员/包列表"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.cargo-fix-clippy",
+      "track": "rust",
+      "title": "让 clippy 自己修（先在工作区里跑）",
+      "goal": "让 clippy 自动修可修的警告，但只允许它在当前已跟踪的文件上动手（脏工作区里也能跑）",
+      "hint": "cargo clippy --fix 需要显式允许脏工作区：--allow-dirty --allow-staged，否则直接拒绝",
+      "sample": "cargo clippy --fix --allow-dirty --allow-staged --all-targets",
+      "require": [
+        {
+          "p": "cargo\\s+clippy",
+          "tip": "应使用 cargo clippy"
+        },
+        {
+          "p": "--fix",
+          "tip": "要自动修：--fix"
+        },
+        {
+          "p": "--allow-dirty",
+          "tip": "脏工作区要显式允许（--allow-dirty）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.doc-private",
+      "track": "rust",
+      "title": "内部文档也给团队看",
+      "goal": "生成文档时把私有项一起文档化（团队内部用，发布前要记得关掉）",
+      "hint": "--document-private-items 会把 pub(crate) 之类也写进文档；对外发布时别带这个参数",
+      "sample": "cargo doc --no-deps --document-private-items",
+      "require": [
+        {
+          "p": "cargo\\s+doc",
+          "tip": "应使用 cargo doc"
+        },
+        {
+          "p": "--document-private-items",
+          "tip": "要文档化私有项"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-ignored-list",
+      "track": "rust",
+      "title": "先看被标记忽略的测试有哪些",
+      "goal": "列出所有标了 #[ignore] 的测试名字（这些通常要连外部服务，先确认清单再决定跑不跑）",
+      "hint": "cargo test -- --ignored --list 组合起来就是\"只看被忽略的用例名\"",
+      "sample": "cargo test -- --ignored --list",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--ignored",
+          "tip": "只看被忽略的：--ignored"
+        },
+        {
+          "p": "--list",
+          "tip": "只列不跑：--list"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.check-all-targets-features",
+      "track": "rust",
+      "title": "只做类型检查也要覆盖所有目标与特性",
+      "goal": "对全部目标（含测试与示例）做类型检查，并把所有特性都打开（特性组合编译不过的问题很常见）",
+      "hint": "cargo check --all-targets --all-features 是\"编译面最广但最快\"的组合，比 cargo build 省时间",
+      "sample": "cargo check --all-targets --all-features",
+      "require": [
+        {
+          "p": "cargo\\s+check",
+          "tip": "应使用 cargo check"
+        },
+        {
+          "p": "--all-targets",
+          "tip": "应覆盖全部目标"
+        },
+        {
+          "p": "--all-features",
+          "tip": "应打开全部特性"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-no-fail-fast",
+      "track": "rust",
+      "title": "让测试全部跑完再汇总（不提前退出）",
+      "goal": "运行全部测试，即使有失败也继续跑完其它测试目标（一次看清所有问题）",
+      "hint": "cargo test 默认在失败后停下；--no-fail-fast 会跑完再汇总失败列表",
+      "sample": "cargo test --no-fail-fast",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--no-fail-fast",
+          "tip": "应加 --no-fail-fast"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-partition",
+      "track": "rust",
+      "title": "把慢测试挑出来单独跑",
+      "goal": "只运行名字里带 slow 的测试（通常是要连外部服务的），并串行执行以免互相干扰",
+      "hint": "过滤词 + --test-threads=1 是最省事的隔离法；CI 里常把它单独放一个 job",
+      "sample": "cargo test slow -- --test-threads=1",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "\\bslow\\b",
+          "tip": "过滤词应为 slow"
+        },
+        {
+          "p": "--test-threads=1|--test-threads\\s+1",
+          "tip": "应串行执行"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.cargo-lock-check",
+      "track": "rust",
+      "title": "确认 Cargo.lock 与清单一致",
+      "goal": "用只读方式确认 Cargo.lock 与 Cargo.toml 一致（不一致就让命令失败，适合放进 CI）",
+      "hint": "cargo update --locked 会在需要改 lock 时报错；这是\"提交前忘了更新 lock\"的常用闸门",
+      "sample": "cargo update --locked",
+      "require": [
+        {
+          "p": "cargo\\s+update",
+          "tip": "应使用 cargo update"
+        },
+        {
+          "p": "--locked",
+          "tip": "应加 --locked（需要改 lock 就直接失败）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-example-target",
+      "track": "rust",
+      "title": "只跑示例里的可执行目标",
+      "goal": "运行 examples/ 下的示例（examples/hello.rs）并看到它的输出（确认示例没随代码腐烂）",
+      "hint": "cargo run --example hello 编译并运行示例；示例是文档的一部分，改 API 时最容易忘它",
+      "sample": "cargo run --example hello",
+      "require": [
+        {
+          "p": "cargo\\s+run",
+          "tip": "应使用 cargo run"
+        },
+        {
+          "p": "--example\\s+hello",
+          "tip": "应指定示例 --example hello"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.metadata-targets",
+      "track": "rust",
+      "title": "看这个 crate 会产生哪些目标",
+      "goal": "列出当前 crate 的所有构建目标（lib、bin、example、test、bench）及其路径",
+      "hint": "cargo metadata 的 targets 数组给出每个目标的 kind 与 src_path；cargo 找不到入口时先看这里",
+      "sample": "cargo metadata --no-deps --format-version 1 | python3 -c \"import json,sys; [print(t['kind'], t['name'], t['src_path']) for p in json.load(sys.stdin)['packages'] for t in p['targets']]\"",
+      "require": [
+        {
+          "p": "cargo\\s+metadata",
+          "tip": "应使用 cargo metadata"
+        },
+        {
+          "p": "targets|kind|--no-deps",
+          "tip": "要看 targets / kind 信息"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.test-require-features",
+      "track": "rust",
+      "title": "带特性跑测试：确认特性开关下也能过",
+      "goal": "只打开某一组特性跑测试（不打开默认特性），确认特性组合下的代码路径没被漏测",
+      "hint": "cargo test --no-default-features --features tls 是常用组合；CI 里最好再跑一遍 --all-features",
+      "sample": "cargo test --no-default-features --features tls",
+      "require": [
+        {
+          "p": "cargo\\s+test",
+          "tip": "应使用 cargo test"
+        },
+        {
+          "p": "--no-default-features",
+          "tip": "应关掉默认特性"
+        },
+        {
+          "p": "--features\\s+tls",
+          "tip": "应打开指定特性"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.clippy-pedantic",
+      "track": "rust",
+      "title": "把更啰嗦的 lint 也打开（只看不改）",
+      "goal": "跑 clippy 时打开 pedantic 级别规则集，但不把警告升级成错误（先看有多少可改）",
+      "hint": "-W clippy::pedantic 会给出更严格的建议；CI 里通常先按警告跑一段，再逐步收紧",
+      "sample": "cargo clippy --all-targets -- -W clippy::pedantic",
+      "require": [
+        {
+          "p": "cargo\\s+clippy",
+          "tip": "应使用 cargo clippy"
+        },
+        {
+          "p": "clippy::pedantic",
+          "tip": "应打开 pedantic 规则集"
+        },
+        {
+          "p": "-W\\s+clippy::pedantic|--warn",
+          "tip": "按警告级别（不要直接 -D）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "\\-D\\s+clippy::pedantic",
+          "tip": "pedantic 直接当错误会挡住所有改动，先按警告看",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "rust.version-verbose-host",
+      "track": "rust",
+      "title": "报工具链问题时先拿到完整版本信息",
+      "goal": "打印 rustc 与 cargo 的完整版本、宿主平台与 commit 哈希（提 issue 时必需）",
+      "hint": "cargo --version --verbose 会给出 release / commit-hash / host；只写 \"cargo 1.7x\" 往往无法复现问题",
+      "sample": "cargo --version --verbose && rustc --version --verbose",
+      "require": [
+        {
+          "p": "cargo\\s+--version\\s+--verbose",
+          "tip": "cargo 要带 --verbose"
+        },
+        {
+          "p": "rustc\\s+--version\\s+--verbose",
+          "tip": "rustc 也要带 --verbose"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.embedded-thumb-build",
+      "track": "rust",
+      "title": "给 Cortex-M 交叉编译：目标三元组要对",
+      "goal": "用 release 模式交叉编译到 ARM Cortex-M4F 的裸机目标（无操作系统、硬件浮点）",
+      "hint": "thumbv7em-none-eabihf 里的 eabihf 表示硬浮点 ABI；目标不装（rustup target add）会直接报错，先装再加 --target",
+      "sample": "cargo build --release --target thumbv7em-none-eabihf",
+      "require": [
+        {
+          "p": "cargo\\s+build",
+          "tip": "应使用 cargo build"
+        },
+        {
+          "p": "--release",
+          "tip": "嵌入式固件用 release 构建"
+        },
+        {
+          "p": "--target\\s+thumbv7em-none-eabihf",
+          "tip": "目标应为 thumbv7em-none-eabihf（Cortex-M4F 硬浮点）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.embedded-size-report",
+      "track": "rust",
+      "title": "固件多大：按段看体积",
+      "goal": "用交叉 size 工具按段打印刚编译出来的固件体积，确认 flash 与 RAM 各占多少",
+      "hint": "Rust 嵌入式用 arm-none-eabi-size -A 看 .text/.data/.bss；.bss 不占 flash 但占 RAM，两个数字别混",
+      "sample": "arm-none-eabi-size -A target/thumbv7em-none-eabihf/release/app",
+      "require": [
+        {
+          "p": "arm-none-eabi-size",
+          "tip": "应使用交叉工具链的 size"
+        },
+        {
+          "p": "-A",
+          "tip": "用 -A 按段列出（只看总和看不出 flash 与 RAM 的分布）"
+        },
+        {
+          "p": "thumbv7em-none-eabihf",
+          "tip": "要看嵌入式目标的产物"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "rust.release-gate-fmt-clippy-audit",
+      "track": "rust",
+      "title": "发布门禁：格式、lint、依赖审计一次过，任何一项不过就不发",
+      "goal": "用一条命令链跑完格式检查 + 全目标 clippy（警告当错误）+ 依赖漏洞审计 + 测试，全程锁死依赖版本",
+      "hint": "发布流水线要按 Cargo.lock 严格构建（--locked），并且不允许顺手升级依赖——升级必须走单独的评审",
+      "sample": "cargo fmt --check && cargo clippy --all-targets --locked -- -D warnings && cargo audit && cargo test --locked",
+      "require": [
+        {
+          "p": "cargo fmt --check",
+          "tip": "先跑格式检查（只检查不改文件）"
+        },
+        {
+          "p": "cargo clippy --all-targets",
+          "tip": "clippy 要覆盖全部目标"
+        },
+        {
+          "p": "-D warnings",
+          "tip": "把 clippy 警告升级成错误，否则门禁拦不住"
+        },
+        {
+          "p": "cargo audit",
+          "tip": "还要做依赖漏洞审计"
+        },
+        {
+          "p": "--locked",
+          "tip": "严格按 Cargo.lock 构建，不隐式升级依赖"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "cargo update",
+          "severity": "block",
+          "tip": "发布门禁里不许顺手升级依赖：升级要单独提交、单独评审"
+        }
+      ],
+      "verify": {
+        "cmd": "cargo --version",
+        "expect": "cargo",
+        "note": "前置检查：本机要装 Rust 工具链"
+      },
+      "level": "hard"
+    },
+    {
+      "id": "rust.nextest-flaky-retries",
+      "track": "rust",
+      "title": "偶发失败的测试：单线程跑一遍，再给三次重试机会",
+      "goal": "用 cargo nextest 单线程、不捕获输出地跑 parser 相关测试，失败自动重试 3 次，先把偶发和环境问题分开",
+      "hint": "cargo nextest 的重试与过滤表达式是两件事：-E 选测试集，--retries 决定重试次数；--no-capture 才能看到 println 输出",
+      "sample": "cargo nextest run --no-capture --test-threads=1 --retries 3 -E 'test(parser)'",
+      "require": [
+        {
+          "p": "cargo nextest run",
+          "tip": "应使用 cargo nextest 跑测试"
+        },
+        {
+          "p": "--no-capture",
+          "tip": "加 --no-capture 才能看到测试里的打印"
+        },
+        {
+          "p": "--test-threads=1",
+          "tip": "单线程跑，排除并发带来的干扰"
+        },
+        {
+          "p": "--retries 3",
+          "tip": "给失败用例 3 次重试机会"
+        },
+        {
+          "p": "-E 'test\\(parser\\)'",
+          "tip": "用过滤表达式只选 parser 相关用例"
+        },
+        {
+          "p": "test\\(parser\\)",
+          "tip": "过滤表达式不能省，否则整个工作区都要跑"
+        }
+      ],
+      "verify": {
+        "cmd": "cargo --version",
+        "expect": "cargo",
+        "note": "前置检查：本机要装 Rust 工具链"
+      },
+      "level": "hard"
+    },
+    {
+      "id": "rust.publish-dry-run",
+      "track": "rust",
+      "title": "发布前先看会打包哪些文件，再干跑一次",
+      "goal": "列出 cargo package 会打进 crate 的文件，并用 --dry-run 走一遍发布流程（不真的推上去）",
+      "hint": "--list 先看会带哪些文件（把不该发布的测试数据剔掉）；--locked 保证用 Cargo.lock 里的版本；publish --dry-run 会真的打包上传一遍但不改仓库状态",
+      "sample": "cargo package --list --locked && cargo publish --dry-run --locked --allow-dirty",
+      "require": [
+        {
+          "p": "cargo package --list",
+          "tip": "先列出会打包的文件"
+        },
+        {
+          "p": "cargo publish --dry-run",
+          "tip": "发布要干跑一次"
+        },
+        {
+          "p": "--locked",
+          "tip": "严格按 Cargo.lock，避免干跑时偷偷升级依赖"
+        },
+        {
+          "p": "--allow-dirty",
+          "tip": "工作区有未提交改动时要显式声明，别以为打的是干净的包"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "cargo publish(?![^\\n]*--dry-run)",
+          "severity": "block",
+          "tip": "cargo publish 一旦真的推上去就无法撤回：发版要走 tag + CI，不要在本地直接发"
+        }
+      ],
+      "verify": {
+        "cmd": "cargo --version",
+        "expect": "cargo",
+        "note": "前置检查：本机要装 Rust 工具链"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "rust.miri-ub-check",
+      "track": "rust",
+      "title": "unsafe 代码有没有未定义行为：交给 miri 跑",
+      "goal": "用 nightly 的 miri 跑全部测试目标，并关掉隔离，让它能检查文件与时间相关行为",
+      "hint": "miri 只能跑在 nightly 上；-Zmiri-disable-isolation 放开系统调用隔离；它比普通测试慢得多，适合单独一条流水线",
+      "sample": "MIRIFLAGS='-Zmiri-disable-isolation' cargo +nightly miri test --all-targets",
+      "require": [
+        {
+          "p": "cargo \\+nightly miri test",
+          "tip": "miri 要用 nightly 工具链跑"
+        },
+        {
+          "p": "MIRIFLAGS",
+          "tip": "通过 MIRIFLAGS 传 miri 参数"
+        },
+        {
+          "p": "-Zmiri-disable-isolation",
+          "tip": "要关掉隔离，否则文件/时间相关分支跑不到"
+        },
+        {
+          "p": "--all-targets",
+          "tip": "要覆盖全部测试目标（含示例与集成测试）"
+        }
+      ],
+      "verify": {
+        "cmd": "cargo --version",
+        "expect": "cargo",
+        "note": "前置检查：本机要装 Rust 工具链"
+      },
+      "level": "medium"
+    }
+  ]
+}

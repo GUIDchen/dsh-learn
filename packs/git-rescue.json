@@ -1,0 +1,248 @@
+{
+  "id": "git-rescue",
+  "name": "Git 救场（找回丢失的提交、协作安全）",
+  "track": "git",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "git.reflog-rescue",
+      "track": "git",
+      "title": "找回被 reset 掉的提交",
+      "goal": "你不小心把分支回退了，需要先查操作历史找到那个提交，再给它建一个分支保住它",
+      "hint": "reflog 记录了本地 HEAD 的每一次移动；找到 sha 后建分支比 reset --hard 安全得多",
+      "sample": "git reflog && git branch rescue HEAD@{1}",
+      "require": [
+        {
+          "p": "git\\s+reflog",
+          "tip": "应先用 git reflog 查看 HEAD 的移动历史"
+        },
+        {
+          "p": "git\\s+branch\\s+\\S+|git\\s+switch\\s+-c|git\\s+checkout\\s+-b",
+          "tip": "找到后应新建分支指向那个提交（保住它）"
+        },
+        {
+          "p": "HEAD@\\{|[0-9a-f]{7}",
+          "tip": "要么引用 HEAD@{n}，要么用具体的 sha"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+reset\\s+--hard",
+          "tip": "reset --hard 会再丢一次工作区改动，救场不要用它",
+          "severity": "block"
+        },
+        {
+          "p": "git\\s+push\\s+-f|--force\\b",
+          "tip": "救场阶段不要强推远端"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.cherry-pick",
+      "track": "git",
+      "title": "把别处的一个提交摘到当前分支",
+      "goal": "把提交 a1b2c3d 单独摘到当前分支，并在冲突时知道怎么退出",
+      "hint": "cherry-pick 只搬一个提交；冲突时可以用 --abort 回到操作前",
+      "sample": "git cherry-pick a1b2c3d   # 冲突时：git cherry-pick --abort",
+      "require": [
+        {
+          "p": "git\\s+cherry-pick",
+          "tip": "应使用 git cherry-pick"
+        },
+        {
+          "p": "a1b2c3d|[0-9a-f]{7}",
+          "tip": "应指定要摘的提交 sha"
+        },
+        {
+          "p": "--abort|--continue|--skip",
+          "tip": "应说明冲突时的处理（--abort / --continue）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+merge\\s+\\S+\\s*$",
+          "tip": "merge 会把整条分支的历史都带过来，本题只要一个提交"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.bisect",
+      "track": "git",
+      "title": "用二分法定位是哪次提交引入的 bug",
+      "goal": "开始在 bad 与 good 之间二分查找，把已知的好提交标出来",
+      "hint": "bisect start → bisect bad → bisect good <sha>；定位完记得 bisect reset 回到原分支",
+      "sample": "git bisect start && git bisect bad && git bisect good v1.2.0 && git bisect reset",
+      "require": [
+        {
+          "p": "git\\s+bisect\\s+start",
+          "tip": "应先用 git bisect start 开始"
+        },
+        {
+          "p": "git\\s+bisect\\s+bad",
+          "tip": "缺少标记当前为坏提交 git bisect bad"
+        },
+        {
+          "p": "git\\s+bisect\\s+good",
+          "tip": "缺少标记已知好提交 git bisect good"
+        },
+        {
+          "p": "git\\s+bisect\\s+reset",
+          "tip": "结束后应 git bisect reset 回到原分支"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+reset\\s+--hard",
+          "tip": "二分期间不要用 reset --hard 清理",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.worktree",
+      "track": "git",
+      "title": "并行开一个工作树修紧急问题",
+      "goal": "不切换当前工作区，把 hotfix 分支签出到上层目录的 hotfix 目录里",
+      "hint": "worktree 让同一仓库同时有多个工作目录，适合边开发边紧急修复",
+      "sample": "git worktree add ../hotfix hotfix",
+      "require": [
+        {
+          "p": "git\\s+worktree\\s+add",
+          "tip": "应使用 git worktree add"
+        },
+        {
+          "p": "\\.\\./hotfix|hotfix",
+          "tip": "应指定工作树目录"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf",
+          "tip": "不要用删目录的方式清理工作树，应使用 git worktree remove",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.rebase-squash",
+      "track": "git",
+      "title": "把最近 3 个提交压成一个",
+      "goal": "整理提交历史：把最近 3 个提交合并成一个（保留第一个，其余压缩进去）",
+      "hint": "rebase -i HEAD~3 打开交互界面，把后两行的 pick 改成 squash（或 s），保存退出",
+      "sample": "git rebase -i HEAD~3   # 把后两行改成 squash",
+      "require": [
+        {
+          "p": "git\\s+rebase\\s+-i|git\\s+rebase\\s+--interactive",
+          "tip": "应使用交互式 rebase（-i）"
+        },
+        {
+          "p": "HEAD~3|HEAD\\^3",
+          "tip": "范围应是最近 3 个提交"
+        },
+        {
+          "p": "squash|\\bs\\b",
+          "tip": "应说明把后续提交标成 squash"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+reset\\s+--hard",
+          "tip": "压缩提交不需要 reset --hard",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.delete-merged-branch",
+      "track": "git",
+      "title": "删掉已经合并过的本地分支",
+      "goal": "feature/report 已经合进主分支了，安全地把它删掉",
+      "hint": "-d 会先检查是否已合并；-D 是强制删除，可能丢掉未合并的提交",
+      "sample": "git branch -d feature/report",
+      "require": [
+        {
+          "p": "git\\s+branch",
+          "tip": "应使用 git branch"
+        },
+        {
+          "p": "-d|--delete",
+          "tip": "应使用安全的 -d（已合并才允许删）"
+        },
+        {
+          "p": "feature/report",
+          "tip": "应指定分支名 feature/report"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+branch\\s+-D|--delete\\s+--force",
+          "tip": "-D 会强制删除未合并的分支，丢提交",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.push-force-with-lease",
+      "track": "git",
+      "title": "需要强推时用更安全的那种",
+      "goal": "你的分支改过历史，需要强推，但绝不能覆盖队友刚推上去的提交",
+      "hint": "force-with-lease 会在远端与你本地记录不一致时拒绝推送，比 --force 安全",
+      "sample": "git push --force-with-lease origin feature/report",
+      "require": [
+        {
+          "p": "git\\s+push",
+          "tip": "应使用 git push"
+        },
+        {
+          "p": "--force-with-lease",
+          "tip": "应使用 --force-with-lease"
+        },
+        {
+          "p": "feature/report|origin",
+          "tip": "应写清远端与分支"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--force(?!-with-lease)|\\s-f\\b",
+          "tip": "--force / -f 会无条件覆盖远端，队友的提交会消失",
+          "severity": "block"
+        },
+        {
+          "p": "\\+refs/heads",
+          "tip": "+refs/heads 形式的强推同样危险"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.tag-version-sort",
+      "track": "git",
+      "title": "按版本号排序看最近的 tag",
+      "goal": "按版本号从大到小列出 tag，只看最前面 5 个（v1.10 要排在 v1.9 前面）",
+      "hint": "默认 --sort=refname 是字符串排序，v1.10 会排在 v1.9 后面；-v:refname 才是版本号排序",
+      "sample": "git tag --sort=-v:refname | head -5",
+      "require": [
+        {
+          "p": "git\\s+tag",
+          "tip": "应使用 git tag"
+        },
+        {
+          "p": "--sort=-v:refname",
+          "tip": "要按版本号倒序：--sort=-v:refname"
+        },
+        {
+          "p": "head\\s+-5|\\b5\\b",
+          "tip": "只看最前面 5 个"
+        }
+      ],
+      "level": "easy"
+    }
+  ]
+}

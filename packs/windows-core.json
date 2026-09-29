@@ -1,0 +1,577 @@
+{
+  "id": "windows-core",
+  "name": "Windows 运维（服务与事件、防火墙、共享与权限、补丁）",
+  "track": "windows",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "windows.service-startup-audit",
+      "track": "windows",
+      "title": "开机自启却没跑起来的服务有哪些",
+      "goal": "列出启动类型是自动、但当前没有在运行的服务",
+      "hint": "Get-CimInstance Win32_Service 拿到的是服务对象（StartMode/State），比 net start 好过滤",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-CimInstance Win32_Service | Where-Object { $_.StartMode -eq 'Auto' -and $_.State -ne 'Running' } | Select-Object Name,DisplayName,State",
+      "require": [
+        {
+          "p": "Get-CimInstance",
+          "tip": "用 Get-CimInstance Win32_Service 取服务对象"
+        },
+        {
+          "p": "Win32_Service",
+          "tip": "要看服务就得指定 Win32_Service 类"
+        },
+        {
+          "p": "StartMode",
+          "tip": "按 StartMode 过滤（Auto 才是自动启动）"
+        },
+        {
+          "p": "State",
+          "tip": "按 State 过滤掉正在运行的"
+        },
+        {
+          "p": "Where-Object",
+          "tip": "用 Where-Object 在管道里过滤"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Stop-Service|Restart-Service",
+          "tip": "这是只读排查题，别顺手停服务"
+        }
+      ]
+    },
+    {
+      "id": "windows.eventlog-recent-errors",
+      "track": "windows",
+      "title": "系统日志里最近的错误事件",
+      "goal": "从系统日志里取出最近 20 条错误与严重级别的事件",
+      "hint": "Get-WinEvent 用 FilterHashtable 过滤最快（Level 1=Critical 2=Error）",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-WinEvent -FilterHashtable @{LogName='System'; Level=1,2} -MaxEvents 20 | Select-Object TimeCreated,Id,ProviderName",
+      "require": [
+        {
+          "p": "Get-WinEvent",
+          "tip": "查看事件日志用 Get-WinEvent"
+        },
+        {
+          "p": "FilterHashtable",
+          "tip": "用 -FilterHashtable 过滤（比 Where-Object 快很多，日志量大时差别明显）"
+        },
+        {
+          "p": "LogName",
+          "tip": "要指定 LogName（System 是系统日志）"
+        },
+        {
+          "p": "Level",
+          "tip": "按 Level 过滤（1 Critical / 2 Error）"
+        },
+        {
+          "p": "-MaxEvents",
+          "tip": "用 -MaxEvents 限制条数，别一次拉几十万条"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Clear-EventLog",
+          "tip": "清日志是危险操作"
+        },
+        {
+          "p": "wevtutil\\s+cl",
+          "tip": "wevtutil cl 会清空日志"
+        }
+      ]
+    },
+    {
+      "id": "windows.firewall-rule-read",
+      "track": "windows",
+      "title": "只读方式清点入站防火墙规则",
+      "goal": "列出已启用、方向为入站的防火墙规则（只看不改）",
+      "hint": "Get-NetFirewallRule 是只读的 netsecurity 命令；改规则的是 Set-/New-/Remove-NetFirewallRule",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-NetFirewallRule -Enabled True -Direction Inbound | Select-Object DisplayName,Action,Profile",
+      "require": [
+        {
+          "p": "Get-NetFirewallRule",
+          "tip": "清点规则用 Get-NetFirewallRule（只读）"
+        },
+        {
+          "p": "Inbound",
+          "tip": "要限定方向为入站（Inbound）"
+        },
+        {
+          "p": "Enabled",
+          "tip": "只看已启用的规则（-Enabled True）"
+        },
+        {
+          "p": "Select-Object",
+          "tip": "挑出关心的字段，别把整条规则打满屏"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Remove-NetFirewallRule",
+          "tip": "删规则是写操作，这题只读"
+        },
+        {
+          "p": "Set-NetFirewallRule",
+          "tip": "改规则是写操作，这题只读"
+        },
+        {
+          "p": "netsh\\s+advfirewall\\s+set",
+          "tip": "netsh advfirewall set 会改配置，不是查看"
+        }
+      ]
+    },
+    {
+      "id": "windows.acl-audit",
+      "track": "windows",
+      "title": "目录权限里有没有宽放的组",
+      "goal": "检查目录的 ACL，找出被授予权限的 Everyone 或 Users 这类宽范围主体",
+      "hint": "Get-Acl 拿访问控制列表，访问项在 Access 属性里；IdentityReference 是主体名",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-Acl 'C:\\App' | Select-Object -ExpandProperty Access | Where-Object { $_.IdentityReference -match 'Everyone|Users' }",
+      "require": [
+        {
+          "p": "Get-Acl",
+          "tip": "取权限用 Get-Acl"
+        },
+        {
+          "p": "Access",
+          "tip": "访问项在 Access 属性里（-ExpandProperty Access 展开）"
+        },
+        {
+          "p": "IdentityReference",
+          "tip": "主体名在 IdentityReference 里"
+        },
+        {
+          "p": "Everyone|Users",
+          "tip": "要盯住 Everyone / Users 这类宽放主体"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "icacls.*\\/grant",
+          "tip": "icacls /grant 是在改权限，这题只读"
+        },
+        {
+          "p": "Set-Acl",
+          "tip": "Set-Acl 是写权限，这题只读"
+        }
+      ]
+    },
+    {
+      "id": "windows.smb-share-inventory",
+      "track": "windows",
+      "title": "本机开了哪些共享",
+      "goal": "列出本机所有 SMB 共享及其路径",
+      "hint": "Get-SmbShare 列出共享；早期的 net share 也能看，但字段不如它清楚",
+      "level": "easy",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-SmbShare | Select-Object Name,Path,Description",
+      "require": [
+        {
+          "p": "Get-SmbShare",
+          "tip": "看共享用 Get-SmbShare"
+        },
+        {
+          "p": "Path",
+          "tip": "要看到共享对应的路径"
+        }
+      ],
+      "forbid": []
+    },
+    {
+      "id": "windows.disk-space-report",
+      "track": "windows",
+      "title": "一眼看清各盘还剩多少空间",
+      "goal": "列出每个有盘符的卷以及剩余空间（GB，保留一位小数）",
+      "hint": "Get-Volume 的 SizeRemaining 是字节；用计算属性换算成 GB（PowerShell 里 1GB 是字面量）",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter,@{Name='FreeGB';Expression={[math]::Round($_.SizeRemaining/1GB,1)}}",
+      "require": [
+        {
+          "p": "Get-Volume",
+          "tip": "看卷与剩余空间用 Get-Volume"
+        },
+        {
+          "p": "DriveLetter",
+          "tip": "要限定有盘符的卷（没盘符的是系统保留分区）"
+        },
+        {
+          "p": "SizeRemaining",
+          "tip": "剩余空间在 SizeRemaining（字节）"
+        },
+        {
+          "p": "1GB|1073741824",
+          "tip": "要换算成 GB 才好读（1GB 或 /1073741824）"
+        }
+      ],
+      "forbid": []
+    },
+    {
+      "id": "windows.process-tree",
+      "track": "windows",
+      "title": "找出进程的父子关系",
+      "goal": "列出进程及其父进程 ID，用来判断谁拉起谁",
+      "hint": "Get-CimInstance Win32_Process 带 ParentProcessId 与 CommandLine；Get-Process 没有父进程信息",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine",
+      "require": [
+        {
+          "p": "Get-CimInstance",
+          "tip": "要父进程 ID 就得用 Get-CimInstance Win32_Process"
+        },
+        {
+          "p": "Win32_Process",
+          "tip": "指定 Win32_Process 类"
+        },
+        {
+          "p": "ProcessId",
+          "tip": "要有 ProcessId"
+        },
+        {
+          "p": "ParentProcessId",
+          "tip": "关键字段是 ParentProcessId（父进程）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Stop-Process",
+          "tip": "这是排查题，别顺手杀进程"
+        }
+      ]
+    },
+    {
+      "id": "windows.dns-client-config",
+      "track": "windows",
+      "title": "这台机器用的是哪些 DNS 服务器",
+      "goal": "列出各网卡上配置的 IPv4 DNS 服务器地址",
+      "hint": "Get-DnsClientServerAddress 直接给网卡与 DNS 地址；ipconfig /all 要自己从输出里找",
+      "level": "easy",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-DnsClientServerAddress -AddressFamily IPv4 | Select-Object InterfaceAlias,ServerAddresses",
+      "require": [
+        {
+          "p": "Get-DnsClientServerAddress",
+          "tip": "查 DNS 服务器用 Get-DnsClientServerAddress"
+        },
+        {
+          "p": "IPv4|AddressFamily",
+          "tip": "限定 AddressFamily IPv4"
+        },
+        {
+          "p": "ServerAddresses",
+          "tip": "要看到 ServerAddresses 字段"
+        }
+      ],
+      "forbid": []
+    },
+    {
+      "id": "windows.pending-reboot-check",
+      "track": "windows",
+      "title": "补丁装完了，到底要不要重启",
+      "goal": "检查系统里是否存在等待重启的标记（Windows Update 要求的重启）",
+      "hint": "Windows Update 要求重启时会写下 RebootRequired 标记，直接 Test-Path 它即可",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'",
+      "require": [
+        {
+          "p": "Test-Path",
+          "tip": "判断标记存在与否用 Test-Path（比 Get-Item 加 try/catch 省事）"
+        },
+        {
+          "p": "HKLM",
+          "tip": "要查 HKLM 下的注册表项"
+        },
+        {
+          "p": "WindowsUpdate",
+          "tip": "路径要走 WindowsUpdate"
+        },
+        {
+          "p": "RebootRequired",
+          "tip": "关键项是 RebootRequired"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Remove-Item",
+          "tip": "删标记等于骗自己（重启需求还在）"
+        },
+        {
+          "p": "Restart-Computer",
+          "tip": "这题是判断要不要重启，不是立刻重启"
+        }
+      ]
+    },
+    {
+      "id": "windows.patch-inventory",
+      "track": "windows",
+      "title": "最近装了哪些补丁",
+      "goal": "按安装时间倒序列出最近 10 个补丁及其编号",
+      "hint": "Get-HotFix 给的是已安装补丁（含 HotFixID 与 InstalledOn）；装完补丁要能核对上",
+      "level": "hard",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10 HotFixID,InstalledOn",
+      "require": [
+        {
+          "p": "Get-HotFix",
+          "tip": "列补丁用 Get-HotFix"
+        },
+        {
+          "p": "Sort-Object",
+          "tip": "要按安装时间排序"
+        },
+        {
+          "p": "InstalledOn",
+          "tip": "排序键是 InstalledOn"
+        },
+        {
+          "p": "-Descending",
+          "tip": "最近的排前面（-Descending）"
+        },
+        {
+          "p": "-First",
+          "tip": "只取前几条，别把整机补丁全打出来"
+        },
+        {
+          "p": "HotFixID",
+          "tip": "要看到补丁编号 HotFixID"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "wmic",
+          "tip": "wmic 已被弃用，PowerShell 里用 Get-HotFix / Get-CimInstance"
+        }
+      ],
+      "verify": {
+        "cmd": "cmd /c ver",
+        "expect": "Windows|Version",
+        "note": "这道题只在 Windows 上成立：先确认对端确实是 Windows（非 Windows 主机上会报命令不存在，不是题目判错）"
+      }
+    },
+    {
+      "id": "windows.service-stop-whatif",
+      "track": "windows",
+      "title": "停服务之前先看它要做什么",
+      "goal": "用 -WhatIf 预览停止 nginx 服务会做什么（不真的停）",
+      "hint": "PowerShell 里支持 ShouldProcess 的 cmdlet 都有 -WhatIf：先看它打算做什么，确认无误再去掉这个开关",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Stop-Service -Name nginx -WhatIf",
+      "require": [
+        {
+          "p": "Stop-Service",
+          "tip": "要停服务就用 Stop-Service（别用 taskkill 直接杀进程）"
+        },
+        {
+          "p": "-WhatIf",
+          "tip": "缺少 -WhatIf：这一步是预演，不应该真的动服务"
+        },
+        {
+          "p": "-Name|nginx",
+          "tip": "要指定服务名 nginx"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-Force",
+          "tip": "-Force 会连带停掉依赖它的服务，预演阶段不该出现"
+        },
+        {
+          "p": "taskkill",
+          "tip": "taskkill 直接杀进程，绕过了服务控制管理器"
+        }
+      ]
+    },
+    {
+      "id": "windows.dir-remove-whatif",
+      "track": "windows",
+      "title": "递归删目录之前先预演",
+      "goal": "用 -WhatIf 预览递归删除临时目录里的内容会删掉哪些东西",
+      "hint": "Remove-Item -Recurse 是最容易删错的一条命令；-WhatIf 会把将要删除的每一项列出来",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "Remove-Item -Path 'C:\\\\Temp\\\\build\\\\*' -Recurse -Force -WhatIf",
+      "require": [
+        {
+          "p": "Remove-Item",
+          "tip": "删除用 Remove-Item"
+        },
+        {
+          "p": "-WhatIf",
+          "tip": "缺少 -WhatIf：递归删除必须先预演"
+        },
+        {
+          "p": "-Recurse",
+          "tip": "要删目录内容需要 -Recurse"
+        },
+        {
+          "p": "-Path|Temp",
+          "tip": "要明确删哪个路径"
+        }
+      ],
+      "forbid": []
+    },
+    {
+      "id": "windows.registry-write-whatif",
+      "track": "windows",
+      "title": "改注册表之前先预演",
+      "goal": "用 -WhatIf 预览给 HKLM 下的键新增一个值会写到哪",
+      "hint": "注册表写操作不可逆（没有回收站）；New-ItemProperty / Set-ItemProperty 都支持 -WhatIf",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "New-ItemProperty -Path 'HKLM:\\\\SOFTWARE\\\\App' -Name 'MaxConn' -Value 200 -PropertyType DWord -WhatIf",
+      "require": [
+        {
+          "p": "New-ItemProperty|Set-ItemProperty",
+          "tip": "写注册表值用 New-ItemProperty / Set-ItemProperty"
+        },
+        {
+          "p": "-WhatIf",
+          "tip": "缺少 -WhatIf：注册表写操作要先预演"
+        },
+        {
+          "p": "-Path|HKLM",
+          "tip": "要指定注册表路径（HKLM 还是 HKCU 差别很大）"
+        },
+        {
+          "p": "-Name",
+          "tip": "要指定值名"
+        },
+        {
+          "p": "-Value",
+          "tip": "要指定要写入的值"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Remove-ItemProperty",
+          "tip": "这一题是新增/修改，不是删值"
+        }
+      ]
+    },
+    {
+      "id": "windows.firewall-rule-add-whatif",
+      "track": "windows",
+      "title": "放行端口之前先预演规则",
+      "goal": "用 -WhatIf 预览新增一条入站放行 8080/TCP 的防火墙规则",
+      "hint": "放行端口是安全变更：先把规则内容（方向/协议/端口/动作）写全，再 -WhatIf 看一眼",
+      "level": "hard",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "New-NetFirewallRule -DisplayName 'allow-8080-in' -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow -WhatIf",
+      "require": [
+        {
+          "p": "New-NetFirewallRule",
+          "tip": "新增规则用 New-NetFirewallRule"
+        },
+        {
+          "p": "-WhatIf",
+          "tip": "缺少 -WhatIf：安全变更必须先预演"
+        },
+        {
+          "p": "Inbound",
+          "tip": "要写清方向（放行入站还是出站完全不同）"
+        },
+        {
+          "p": "TCP|Protocol",
+          "tip": "要写清协议"
+        },
+        {
+          "p": "8080",
+          "tip": "要写清端口 8080"
+        },
+        {
+          "p": "Allow|Action",
+          "tip": "要写清动作（Allow / Block）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "netsh\\\\s+advfirewall\\\\s+firewall\\\\s+add",
+          "tip": "netsh 那套写法不直观；PowerShell 用 New-NetFirewallRule"
+        },
+        {
+          "p": "-RemoteAddress\\\\s+Any",
+          "tip": "放行给 Any 太宽了，至少要说明来源范围"
+        }
+      ]
+    },
+    {
+      "id": "windows.share-create-whatif",
+      "track": "windows",
+      "title": "建共享目录之前先预演",
+      "goal": "用 -WhatIf 预览创建一个名为 logs 的共享（含路径与权限）",
+      "hint": "共享一开就是对外暴露面：先把名字、路径、权限写全，再预演一遍",
+      "level": "medium",
+      "platforms": [
+        "win32"
+      ],
+      "sample": "New-SmbShare -Name logs -Path 'C:\\\\logs' -FullAccess 'BUILTIN\\\\Administrators' -WhatIf",
+      "require": [
+        {
+          "p": "New-SmbShare",
+          "tip": "建共享用 New-SmbShare"
+        },
+        {
+          "p": "-WhatIf",
+          "tip": "缺少 -WhatIf：对外暴露面要先预演"
+        },
+        {
+          "p": "-Name",
+          "tip": "要指定共享名"
+        },
+        {
+          "p": "-Path",
+          "tip": "要指定共享的本地路径"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "Everyone",
+          "tip": "共享给 Everyone 是最常见的越权入口，要写具体的主体"
+        },
+        {
+          "p": "net\\\\s+share.*\\\\/grant",
+          "tip": "net share 那套写法落权限不直观；用 PowerShell 的 New-SmbShare"
+        }
+      ]
+    }
+  ]
+}

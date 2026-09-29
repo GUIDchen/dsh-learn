@@ -1,0 +1,106 @@
+{
+  "id": "network-advanced",
+  "name": "网络排障进阶（证书、链路、抓包解读）",
+  "track": "network",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "network.tls-cert-check",
+      "track": "network",
+      "title": "不装浏览器也能看证书链与有效期",
+      "goal": "用 openssl 连接 example.com:443，打印证书链并提取到期时间与主题",
+      "hint": "-showcerts 打印整条链；-servername 是 SNI，多个站点共用 IP 时必须有",
+      "sample": "openssl s_client -connect example.com:443 -servername example.com -showcerts < /dev/null 2>/dev/null | openssl x509 -noout -subject -dates",
+      "require": [
+        {
+          "p": "openssl\\s+s_client",
+          "tip": "应使用 openssl s_client"
+        },
+        {
+          "p": "-connect\\s+example\\.com:443",
+          "tip": "缺少 -connect example.com:443"
+        },
+        {
+          "p": "-servername",
+          "tip": "缺少 -servername（SNI），共享 IP 的站点会拿到默认证书"
+        },
+        {
+          "p": "openssl\\s+x509",
+          "tip": "缺少 openssl x509 解析证书"
+        },
+        {
+          "p": "-dates|-enddate|-subject",
+          "tip": "应至少打印有效期或主题"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "curl\\s+-k\\b",
+          "tip": "排查证书问题不要用 -k 跳过校验（那等于把问题藏起来）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "network.traceroute-path",
+      "track": "network",
+      "title": "看请求走到对端经过哪些跳",
+      "goal": "对 8.8.8.8 做一次路由追踪，最多 15 跳，不做名字解析",
+      "hint": "-m 限制跳数、-n 不做 DNS 解析（更快也更稳定）",
+      "sample": "traceroute -m 15 -n 8.8.8.8",
+      "require": [
+        {
+          "p": "traceroute|tracert|mtr",
+          "tip": "应使用 traceroute/mtr"
+        },
+        {
+          "p": "-m\\s+15|--max-hops[= ]15|--max-ttl[= ]15",
+          "tip": "缺少最多 15 跳的限制"
+        },
+        {
+          "p": "-n\\b",
+          "tip": "缺少 -n（不做名字解析）"
+        },
+        {
+          "p": "8\\.8\\.8\\.8",
+          "tip": "应指定目标 8.8.8.8"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "network.capture-read",
+      "track": "network",
+      "title": "离线读抓包文件（不依赖在线抓）",
+      "goal": "用 tcpdump 读 existing.pcap：只看 80 端口的前 20 个包，并且不解析域名",
+      "hint": "-r 读文件；-nn 不解析；-c 限制数量，看大文件时尤其重要",
+      "sample": "tcpdump -r existing.pcap -nn port 80 -c 20",
+      "require": [
+        {
+          "p": "tcpdump\\s+-r\\s+existing\\.pcap",
+          "tip": "应使用 tcpdump -r existing.pcap 读文件"
+        },
+        {
+          "p": "-nn",
+          "tip": "缺少 -nn（不做名字与端口名解析）"
+        },
+        {
+          "p": "port\\s+80",
+          "tip": "缺少 port 80 过滤"
+        },
+        {
+          "p": "-c\\s+20",
+          "tip": "缺少 -c 20 限制包数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-w\\s",
+          "tip": "本题是读文件（-r），不要写成写文件（-w）"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

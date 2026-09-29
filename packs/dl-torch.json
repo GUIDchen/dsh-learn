@@ -1,0 +1,109 @@
+{
+  "id": "dl-torch",
+  "name": "PyTorch 模型与数据管道（参数量、DataLoader）",
+  "track": "dl",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "dl.model-params",
+      "track": "dl",
+      "title": "算一下模型的参数量与可训练参数量",
+      "goal": "用 python3 一行加载 torchvision 的 resnet18（不下载预训练权重），打印总参数量与可训练参数量",
+      "hint": "sum(p.numel() for p in model.parameters()) 是总参数量；判 requires_grad 才叫可训练",
+      "sample": "python3 -c \"import torch, torchvision; m = torchvision.models.resnet18(weights=None); print(sum(p.numel() for p in m.parameters()), sum(p.numel() for p in m.parameters() if p.requires_grad))\"",
+      "require": [
+        {
+          "p": "import\\s+torch",
+          "tip": "应导入 torch"
+        },
+        {
+          "p": "torchvision|resnet",
+          "tip": "应加载一个 torchvision 模型"
+        },
+        {
+          "p": "weights=None|pretrained=False",
+          "tip": "应显式声明不下载预训练权重"
+        },
+        {
+          "p": "numel\\(\\)",
+          "tip": "缺少 p.numel() 统计参数量"
+        },
+        {
+          "p": "requires_grad",
+          "tip": "缺少 requires_grad 区分可训练参数"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "dl.dataloader-check",
+      "track": "dl",
+      "title": "先确认 DataLoader 真的能出 batch",
+      "goal": "用 TensorDataset 造 10 条 3 维数据，DataLoader 每批 4 条、打乱，然后取第一批并打印形状",
+      "hint": "动手训练前先 next(iter(loader)) 看一眼形状，能省掉大部分 shape 报错",
+      "sample": "python3 -c \"import torch; from torch.utils.data import TensorDataset, DataLoader; ds = TensorDataset(torch.randn(10, 3), torch.randint(0, 2, (10,))); dl = DataLoader(ds, batch_size=4, shuffle=True); x, y = next(iter(dl)); print(x.shape, y.shape)\"",
+      "require": [
+        {
+          "p": "TensorDataset",
+          "tip": "应使用 TensorDataset"
+        },
+        {
+          "p": "DataLoader",
+          "tip": "应使用 DataLoader"
+        },
+        {
+          "p": "batch_size=4",
+          "tip": "缺少 batch_size=4"
+        },
+        {
+          "p": "shuffle=True",
+          "tip": "缺少 shuffle=True"
+        },
+        {
+          "p": "next\\(iter\\(",
+          "tip": "缺少 next(iter(loader)) 取一个 batch"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "batch_size=10\\b",
+          "tip": "题目要求每批 4 条"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "dl.loss-backward",
+      "track": "dl",
+      "title": "最小可跑的训练循环：前向、损失、反向、更新",
+      "goal": "用一行 Python 跑通最小训练步骤：造 2x3 输入与标签，用 nn.Linear(3,1) + MSELoss，反向传播后用 SGD 走一步",
+      "hint": "三步不能少：零梯度、反传、更新；少任何一步模型都不会变",
+      "sample": "python3 -c \"import torch, torch.nn as nn; x = torch.randn(2, 3); y = torch.randn(2, 1); model = nn.Linear(3, 1); opt = torch.optim.SGD(model.parameters(), lr=0.01); loss = nn.MSELoss()(model(x), y); opt.zero_grad(); loss.backward(); opt.step(); print(float(loss))\"",
+      "require": [
+        {
+          "p": "nn\\.Linear",
+          "tip": "应定义 nn.Linear"
+        },
+        {
+          "p": "MSELoss|mse_loss",
+          "tip": "缺少损失函数"
+        },
+        {
+          "p": "zero_grad",
+          "tip": "缺少 zero_grad，梯度会累积"
+        },
+        {
+          "p": "\\.backward\\(\\)",
+          "tip": "缺少反向传播"
+        },
+        {
+          "p": "optim\\.SGD|optimizer\\.step|\\.step\\(\\)",
+          "tip": "缺少优化器更新"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    }
+  ]
+}

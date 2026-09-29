@@ -1,0 +1,406 @@
+{
+  "id": "service-core",
+  "name": "服务管理（macOS launchd/Homebrew 与 Linux systemd）",
+  "track": "service",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "service.status",
+      "track": "service",
+      "title": "查看 nginx 服务的运行状态",
+      "goal": "不启动也不停止，只查 nginx 现在是什么状态",
+      "hint": "Linux 用 systemd，macOS 用 Homebrew service，两边命令完全不通用",
+      "variants": {
+        "darwin": {
+          "sample": "brew services list | grep nginx",
+          "require": [
+            {
+              "p": "brew\\s+services\\s+(list|info)",
+              "tip": "macOS 上用 brew services 查看服务状态"
+            },
+            {
+              "p": "nginx",
+              "tip": "应指定服务名 nginx"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "systemctl",
+              "tip": "macOS 没有 systemctl，那是 Linux 的 systemd"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "sudo systemctl status nginx --no-pager",
+          "require": [
+            {
+              "p": "systemctl\\s+status",
+              "tip": "Linux 上用 systemctl status 查看服务状态"
+            },
+            {
+              "p": "nginx",
+              "tip": "应指定服务名 nginx"
+            },
+            {
+              "p": "--no-pager|--no-pager\\b",
+              "tip": "加 --no-pager 才不会卡在分页器里"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "brew\\s+services",
+              "tip": "Linux 上没有 brew services，那是 macOS 的写法"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-Service nginx | Select-Object Status,Name",
+          "require": [
+            {
+              "p": "Get-Service",
+              "tip": "Windows 用 Get-Service 查服务状态"
+            },
+            {
+              "p": "nginx",
+              "tip": "要指定 nginx"
+            },
+            {
+              "p": "Status",
+              "tip": "要看到 Status 字段"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "systemctl",
+              "tip": "systemctl 是 Linux 的"
+            },
+            {
+              "p": "brew\\s+services",
+              "tip": "brew services 是 macOS 的"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "nginx",
+          "tip": "应指定服务名 nginx"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "uname -s",
+        "expect": "Darwin|Linux",
+        "note": "前置检查：先确认平台，服务管理命令完全不同"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "service.start",
+      "track": "service",
+      "title": "启动 nginx 服务",
+      "goal": "把 nginx 起起来并让它开机自启",
+      "hint": "Linux 需要 sudo systemctl start/enable，macOS 用 brew services start",
+      "variants": {
+        "darwin": {
+          "sample": "brew services start nginx",
+          "require": [
+            {
+              "p": "brew\\s+services\\s+(start|run)",
+              "tip": "macOS 上用 brew services start 启动并注册开机自启"
+            },
+            {
+              "p": "nginx",
+              "tip": "应指定服务名 nginx"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "systemctl",
+              "tip": "macOS 没有 systemctl"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "sudo systemctl enable --now nginx",
+          "require": [
+            {
+              "p": "systemctl\\s+(enable|start)",
+              "tip": "Linux 上用 systemctl enable/start 启动服务"
+            },
+            {
+              "p": "nginx",
+              "tip": "应指定服务名 nginx"
+            },
+            {
+              "p": "enable|--now|sudo",
+              "tip": "开机自启要点：enable（可配合 --now 立即启动）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "brew\\s+services",
+              "tip": "Linux 上没有 brew services"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Set-Service -Name nginx -StartupType Automatic; Start-Service nginx",
+          "require": [
+            {
+              "p": "Start-Service",
+              "tip": "Windows 用 Start-Service 启动服务"
+            },
+            {
+              "p": "nginx",
+              "tip": "要指定 nginx"
+            },
+            {
+              "p": "-StartupType\\s+Automatic",
+              "tip": "开机自启要设 -StartupType Automatic（或 Set-Service -StartupType Automatic）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "systemctl",
+              "tip": "systemctl 是 Linux 的"
+            },
+            {
+              "p": "brew\\s+services",
+              "tip": "brew services 是 macOS 的"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "nginx",
+          "tip": "应指定服务名 nginx"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "service.restart-after-config",
+      "track": "service",
+      "title": "改完配置后重启服务使配置生效",
+      "goal": "改过 nginx 配置后重启服务并确认它重新起来了",
+      "hint": "改配置后建议先做配置校验再重启，避免直接把服务重启成不可用",
+      "variants": {
+        "darwin": {
+          "sample": "nginx -t && brew services restart nginx",
+          "require": [
+            {
+              "p": "nginx\\s+-t",
+              "tip": "重启前先 nginx -t 校验配置语法"
+            },
+            {
+              "p": "brew\\s+services\\s+restart",
+              "tip": "macOS 上用 brew services restart 重启"
+            },
+            {
+              "p": "nginx",
+              "tip": "应指定服务名 nginx"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "systemctl",
+              "tip": "macOS 没有 systemctl"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "sudo nginx -t && sudo systemctl restart nginx",
+          "require": [
+            {
+              "p": "nginx\\s+-t",
+              "tip": "重启前先 nginx -t 校验配置语法"
+            },
+            {
+              "p": "systemctl\\s+restart",
+              "tip": "Linux 上用 systemctl restart 重启"
+            },
+            {
+              "p": "nginx",
+              "tip": "应指定服务名 nginx"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "brew\\s+services",
+              "tip": "Linux 上没有 brew services"
+            },
+            {
+              "p": "systemctl\\s+stop",
+              "tip": "本题要求重启（restart），不是先停后不管"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "nginx -t; Restart-Service nginx",
+          "require": [
+            {
+              "p": "nginx\\s+-t",
+              "tip": "改完配置先做语法校验（nginx -t）"
+            },
+            {
+              "p": "Restart-Service",
+              "tip": "Windows 用 Restart-Service 重启"
+            },
+            {
+              "p": "nginx",
+              "tip": "要指定 nginx"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "systemctl",
+              "tip": "systemctl 是 Linux 的"
+            },
+            {
+              "p": "brew\\s+services",
+              "tip": "brew services 是 macOS 的"
+            },
+            {
+              "p": "Stop-Service",
+              "tip": "只需要重启就别先停后起，中断时间更长"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "nginx",
+          "tip": "应指定服务名 nginx"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "service.autostart-list",
+      "track": "service",
+      "title": "列出开机自启的服务（launchd 与 systemd 两套）",
+      "goal": "列出本机正在运行的用户级服务，并从中过滤出你要找的那个（macOS 用 launchctl，Linux 用 systemctl）",
+      "hint": "macOS 用户级服务由 launchd 管：launchctl list 列出已加载的作业；Linux 用户级服务走 systemctl --user。两边的「启用」与「正在运行」是两个概念",
+      "require": [
+        {
+          "p": "launchctl|systemctl",
+          "tip": "应使用对应平台的启动管理器"
+        }
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "launchctl list | grep -i nginx",
+          "require": [
+            {
+              "p": "launchctl\\s+list",
+              "tip": "macOS 应使用 launchctl list"
+            },
+            {
+              "p": "grep\\s+-i\\s+nginx",
+              "tip": "应过滤出目标服务"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "systemctl\\s+--user|systemctl\\s+list-units",
+              "tip": "macOS 上没有 systemd，这条命令在 mac 上不存在",
+              "severity": "warn"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "systemctl --user list-units --type=service --state=running | grep -i nginx",
+          "require": [
+            {
+              "p": "systemctl\\s+--user",
+              "tip": "Linux 用户级服务应使用 systemctl --user"
+            },
+            {
+              "p": "--type=service",
+              "tip": "应限定服务单元（--type=service）"
+            },
+            {
+              "p": "grep\\s+-i\\s+nginx",
+              "tip": "应过滤出目标服务"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "launchctl",
+              "tip": "Linux 上没有 launchd，这条命令在 Linux 上不存在",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-Service | Where-Object {$_.Status -eq 'Running'} | Where-Object {$_.Name -like '*nginx*'}",
+          "require": [
+            {
+              "p": "Get-Service",
+              "tip": "Windows 上用 Get-Service 列服务"
+            },
+            {
+              "p": "Where-Object",
+              "tip": "用 Where-Object 过滤运行态与服务名"
+            },
+            {
+              "p": "Running",
+              "tip": "要过滤出正在运行的服务"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "launchctl|systemctl",
+              "tip": "Windows 上没有 launchd/systemd",
+              "severity": "warn"
+            }
+          ]
+        }
+      },
+      "level": "medium"
+    },
+    {
+      "id": "service.restart-loop-diagnose",
+      "track": "service",
+      "title": "服务反复重启：状态、最近的日志、单元定义一次看全",
+      "goal": "依次看服务当前状态、它的启动命令与重启策略、以及最近一次失败的日志，判断是配置错还是被 OOM 杀掉",
+      "hint": "systemctl status 只给\"现在怎么样\"；重启策略在单元定义里（Restart=）；日志要用 journalctl -u 看该单元最近几十行并标注时间",
+      "sample": "systemctl status api --no-pager -l && systemctl cat api && systemctl show api -p Restart -p NRestarts && journalctl -u api -n 50 --no-pager -o short-iso",
+      "require": [
+        {
+          "p": "systemctl status",
+          "tip": "先看当前状态"
+        },
+        {
+          "p": "--no-pager",
+          "tip": "加 --no-pager，否则在脚本里会卡住等分页"
+        },
+        {
+          "p": "systemctl cat",
+          "tip": "要看单元定义（谁写的、怎么起的）"
+        },
+        {
+          "p": "systemctl show",
+          "tip": "要看实际生效的属性"
+        },
+        {
+          "p": "Restart",
+          "tip": "重启策略决定了它会不会自己爬起来"
+        },
+        {
+          "p": "journalctl -u",
+          "tip": "要看该单元的日志，而不是全区日志"
+        },
+        {
+          "p": "-o short-iso",
+          "tip": "日志要带完整时间戳，方便和重启时刻对齐"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

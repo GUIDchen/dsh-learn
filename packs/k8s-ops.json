@@ -1,0 +1,206 @@
+{
+  "id": "k8s-ops",
+  "name": "Kubernetes 发布与排障（进阶）",
+  "track": "k8s",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "k8s.get-events",
+      "track": "k8s",
+      "title": "按时间顺序看命名空间里发生了什么",
+      "goal": "列出 default 命名空间的事件，并按最后发生时间排序，方便从最近的问题看起",
+      "hint": "events 会保留一段时间；--sort-by 支持按字段排序，配合 --field-selector 还能只看某类",
+      "sample": "kubectl get events -n default --sort-by=.lastTimestamp",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+events",
+          "tip": "应使用 kubectl get events"
+        },
+        {
+          "p": "-n\\s+default|--namespace[= ]default",
+          "tip": "应指定命名空间 default"
+        },
+        {
+          "p": "--sort-by",
+          "tip": "缺少 --sort-by，事件顺序会乱"
+        },
+        {
+          "p": "lastTimestamp|\\.metadata\\.creationTimestamp",
+          "tip": "排序字段用 .lastTimestamp 更贴近「最近发生」的语义"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+logs",
+          "tip": "logs 看的是容器输出，事件要查 events"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.scale-deployment",
+      "track": "k8s",
+      "title": "把 Deployment 扩到 3 个副本",
+      "goal": "把 web 这个 Deployment 的副本数改成 3（手工应急扩容）",
+      "hint": "手工 scale 会被下次 apply 覆盖；长期配置要写回清单文件",
+      "sample": "kubectl scale deployment/web --replicas=3",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+scale",
+          "tip": "应使用 kubectl scale"
+        },
+        {
+          "p": "deploy(ment)?/web|deployment\\s+web",
+          "tip": "应指定 Deployment web"
+        },
+        {
+          "p": "--replicas[= ]3|--replicas\\s+3",
+          "tip": "应把副本数设成 3"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+edit",
+          "tip": "应急扩缩容用 scale，不需要进编辑器改 YAML"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.set-image",
+      "track": "k8s",
+      "title": "只换镜像触发一次滚动更新",
+      "goal": "把 web Deployment 里名为 web 的容器镜像换成 nginx:1.25，触发滚动更新",
+      "hint": "kubectl set image 的写法是 资源/名字 容器名=镜像；换完记得 rollout status 看结果",
+      "sample": "kubectl set image deployment/web web=nginx:1.25 && kubectl rollout status deployment/web",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+set\\s+image",
+          "tip": "应使用 kubectl set image"
+        },
+        {
+          "p": "deploy(ment)?/web|deployment\\s+web",
+          "tip": "应指定 Deployment web"
+        },
+        {
+          "p": "web=nginx:1\\.25",
+          "tip": "要写成 容器名=镜像 的形式：web=nginx:1.25"
+        },
+        {
+          "p": "rollout\\s+status",
+          "tip": "换完镜像应确认滚动更新结果"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete\\s+deployment",
+          "tip": "换镜像不需要删掉 Deployment",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.secret-dryrun",
+      "track": "k8s",
+      "title": "生成 Secret 清单但不提交到集群",
+      "goal": "按本地文件 ./password.txt 生成名为 db-secret 的 Secret，键名用 password，只把 YAML 写到 secret.yaml（不要真的创建）",
+      "hint": "--dry-run=client -o yaml 是\"生成清单不落集群\"的标准写法；密钥文件本身不要提交进仓库",
+      "sample": "kubectl create secret generic db-secret --from-file=password=./password.txt --dry-run=client -o yaml > secret.yaml",
+      "require": [
+        {
+          "p": "kubectl\\s+create\\s+secret\\s+generic",
+          "tip": "应使用 kubectl create secret generic"
+        },
+        {
+          "p": "db-secret",
+          "tip": "Secret 名应为 db-secret"
+        },
+        {
+          "p": "--from-file",
+          "tip": "用 --from-file 从文件生成"
+        },
+        {
+          "p": "password=\\./password\\.txt|--from-file[= ]password",
+          "tip": "键名应为 password，来源 ./password.txt"
+        },
+        {
+          "p": "--dry-run=client",
+          "tip": "应加 --dry-run=client，只生成不创建"
+        },
+        {
+          "p": "-o\\s+yaml",
+          "tip": "应输出 yaml"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+apply",
+          "tip": "目标是生成清单，不要直接 apply 到集群",
+          "severity": "block"
+        }
+      ],
+      "level": "hard",
+      "verify": {
+        "cmd": "kubectl version --client",
+        "expect": "Client Version|clientVersion",
+        "note": "前置检查：本机 kubectl 是否可用；没有集群也能跑"
+      }
+    },
+    {
+      "id": "k8s.debug-ephemeral-container",
+      "track": "k8s",
+      "title": "容器里没有 curl/shell：用临时容器进去看",
+      "goal": "给 prod 的 api-0 挂一个临时调试容器，复用它所在容器的网络命名空间，并直接进交互 shell",
+      "hint": "distroless / scratch 镜像里没有 shell，kubectl exec 进不去；--target 复用目标容器的进程命名空间，才能看到它的进程",
+      "sample": "kubectl debug -it pod/api-0 -n prod --image=busybox:1.36 --target=api -- sh",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群；临时容器只能从集群侧验证"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+debug",
+          "tip": "应使用 kubectl debug"
+        },
+        {
+          "p": "-it",
+          "tip": "要交互（-it）"
+        },
+        {
+          "p": "pod/api-0",
+          "tip": "应指定目标 Pod"
+        },
+        {
+          "p": "--image=",
+          "tip": "应指定调试镜像"
+        },
+        {
+          "p": "--target=",
+          "tip": "应复用目标容器的命名空间（--target）"
+        },
+        {
+          "p": "--\\s+sh",
+          "tip": "应进入 shell 才能排查"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

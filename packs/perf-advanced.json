@@ -1,0 +1,321 @@
+{
+  "id": "perf-advanced",
+  "name": "性能进阶（压测解读、系统调用、内存与 IO 观察）",
+  "track": "perf",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "perf.ab-keepalive",
+      "track": "perf",
+      "title": "对比 keep-alive 与短连接（这题只看写法与解读思路）",
+      "goal": "用 ab 打本机靶机的 /health：100 个请求、10 并发，并开启 keep-alive（不许真跑别的地址）",
+      "hint": "-k 开启 keep-alive；压测题在本项目里只允许打回环靶机，且请求数与并发数有上限",
+      "sample": "ab -k -n 100 -c 10 http://127.0.0.1:8899/health",
+      "require": [
+        {
+          "p": "ab\\s",
+          "tip": "应使用 ab"
+        },
+        {
+          "p": "-k\\b",
+          "tip": "缺少 -k（keep-alive 对比用）"
+        },
+        {
+          "p": "-n\\s*100",
+          "tip": "缺少 -n 100 总请求数"
+        },
+        {
+          "p": "-c\\s*10",
+          "tip": "缺少 -c 10 并发数"
+        },
+        {
+          "p": "127\\.0\\.0\\.1:8899",
+          "tip": "只能压本机靶机 http://127.0.0.1:8899/health"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "http://(?!127\\.0\\.0\\.1)",
+          "tip": "压测只能打本机回环靶机，不要指向外部地址",
+          "severity": "block"
+        },
+        {
+          "p": "-n\\s*(?:[2-9]\\d{2,}|\\d{4,})",
+          "tip": "本项目把请求数限制在 200 以内（白名单同款上限）"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "perf.strace-syscall",
+      "track": "perf",
+      "title": "看进程在系统调用上卡在哪",
+      "goal": "用 strace 跟随进程 12345 的 openat 与 read 调用，带时间戳并输出到 trace.log",
+      "hint": "-p 指定进程、-e trace= 过滤系统调用、-tt 打时间戳；输出重定向到文件（量大）",
+      "sample": "strace -p 12345 -tt -e trace=openat,read -o trace.log",
+      "require": [
+        {
+          "p": "strace\\s+-p\\s+12345",
+          "tip": "缺少 strace -p 12345"
+        },
+        {
+          "p": "-tt\\b",
+          "tip": "缺少 -tt（带微秒时间戳）"
+        },
+        {
+          "p": "-e\\s+trace=",
+          "tip": "缺少 -e trace= 过滤系统调用（全量输出会淹没人）"
+        },
+        {
+          "p": "openat|read",
+          "tip": "应过滤出 openat / read 这类关键调用"
+        },
+        {
+          "p": "-o\\s+trace\\.log|>\\s*trace\\.log",
+          "tip": "输出应落到 trace.log"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kill\\s+-9",
+          "tip": "观察进程不要顺手杀它",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "perf.memory-io-watch",
+      "track": "perf",
+      "title": "观察内存与 IO：每 2 秒一次，共 5 次",
+      "goal": "用 vmstat 每 2 秒采样一次、共 5 次，关注内存与 IO 两栏",
+      "hint": "vmstat 间隔 次数 是最省事的采样方式；第一行是开机以来的均值，别拿来当现状",
+      "sample": "vmstat 2 5",
+      "require": [
+        {
+          "p": "vmstat\\s+2\\s+5",
+          "tip": "应写成 vmstat 2 5（间隔 2 秒、共 5 次）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "vmstat\\s+1\\s+$|^\\s*vmstat\\s*$",
+          "tip": "不带参数的 vmstat 只给一行均值，看不到趋势"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "perf.iostat-interval",
+      "track": "perf",
+      "title": "看磁盘到底在忙什么（按秒采样）",
+      "goal": "每秒采一次磁盘统计，共采 5 次，看 %util 与 await 是否持续偏高",
+      "hint": "macOS 的 iostat 用 -w 间隔 -c 次数，Linux 直接「间隔 次数」；首行是开机以来的平均值，别拿它下结论",
+      "sample": "iostat -x 1 5",
+      "variants": {
+        "linux": {
+          "title": "按秒采样磁盘统计（Linux）",
+          "hint": "iostat -x 扩展统计，后面跟间隔与次数：iostat -x 1 5",
+          "sample": "iostat -x 1 5",
+          "require": [
+            {
+              "p": "iostat\\s+-x",
+              "tip": "Linux 上应加 -x 看扩展统计"
+            },
+            {
+              "p": "\\s1\\s",
+              "tip": "采样间隔应为 1 秒"
+            },
+            {
+              "p": "\\s5\\b",
+              "tip": "采样次数应为 5 次"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "iostat\\s+-x\\s*$",
+              "tip": "只跑一次拿不到趋势",
+              "severity": "warn"
+            }
+          ]
+        },
+        "darwin": {
+          "title": "按秒采样磁盘统计（macOS）",
+          "hint": "BSD 的 iostat 没有「间隔 次数」写法：用 -w 间隔 -c 次数",
+          "sample": "iostat -d -w 1 -c 5",
+          "require": [
+            {
+              "p": "iostat",
+              "tip": "应使用 iostat"
+            },
+            {
+              "p": "-w\\s+1",
+              "tip": "macOS 用 -w 指定间隔"
+            },
+            {
+              "p": "-c\\s+5",
+              "tip": "macOS 用 -c 指定次数"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "-x\\b",
+              "tip": "BSD 的 iostat 没有 -x",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-Counter '\\PhysicalDisk(_Total)\\Avg. Disk sec/Read' -SampleInterval 1 -MaxSamples 5",
+          "require": [
+            {
+              "p": "Get-Counter",
+              "tip": "Windows 用性能计数器（Get-Counter），没有 iostat"
+            },
+            {
+              "p": "PhysicalDisk",
+              "tip": "要看磁盘就得选 PhysicalDisk 计数器"
+            },
+            {
+              "p": "-SampleInterval\\s+1",
+              "tip": "缺少 -SampleInterval 1（每秒采一次）"
+            },
+            {
+              "p": "-MaxSamples\\s+5",
+              "tip": "缺少 -MaxSamples 5（共采 5 次）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\biostat\\b",
+              "tip": "iostat 是 Linux/macOS 的 sysstat/iostat，Windows 上没有"
+            }
+          ]
+        }
+      },
+      "level": "medium",
+      "require": [
+        {
+          "p": "iostat",
+          "tip": "应使用 iostat"
+        },
+        {
+          "p": "\\s1\\s|-w\\s+1",
+          "tip": "采样间隔应为 1 秒"
+        },
+        {
+          "p": "\\b5\\b|-c\\s+5",
+          "tip": "采样次数应为 5 次"
+        }
+      ]
+    },
+    {
+      "id": "perf.cpu-top-snapshot",
+      "track": "perf",
+      "title": "抓一次 CPU 占用快照（BSD 与 GNU 语法不同）",
+      "goal": "非交互地打印一次 CPU 占用最高的几个进程，采集一份就走（别进交互界面）",
+      "hint": "Linux 的 top 用 -b 批处理、-n 1 采一次、-o %CPU 排序；macOS 的 top 用 -l 1 采一次、-n 10 限制行数、-o cpu 排序",
+      "sample": "top -l 1 -n 10 -o cpu",
+      "require": [
+        {
+          "p": "top",
+          "tip": "应使用 top"
+        },
+        {
+          "p": "-l\\s*1|-b\\b|-bn1",
+          "tip": "要非交互地采一次（macOS -l 1 / Linux -b）"
+        }
+      ],
+      "variants": {
+        "linux": {
+          "title": "抓一次 CPU 快照（Linux）",
+          "hint": "top -bn1 是批处理一次；-o %CPU 按占用排序（等价写法 -o %CPU）",
+          "sample": "top -bn1 -o %CPU | head -20",
+          "require": [
+            {
+              "p": "top\\s+-b|-b\\s.*top|-bn1",
+              "tip": "Linux 上应使用批处理模式（-b）"
+            },
+            {
+              "p": "(-n\\s*1|bn1)",
+              "tip": "只采一次（-n 1）"
+            },
+            {
+              "p": "%CPU|cpu",
+              "tip": "应按 CPU 排序"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "top\\s*$",
+              "tip": "不要进交互界面",
+              "severity": "warn"
+            }
+          ]
+        },
+        "darwin": {
+          "title": "抓一次 CPU 快照（macOS）",
+          "hint": "BSD 的 top 用 -l 指定采样次数、-n 指定行数、-o cpu 排序，而且必须带 -l 才会自己退出",
+          "sample": "top -l 1 -n 10 -o cpu",
+          "require": [
+            {
+              "p": "top",
+              "tip": "应使用 top"
+            },
+            {
+              "p": "-l\\s*1",
+              "tip": "macOS 用 -l 1 采一次"
+            },
+            {
+              "p": "-n\\s*10|-n\\s*\\d+",
+              "tip": "用 -n 限制输出行数"
+            },
+            {
+              "p": "-o\\s+cpu|(-o\\s+cpu)",
+              "tip": "macOS 用 -o cpu 排序"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "top\\s*$",
+              "tip": "不要进交互界面",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "Get-Counter '\\Process(*)\\% Processor Time' -MaxSamples 1 | Select-Object -ExpandProperty CounterSamples | Sort-Object CookedValue -Descending | Select-Object -First 5",
+          "require": [
+            {
+              "p": "Get-Counter",
+              "tip": "Windows 上做一次 CPU 快照用 Get-Counter（没有 top）"
+            },
+            {
+              "p": "% Processor Time|Processor Time",
+              "tip": "要取 % Processor Time 这个计数器"
+            },
+            {
+              "p": "-MaxSamples\\s+1",
+              "tip": "缺少 -MaxSamples 1：这题是采一次就走，别持续刷屏"
+            },
+            {
+              "p": "Sort-Object|Select-Object",
+              "tip": "要排序并只取前几个进程"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\btop\\b",
+              "tip": "Windows 没有 top"
+            },
+            {
+              "p": "\\bvmstat\\b",
+              "tip": "Windows 没有 vmstat"
+            }
+          ]
+        }
+      },
+      "level": "medium"
+    }
+  ]
+}

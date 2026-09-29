@@ -1,0 +1,235 @@
+{
+  "id": "ai-infra",
+  "name": "AI Infra 与异构调度（容器/K8s 里的 GPU、容量与训练排障）",
+  "track": "mlops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "ai.gpu-container-check",
+      "track": "mlops",
+      "title": "容器里确认 GPU 真的挂进来了",
+      "goal": "用 docker run --gpus 起一个临时容器打印 GPU 列表，确认运行时把卡透传给了容器",
+      "hint": "--gpus all 需要 nvidia-container-toolkit；容器里 nvidia-smi 报 \"No devices were found\" 就是没透传",
+      "sample": "docker run --rm --gpus all nvidia-smi -L",
+      "require": [
+        {
+          "p": "docker\\s+run",
+          "tip": "要用 docker run 起临时容器验证"
+        },
+        {
+          "p": "--gpus",
+          "tip": "要显式声明 --gpus"
+        },
+        {
+          "p": "nvidia-smi",
+          "tip": "容器里要用 nvidia-smi 打印设备"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--privileged|--pid=host|rm\\s+-rf\\s+/",
+          "tip": "验证 GPU 透传不需要特权与宿主命名空间",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.k8s-gpu-capacity",
+      "track": "mlops",
+      "title": "看节点的 GPU 总量与已分配量",
+      "goal": "用 kubectl describe node 看 Capacity/Allocatable 里的 nvidia.com/gpu，以及已分配出去多少",
+      "hint": "Capacity 是总量、Allocatable 是能调度的量；Allocated resources 段里 nvidia.com/gpu 会显示已用/总量",
+      "sample": "kubectl describe node gpu-node-1 | grep -A 6 \"Allocatable\"",
+      "require": [
+        {
+          "p": "kubectl\\s+describe\\s+node",
+          "tip": "要用 kubectl describe node"
+        },
+        {
+          "p": "nvidia\\.com/gpu|gpu",
+          "tip": "要看 GPU 资源条目"
+        },
+        {
+          "p": "-A\\s+\\d+|grep",
+          "tip": "要过滤出相关段落，别整篇刷屏"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+(delete|cordon|drain|taint)",
+          "tip": "盘点阶段不要动节点",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.k8s-gpu-owner",
+      "track": "mlops",
+      "title": "谁在占着 GPU（按 Pod 看 requests）",
+      "goal": "用 kubectl get pods -A -o custom-columns 列出申请了 nvidia.com/gpu 的 Pod 与它要的数量",
+      "hint": "custom-columns 里写 spec.containers[*].resources.requests.nvidia\\.com/gpu；只跑着的 Pod 才是真占用",
+      "sample": "kubectl get pods -A -o custom-columns=NS:.metadata.namespace,POD:.metadata.name,GPU:.spec.containers[*].resources.requests.nvidia\\.com/gpu | grep -v \"<none>\"",
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+pods",
+          "tip": "要用 kubectl get pods"
+        },
+        {
+          "p": "custom-columns|-o\\s+json|-o\\s+yaml",
+          "tip": "要按字段取，才能看出谁占了 GPU"
+        },
+        {
+          "p": "nvidia\\.com/gpu|gpu",
+          "tip": "要针对 GPU 资源过滤"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete",
+          "tip": "排查不要删 Pod",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.k8s-gpu-schedule",
+      "track": "mlops",
+      "title": "GPU 任务调度不上去：看标签与污点",
+      "goal": "查 GPU 节点的标签（含 accelerator 等）与 Taints，判断是缺 nodeSelector 还是没配 tolerations",
+      "hint": "describe node 里 Taints 段与 Labels 段要一起看；GPU 节点常带 nvidia.com/gpu.present 与专用污点",
+      "sample": "kubectl get nodes --show-labels | grep -i gpu && kubectl describe node gpu-node-1 | grep -A 4 \"Taints\"",
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+nodes|kubectl\\s+describe\\s+node",
+          "tip": "要查节点信息"
+        },
+        {
+          "p": "--show-labels|Labels",
+          "tip": "要看标签"
+        },
+        {
+          "p": "Taints|taint",
+          "tip": "要看污点"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+(taint|cordon|drain)",
+          "tip": "先看，不要改调度状态",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.shm-size",
+      "track": "mlops",
+      "title": "DataLoader 卡死：先看 /dev/shm 大小",
+      "goal": "查容器（或宿主）的 /dev/shm 大小与 shm-size 设置——太小会让多进程 DataLoader 直接卡住",
+      "hint": "docker run 默认 /dev/shm 只有 64MB；训练容器一般要 --shm-size=8g 或挂 memory 型 emptyDir",
+      "sample": "docker inspect --format '{{.HostConfig.ShmSize}}' train-job && df -h /dev/shm",
+      "require": [
+        {
+          "p": "docker\\s+inspect|df\\s+-h",
+          "tip": "要看容器的 shm 设置或挂载大小"
+        },
+        {
+          "p": "shm|ShmSize",
+          "tip": "要针对 /dev/shm"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+rm|docker\\s+stop",
+          "tip": "诊断不要停训练容器",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.training-oom",
+      "track": "mlops",
+      "title": "训练 OOM 排查：日志 + 事件 + 实时占用",
+      "goal": "按顺序看容器日志里的 OOM 报错、Pod 事件、以及 nvidia-smi 的实时占用，定位是显存还是内存",
+      "hint": "CUDA out of memory 是显存、被 OOMKilled 是内存；事件里 reason=OOMKilled、退出码 137 是内存被杀",
+      "sample": "kubectl logs train-job --tail=100 | grep -i \"out of memory\" && kubectl describe pod train-job | grep -A 3 \"Last State\" && nvidia-smi --query-gpu=memory.used,memory.total --format=csv",
+      "require": [
+        {
+          "p": "kubectl\\s+logs",
+          "tip": "要看训练日志"
+        },
+        {
+          "p": "kubectl\\s+describe\\s+pod|kubectl\\s+get\\s+events",
+          "tip": "要看事件或 Pod 状态"
+        },
+        {
+          "p": "nvidia-smi|memory\\.used",
+          "tip": "要看实时显存占用"
+        },
+        {
+          "p": "grep|--tail|-A\\s+\\d+",
+          "tip": "要过滤关键行，日志很长"
+        },
+        {
+          "p": "out of memory|OOM|137",
+          "tip": "要针对 OOM 关键词"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete|kubectl\\s+exec.*kill",
+          "tip": "先定位，不要直接删任务",
+          "severity": "block"
+        },
+        {
+          "p": "rm\\s+-rf|docker\\s+rm",
+          "tip": "排查不要删容器或文件",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "ai.distributed-env",
+      "track": "mlops",
+      "title": "分布式训练：确认 rank 与世界大小",
+      "goal": "从训练容器里看 MASTER_ADDR / RANK / WORLD_SIZE / LOCAL_RANK 等环境变量，判断进程组配置对不对",
+      "hint": "WORLD_SIZE 与副本数不符、RANK 重复都会卡在 init_process_group；NCCL 调试可开 NCCL_DEBUG=INFO",
+      "sample": "kubectl exec train-job-0 -- env | grep -E \"MASTER_ADDR|MASTER_PORT|RANK|WORLD_SIZE|LOCAL_RANK\"",
+      "require": [
+        {
+          "p": "kubectl\\s+exec|docker\\s+exec",
+          "tip": "要进容器看环境变量"
+        },
+        {
+          "p": "env|printenv",
+          "tip": "要打印环境变量"
+        },
+        {
+          "p": "MASTER_ADDR|WORLD_SIZE|RANK",
+          "tip": "要针对分布式训练的关键变量"
+        },
+        {
+          "p": "grep|RANK",
+          "tip": "要过滤出关键项"
+        },
+        {
+          "p": "NCCL|NCCL_DEBUG|LOCAL_RANK",
+          "tip": "还要看 NCCL 调试开关与本地 rank，否则卡在 init_process_group 时没线索"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kill|pkill|kubectl\\s+delete",
+          "tip": "只看环境，不要动训练进程",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

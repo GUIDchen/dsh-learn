@@ -1,0 +1,218 @@
+{
+  "id": "perf-core",
+  "name": "性能与容量（压测、观测、内核队列）",
+  "track": "perf",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "perf.wrk-bench",
+      "track": "perf",
+      "title": "wrk 压一轮：4 线程 100 并发跑 30 秒",
+      "goal": "用 wrk 压 http://localhost:8080/health：4 个线程、100 个连接、持续 30 秒",
+      "hint": "压测参数要写全，否则等于白压：-t 线程、-c 连接、-d 时长",
+      "sample": "wrk -t4 -c100 -d30s http://localhost:8080/health",
+      "verify": {
+        "cmd": "wrk --version",
+        "expect": "wrk|\\d+\\.\\d+",
+        "note": "只检查 wrk 是否就绪：真压测请对着 scripts/lab.sh 起的靶机跑"
+      },
+      "require": [
+        {
+          "p": "wrk\\s",
+          "tip": "应使用 wrk"
+        },
+        {
+          "p": "-t\\s*4",
+          "tip": "缺少 -t4 线程数"
+        },
+        {
+          "p": "-c\\s*100",
+          "tip": "缺少 -c100 并发连接"
+        },
+        {
+          "p": "-d\\s*30s",
+          "tip": "缺少 -d30s 持续时长"
+        },
+        {
+          "p": "http://localhost:8080/health",
+          "tip": "缺少被测地址"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--latency\\s+.*-d\\s*[1-9]\\d{3,}",
+          "tip": "别一上来就压十几分钟，先短压确认参数"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "perf.ab-bench",
+      "track": "perf",
+      "title": "ab 压一轮：1000 个请求、50 并发",
+      "goal": "用 ab 压 http://localhost:8080/health：总共 1000 个请求、并发 50",
+      "hint": "-n 总请求数、-c 并发数；ab 会给出失败率与耗时分布",
+      "sample": "ab -n 1000 -c 50 http://localhost:8080/health",
+      "verify": {
+        "cmd": "ab -n 50 -c 5 http://127.0.0.1:8899/health",
+        "expect": "Requests per second|Complete requests|Failed requests",
+        "note": "需要本机压测靶机：bash scripts/lab.sh up（只打回环，白名单里把请求数与并发数限死了）"
+      },
+      "require": [
+        {
+          "p": "ab\\s",
+          "tip": "应使用 ab"
+        },
+        {
+          "p": "-n\\s*1000",
+          "tip": "缺少 -n 1000 总请求数"
+        },
+        {
+          "p": "-c\\s*50",
+          "tip": "缺少 -c 50 并发数"
+        },
+        {
+          "p": "http://localhost:8080/health",
+          "tip": "缺少被测地址"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-n\\s*1000000",
+          "tip": "先小流量确认，别直接百万请求打上去"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "perf.connection-stats",
+      "track": "perf",
+      "title": "先看连接与内核队列，再决定加不加机器",
+      "goal": "查看全局连接统计摘要，并打印内核的 backlog 相关参数（somaxconn 与 tcp_max_syn_backlog）",
+      "hint": "ss -s 给连接摘要；sysctl 后面可以一次跟多个键，输出更好对比",
+      "sample": "ss -s && sysctl net.core.somaxconn net.ipv4.tcp_max_syn_backlog",
+      "require": [
+        {
+          "p": "ss\\s+-s",
+          "tip": "缺少 ss -s 连接摘要"
+        },
+        {
+          "p": "sysctl",
+          "tip": "缺少 sysctl 读内核参数"
+        },
+        {
+          "p": "net\\.core\\.somaxconn",
+          "tip": "缺少 net.core.somaxconn"
+        },
+        {
+          "p": "tcp_max_syn_backlog",
+          "tip": "缺少 tcp_max_syn_backlog"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sysctl\\s+-w|sysctl\\s+\\S+=",
+          "tip": "本题只观测；改内核参数要单独变更",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "perf.flamegraph-input",
+      "track": "perf",
+      "title": "采一段 profiler 数据（火焰图的原料）",
+      "goal": "用 perf 对进程 12345 采样 30 秒（含调用栈），输出到 perf.data",
+      "hint": "perf record -F 频率、-g 采调用栈；采样完用 perf report 或火焰图脚本消费",
+      "sample": "perf record -F 99 -g -p 12345 -o perf.data -- sleep 30",
+      "require": [
+        {
+          "p": "perf\\s+record",
+          "tip": "应使用 perf record"
+        },
+        {
+          "p": "-F\\s+99|-g\\b",
+          "tip": "缺少采样频率或调用栈参数（-F/-g）"
+        },
+        {
+          "p": "-p\\s+12345",
+          "tip": "缺少 -p 12345 指定进程"
+        },
+        {
+          "p": "perf\\.data",
+          "tip": "输出应为 perf.data"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kill\\s+-9|perf\\s+record.*--all-user.*-a\\s+-o\\s+/",
+          "tip": "采样不要杀进程，也不要写到系统目录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "perf.py-spy-dump",
+      "track": "perf",
+      "title": "给运行中的 Python 进程取样（不改代码）",
+      "goal": "用 py-spy 对进程 12345 采样 20 秒，输出到 profile.svg（不依赖重启进程）",
+      "hint": "py-spy dump 看当前栈、record 出火焰图；线上排查 Python 卡顿常用",
+      "sample": "py-spy record -p 12345 -d 20 -o profile.svg",
+      "require": [
+        {
+          "p": "py-spy",
+          "tip": "应使用 py-spy"
+        },
+        {
+          "p": "record|dump",
+          "tip": "缺少采样动作（record/dump）"
+        },
+        {
+          "p": "-p\\s+12345",
+          "tip": "缺少 -p 指定进程"
+        },
+        {
+          "p": "-d\\s+20",
+          "tip": "缺少 -d 20 采样时长"
+        },
+        {
+          "p": "profile\\.svg|--output",
+          "tip": "缺少输出文件"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kill\\s+|systemctl\\s+restart",
+          "tip": "采样是只读的，不要重启或杀进程",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "perf.disk-io-baseline",
+      "track": "perf",
+      "title": "先量基线：磁盘读写与 IO 等待",
+      "goal": "用 iostat 每 2 秒采样一次、共 5 次，并显示扩展统计",
+      "hint": "-x 给扩展统计（含 await/利用率）；排查\"服务慢\"时先排除 IO 等待",
+      "sample": "iostat -x 2 5",
+      "require": [
+        {
+          "p": "iostat",
+          "tip": "应使用 iostat"
+        },
+        {
+          "p": "-x\\b",
+          "tip": "缺少 -x 扩展统计"
+        },
+        {
+          "p": "2\\s+5",
+          "tip": "应写成 iostat ... 2 5（间隔 2 秒、共 5 次）"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    }
+  ]
+}

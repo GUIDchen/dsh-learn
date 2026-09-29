@@ -1,0 +1,258 @@
+{
+  "id": "k8s-storage",
+  "name": "K8s 存储与网络（PV/PVC、StatefulSet、Ingress、NetworkPolicy）",
+  "track": "k8s",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "k8s.pvc-binding",
+      "track": "k8s",
+      "title": "PVC 一直 Pending：看它到底绑上没",
+      "goal": "列出 default 命名空间里的 PVC，带上容量与存储类信息",
+      "hint": "kubectl get pvc 会显示 STATUS（Bound/Pending）与容量；-o wide 还能看到 Volume 与 StorageClass",
+      "sample": "kubectl get pvc -n default -o wide",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群，集群没起时会给出排查建议"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+pvc",
+          "tip": "应使用 kubectl get pvc"
+        },
+        {
+          "p": "-n\\s+default|--namespace[= ]default",
+          "tip": "应指定命名空间 default"
+        },
+        {
+          "p": "-o\\s+wide",
+          "tip": "缺少 -o wide，看不到卷与存储类"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete\\s+pvc|kubectl\\s+delete\\s+pv\\b",
+          "tip": "删 PVC/PV 可能丢数据",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.storageclass",
+      "track": "k8s",
+      "title": "集群里有哪些存储类可用",
+      "goal": "列出所有 StorageClass，并标出默认存储类",
+      "hint": "默认存储类带 (default) 标记；没有默认类时 PVC 不写 storageClassName 就会一直 Pending",
+      "sample": "kubectl get storageclass",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群，集群没起时会给出排查建议"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+(storageclass|sc)\\b",
+          "tip": "应使用 kubectl get storageclass"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "patch|annotate",
+          "tip": "只看不改：不要顺手改默认存储类"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.statefulset-rollout",
+      "track": "k8s",
+      "title": "有状态服务的滚动更新要等它自己排好队",
+      "goal": "查看 db 这个 StatefulSet 的滚动更新状态，并带上超时 120 秒",
+      "hint": "StatefulSet 是逐个（默认逆序）更新的，rollout status 能等到全部就绪",
+      "sample": "kubectl rollout status statefulset/db --timeout=120s",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群，集群没起时会给出排查建议"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+rollout\\s+status",
+          "tip": "应使用 kubectl rollout status"
+        },
+        {
+          "p": "statefulset/db|statefulset\\s+db",
+          "tip": "应指定 StatefulSet db"
+        },
+        {
+          "p": "--timeout",
+          "tip": "缺少 --timeout，卡住时脚本会一直等"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete\\s+statefulset",
+          "tip": "排障不要删 StatefulSet（数据卷可能一起没）",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.ingress-rules",
+      "track": "k8s",
+      "title": "Ingress 配了哪些域名与后端",
+      "goal": "列出所有命名空间的 Ingress，并看其中一个的详细规则",
+      "hint": "get ingress -A 一览；describe 能看到 Host/Path 与后端 Service 端口",
+      "sample": "kubectl get ingress -A && kubectl describe ingress web -n default",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群，集群没起时会给出排查建议"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+ingress\\s+-A|kubectl\\s+get\\s+ingress\\s+--all-namespaces",
+          "tip": "缺少 kubectl get ingress -A"
+        },
+        {
+          "p": "kubectl\\s+describe\\s+ingress\\s+web",
+          "tip": "缺少 describe 看具体规则"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "k8s.networkpolicy-list",
+      "track": "k8s",
+      "title": "确认网络策略有没有把流量挡住",
+      "goal": "列出所有 NetworkPolicy，并确认 default 命名空间里有没有策略",
+      "hint": "只要有一个 NetworkPolicy 选中了 Pod，未被允许的入站流量就会被拒（很多「服务不通」都出在这里）",
+      "sample": "kubectl get networkpolicy -A && kubectl get networkpolicy -n default",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群，集群没起时会给出排查建议"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+networkpolicy\\s+-A|kubectl\\s+get\\s+netpol\\s+-A",
+          "tip": "缺少 kubectl get networkpolicy -A"
+        },
+        {
+          "p": "-n\\s+default|--namespace[= ]default",
+          "tip": "缺少 default 命名空间的策略列表"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "k8s.endpointslices-check",
+      "track": "k8s",
+      "title": "Service 到底挂上了哪些 Pod（看 EndpointSlice）",
+      "goal": "列出 prod 命名空间里 EndpointSlice 的地址与端口，确认 Service 后面真的有几个就绪的 Pod",
+      "hint": "Service 有 ClusterIP 但访问不通，多数是 endpoints 为空（标签选不中、或 readinessProbe 没过）；老版本用 kubectl get endpoints",
+      "sample": "kubectl get endpointslices -n prod -o wide",
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+endpointslices",
+          "tip": "应查看 EndpointSlice（新版）/ endpoints（老版）"
+        },
+        {
+          "p": "-n\\s+prod",
+          "tip": "应指定命名空间 prod"
+        }
+      ],
+      "level": "easy",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群；EndpointSlice 是集群侧数据，离线跑不出结果"
+      }
+    },
+    {
+      "id": "k8s.ingress-tls-secret",
+      "track": "k8s",
+      "title": "Ingress 的证书挂的是哪个 secret",
+      "goal": "打印 prod 命名空间里名为 api 的 Ingress，只看其中和 TLS 有关的行",
+      "hint": "HTTPS 证书错乱常见于 Ingress 引用了另一个 namespace 的 secret（引用不到就一直用默认证书）",
+      "sample": "kubectl describe ingress api -n prod | grep -A 3 -i tls",
+      "require": [
+        {
+          "p": "kubectl\\s+describe\\s+ingress",
+          "tip": "应使用 kubectl describe ingress"
+        },
+        {
+          "p": "grep.*-i\\s+tls",
+          "tip": "应过滤 TLS 相关行"
+        }
+      ],
+      "level": "easy",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群；证书引用关系只能从集群读"
+      }
+    },
+    {
+      "id": "k8s.pvc-mount-usage",
+      "track": "k8s",
+      "title": "挂进容器的盘还剩多少（PVC 满了最会挑时间）",
+      "goal": "在 prod 的 api-0 容器里看一下 /data 这个挂载点的容量与剩余空间",
+      "hint": "PVC 的容量在 StorageClass 里是一次性给的，扩容要改 PVC 再重启 Pod；进容器 df -h <挂载点> 最快",
+      "sample": "kubectl exec -n prod api-0 -- df -h /data",
+      "require": [
+        {
+          "p": "kubectl\\s+exec",
+          "tip": "应使用 kubectl exec 进容器"
+        },
+        {
+          "p": "-n\\s+prod",
+          "tip": "应指定命名空间与 Pod"
+        },
+        {
+          "p": "df\\s+-h\\s+/data",
+          "tip": "要看 /data 的容量与剩余"
+        }
+      ],
+      "level": "easy",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群；挂载点用量要在 Pod 里看"
+      }
+    },
+    {
+      "id": "k8s.coredns-pod-check",
+      "track": "k8s",
+      "title": "集群 DNS 是不是活着（coreDNS 先看 Pod）",
+      "goal": "列出 kube-system 里 coreDNS 的 Pod 与所在节点，确认它们 Running 且不是一台机器全挂",
+      "hint": "集群内解析异常第一站就是 kube-dns/coreDNS 的 Pod 状态与副本分布；只有 1 个副本且它所在节点有问题时，全集群解析都会抖",
+      "sample": "kubectl get pods -n kube-system -o wide | grep coredns",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群；coreDNS 的状态只能从集群读"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+pods",
+          "tip": "应使用 kubectl get pods"
+        },
+        {
+          "p": "-n\\s+kube-system",
+          "tip": "应指定 kube-system 命名空间"
+        },
+        {
+          "p": "coredns|kube-dns",
+          "tip": "应过滤出 coreDNS 的 Pod"
+        }
+      ],
+      "level": "easy"
+    }
+  ]
+}

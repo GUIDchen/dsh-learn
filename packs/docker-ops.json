@@ -1,0 +1,502 @@
+{
+  "id": "docker-ops",
+  "name": "Docker 生产运维（构建优化、健康检查、清理）",
+  "track": "docker",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "docker.multistage-build",
+      "track": "docker",
+      "title": "用多阶段构建把镜像做小",
+      "goal": "第一阶段用 node:20 装依赖并构建，第二阶段只把产物拷进 nginx:1.25，最终镜像名 app:1.0",
+      "hint": "多阶段构建的关键是 FROM ... AS <名字> 与 COPY --from=<名字>",
+      "sample": "Dockerfile: FROM node:20 AS build（RUN npm ci && npm run build）→ FROM nginx:1.25 → COPY --from=build /app/dist /usr/share/nginx/html；然后 docker build -t app:1.0 .",
+      "require": [
+        {
+          "p": "FROM\\s+\\S+\\s+AS\\s+\\w+|as\\s+build",
+          "tip": "第一阶段要用 FROM ... AS build 命名"
+        },
+        {
+          "p": "COPY\\s+--from=",
+          "tip": "第二阶段用 COPY --from=build 只拷产物"
+        },
+        {
+          "p": "nginx",
+          "tip": "运行阶段应基于 nginx 镜像"
+        },
+        {
+          "p": "docker\\s+build",
+          "tip": "最后用 docker build 构建镜像"
+        },
+        {
+          "p": "-t\\s*app:1\\.0",
+          "tip": "缺少 -t app:1.0"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "COPY\\s+\\.\\s+\\.",
+          "tip": "把整个上下文拷进运行阶段会让镜像变大，正是多阶段要避免的"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.dockerignore",
+      "track": "docker",
+      "title": "别把 node_modules 和 .git 塞进构建上下文",
+      "goal": "让 docker build 的上下文里排除 node_modules、.git 与本地日志",
+      "hint": "构建上下文是发给守护进程的全部内容，.dockerignore 越早写越省时间",
+      "sample": ".dockerignore 内容：node_modules、.git、*.log；然后 docker build -t app:1.0 .",
+      "require": [
+        {
+          "p": "node_modules",
+          "tip": "应排除 node_modules"
+        },
+        {
+          "p": "\\.git|\\.git/",
+          "tip": "应排除 .git"
+        },
+        {
+          "p": "\\.log|\\*\\.log",
+          "tip": "应排除本地日志"
+        },
+        {
+          "p": "docker\\s+build|\\.dockerignore",
+          "tip": "要落到 .dockerignore 或说明构建命令"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "COPY\\s+node_modules",
+          "tip": "宿主的 node_modules 不该拷进镜像，应在镜像内 npm ci"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.healthcheck",
+      "track": "docker",
+      "title": "给容器加健康检查",
+      "goal": "让容器每 30 秒检查一次 http://localhost/healthz，失败 3 次判定为不健康",
+      "hint": "HEALTHCHECK 写在 Dockerfile 里；--interval/--timeout/--retries 控制节奏",
+      "sample": "HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD curl -fsS http://localhost/healthz || exit 1",
+      "require": [
+        {
+          "p": "HEALTHCHECK",
+          "tip": "应使用 HEALTHCHECK 指令"
+        },
+        {
+          "p": "--interval[= ]30s",
+          "tip": "间隔应为 30s"
+        },
+        {
+          "p": "--retries[= ]3",
+          "tip": "失败重试应为 3 次"
+        },
+        {
+          "p": "CMD",
+          "tip": "缺少 CMD 指定检查命令"
+        },
+        {
+          "p": "healthz|localhost|127\\.0\\.0\\.1",
+          "tip": "应检查本机的健康接口"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--interval[= ]0|HEALTHCHECK\\s+NONE",
+          "tip": "本题要求启用健康检查，不是关掉它"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.restart-policy",
+      "track": "docker",
+      "title": "让容器挂了自动重启但有次数上限",
+      "goal": "启动 web 容器时设置：异常退出最多重启 5 次，且不用 always 这种无限重启策略",
+      "hint": "--restart 支持 no/on-failure[:max]/always/unless-stopped",
+      "sample": "docker run -d --name web --restart on-failure:5 -p 8080:80 nginx:1.25",
+      "require": [
+        {
+          "p": "docker\\s+run",
+          "tip": "应使用 docker run"
+        },
+        {
+          "p": "--restart[= ]on-failure:5",
+          "tip": "策略应为 --restart on-failure:5（有次数上限）"
+        },
+        {
+          "p": "--name\\s+web",
+          "tip": "容器名应为 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--restart[= ]always",
+          "tip": "always 会无限重启，本题要求带上限"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.logs-since",
+      "track": "docker",
+      "title": "只看最近一段时间的容器日志",
+      "goal": "查看 web 容器最近 10 分钟的日志，并带上时间戳",
+      "hint": "--since 支持 10m/1h/绝对时间；-t 加时间戳",
+      "sample": "docker logs --since 10m -t web",
+      "require": [
+        {
+          "p": "docker\\s+logs",
+          "tip": "应使用 docker logs"
+        },
+        {
+          "p": "--since[= ]10m|--since[= ]\\\"?10m",
+          "tip": "缺少 --since 10m"
+        },
+        {
+          "p": "-t|--timestamps",
+          "tip": "缺少 -t 时间戳"
+        },
+        {
+          "p": "web",
+          "tip": "应指定容器名 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--follow|-f\\b",
+          "tip": "本题只要一次性看最近日志，不需要跟随"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.cleanup-images",
+      "track": "docker",
+      "title": "清理悬空镜像但不动有用的数据",
+      "goal": "删掉标签为 <none> 的悬空镜像，释放空间；不要碰数据卷和正在使用的镜像",
+      "hint": "docker image prune 默认只删悬空镜像；-a 会连未被容器引用的镜像一起删",
+      "sample": "docker image prune -f",
+      "require": [
+        {
+          "p": "docker\\s+image\\s+prune|docker\\s+image\\s+rm|docker\\s+rmi",
+          "tip": "应使用 docker image prune（或按 ID 精确删除）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--volumes|-v\\b",
+          "tip": "清理镜像不该动数据卷",
+          "severity": "block"
+        },
+        {
+          "p": "\\s-a\\b|--all",
+          "tip": "-a 会删掉未被引用的镜像（含下次还要用的基础镜像），本题只清悬空镜像"
+        },
+        {
+          "p": "rm\\s+-rf\\s+/",
+          "tip": "不要在宿主机上删目录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.inspect-resources",
+      "track": "docker",
+      "title": "查看容器被限制了多少 CPU 与内存",
+      "goal": "从 web 容器的详情里只取内存上限与 CPU 配额两个字段",
+      "hint": "inspect 的 --format 支持 Go 模板，也可以一次取多个字段",
+      "sample": "docker inspect --format '{{.HostConfig.Memory}} {{.HostConfig.NanoCpus}}' web",
+      "require": [
+        {
+          "p": "docker\\s+inspect",
+          "tip": "应使用 docker inspect"
+        },
+        {
+          "p": "--format|-f",
+          "tip": "缺少 --format"
+        },
+        {
+          "p": "Memory",
+          "tip": "模板应包含 .HostConfig.Memory"
+        },
+        {
+          "p": "NanoCpus|CpuQuota|CpuShares",
+          "tip": "还应取 CPU 相关字段"
+        },
+        {
+          "p": "web",
+          "tip": "应指定容器名 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "grep|awk|jq",
+          "tip": "原生 --format 足够，不必再走文本处理"
+        }
+      ],
+      "verify": {
+        "cmd": "docker ps",
+        "expect": "CONTAINER ID|NAMES",
+        "note": "前置检查：确认守护进程可用"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "docker.build-target",
+      "track": "docker",
+      "title": "只构建多阶段里的某一个阶段",
+      "goal": "构建时只跑到 builder 这个阶段，产物打上 app:build",
+      "hint": "--target 指定停止的阶段；调试构建脚本时不用每次都跑完整镜像",
+      "sample": "docker build --target builder -t app:build .",
+      "require": [
+        {
+          "p": "docker\\s+build",
+          "tip": "应使用 docker build"
+        },
+        {
+          "p": "--target\\s+builder",
+          "tip": "缺少 --target builder"
+        },
+        {
+          "p": "-t\\s+app:build",
+          "tip": "产物应打上 app:build"
+        },
+        {
+          "p": "\\.\\s*$|\\s\\.$",
+          "tip": "构建上下文应写当前目录 ."
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--no-cache",
+          "tip": "调试单个阶段不需要 --no-cache，那会让构建变慢"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.logs-time-window",
+      "track": "docker",
+      "title": "只看最近 10 分钟的日志，并带时间戳",
+      "goal": "查看 web 容器最近 10 分钟、最后 50 行的日志，输出带时间戳",
+      "hint": "--since 支持 10m 这种相对时间；-t 加时间戳；--tail 限制行数",
+      "sample": "docker logs --since 10m --tail 50 -t web",
+      "require": [
+        {
+          "p": "docker\\s+logs",
+          "tip": "应使用 docker logs"
+        },
+        {
+          "p": "--since\\s+10m",
+          "tip": "缺少 --since 10m"
+        },
+        {
+          "p": "--tail\\s+50",
+          "tip": "缺少 --tail 50"
+        },
+        {
+          "p": "-t\\b|--timestamps",
+          "tip": "缺少 -t（带时间戳）"
+        },
+        {
+          "p": "\\bweb\\b",
+          "tip": "应指定容器 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+logs.*-f",
+          "tip": "本题是一次性查询，不要用 -f 挂住终端"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.save-load",
+      "track": "docker",
+      "title": "把镜像导出成文件（离线搬到另一台机器）",
+      "goal": "把 app:1.0 导出并压缩成 app-1.0.tgz（用管道，不落地中间文件）",
+      "hint": "docker save 输出到 stdout，管道给 gzip 即可；对面 docker load -i 恢复",
+      "sample": "docker save app:1.0 | gzip > app-1.0.tgz",
+      "require": [
+        {
+          "p": "docker\\s+save",
+          "tip": "应使用 docker save"
+        },
+        {
+          "p": "app:1\\.0",
+          "tip": "应导出 app:1.0"
+        },
+        {
+          "p": "gzip",
+          "tip": "缺少 gzip 压缩（镜像包很大）"
+        },
+        {
+          "p": "app-1\\.0\\.tgz",
+          "tip": "输出文件名应为 app-1.0.tgz"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+rmi|docker\\s+rm\\b",
+          "tip": "导出镜像不需要删任何东西",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.buildx-multiarch",
+      "track": "docker",
+      "title": "一次构建两个架构的镜像",
+      "goal": "用 buildx 构建 linux/amd64 与 linux/arm64 两个平台的镜像 app:1.0（不推送）",
+      "hint": "--platform 支持逗号分隔的多平台；不推送时用 --load 只能载入单平台，多平台通常配合 --push",
+      "sample": "docker buildx build --platform linux/amd64,linux/arm64 -t app:1.0 .",
+      "require": [
+        {
+          "p": "docker\\s+buildx\\s+build|docker\\s+build\\s+--platform",
+          "tip": "应使用 buildx（或带 --platform 的 build）"
+        },
+        {
+          "p": "--platform\\s+linux/amd64,linux/arm64",
+          "tip": "缺少 --platform 指定两个架构"
+        },
+        {
+          "p": "-t\\s+app:1\\.0",
+          "tip": "产物应打上 app:1.0"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--push.*--load|--load.*--push",
+          "tip": "--push 与 --load 不能同时用",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.history-layers",
+      "track": "docker",
+      "title": "看镜像每一层干了什么（找体积最大的那层）",
+      "goal": "查看 app:1.0 的镜像层历史，输出不截断命令（human 可读）",
+      "hint": "--no-trunc 才看得到完整命令；--human 把层大小变成可读单位",
+      "sample": "docker history --no-trunc --human app:1.0",
+      "require": [
+        {
+          "p": "docker\\s+history",
+          "tip": "应使用 docker history"
+        },
+        {
+          "p": "--no-trunc",
+          "tip": "缺少 --no-trunc（否则看不到完整命令）"
+        },
+        {
+          "p": "app:1\\.0",
+          "tip": "应指定镜像 app:1.0"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "docker.diff-container",
+      "track": "docker",
+      "title": "看容器里被改动了哪些文件（不进去也能查）",
+      "goal": "查看 web 容器的文件系统改动，标出增删改",
+      "hint": "docker diff 用 A/D/C 标注新增、删除、修改；排查\"容器为什么变胖/配置被谁改了\"很有用",
+      "sample": "docker diff web",
+      "require": [
+        {
+          "p": "docker\\s+diff",
+          "tip": "应使用 docker diff"
+        },
+        {
+          "p": "\\bweb\\b",
+          "tip": "应指定容器 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+(rm|stop|kill)",
+          "tip": "查看改动不要动容器",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.events-filter",
+      "track": "docker",
+      "title": "谁重启了容器：看最近 10 分钟的事件",
+      "goal": "查看 web 容器最近 10 分钟发生过什么事件（只看这个容器）",
+      "hint": "docker events 支持 --since 与 --filter container=名字；容器\"自己没了又被拉起来\"通常能在这里看到原因",
+      "sample": "docker events --since 10m --filter container=web",
+      "require": [
+        {
+          "p": "docker\\s+events",
+          "tip": "应使用 docker events"
+        },
+        {
+          "p": "--since\\s+10m|--since\\s+\\S*10\\s*minutes",
+          "tip": "时间窗应为最近 10 分钟"
+        },
+        {
+          "p": "--filter",
+          "tip": "用 --filter 只看这个容器"
+        },
+        {
+          "p": "container=web",
+          "tip": "过滤条件应为 container=web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+(rm|stop|kill)\\b",
+          "tip": "查事件不要动容器",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.ps-exited",
+      "track": "docker",
+      "title": "只看已经退出的容器（含退出码）",
+      "goal": "列出所有已退出的容器，包含已停止的，并显示退出码；不要显示正在运行的",
+      "hint": "docker ps 默认只显示运行中的；-a 带出已停止的，--filter status=exited 只留退出的",
+      "sample": "docker ps -a --filter status=exited",
+      "require": [
+        {
+          "p": "docker\\s+ps",
+          "tip": "应使用 docker ps"
+        },
+        {
+          "p": "\\s-a\\b|--all",
+          "tip": "要加 -a，否则看不到已退出的容器"
+        },
+        {
+          "p": "--filter",
+          "tip": "用 --filter 过滤状态"
+        },
+        {
+          "p": "status=exited",
+          "tip": "状态过滤应为 status=exited"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+(rm|prune)\\b",
+          "tip": "只是查看，不要删容器",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

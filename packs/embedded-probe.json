@@ -1,0 +1,1456 @@
+{
+  "id": "embedded-probe",
+  "name": "嵌入式外设与总线排障（串口、I2C、RTOS 取证）",
+  "track": "embedded",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "embedded.serial-list",
+      "track": "embedded",
+      "title": "板子插上了但找不到串口：先列出来",
+      "goal": "用 python3 打印 pyserial 能看到的串口设备列表",
+      "hint": "serial.tools.list_ports 是标准做法；手工 ls /dev/ttyUSB* 在 macOS 上会看错设备名",
+      "sample": "python3 -c \"from serial.tools import list_ports; print([p.device for p in list_ports.comports()])\"",
+      "require": [
+        {
+          "p": "from\\s+serial",
+          "tip": "应导入 pyserial 的 serial"
+        },
+        {
+          "p": "list_ports",
+          "tip": "缺少 serial.tools.list_ports"
+        },
+        {
+          "p": "comports\\(\\)",
+          "tip": "缺少 comports() 枚举"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "ls\\s+/dev/ttyUSB|ls\\s+/dev/tty\\.",
+          "tip": "跨平台要用 pyserial 枚举，别硬编码 /dev/ttyUSB*"
+        }
+      ],
+      "verify": {
+        "cmd": "python3 --version",
+        "expect": "Python 3",
+        "note": "前置检查：串口枚举需要 python3 + pyserial"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "embedded.serial-read",
+      "track": "embedded",
+      "title": "读板子的串口日志：带超时，读完就关",
+      "goal": "用 pyserial 打开 /dev/ttyUSB0（115200），读 10 行带超时，最后关闭串口",
+      "hint": "timeout 必不可少；with Serial(...) as 能保证异常时也关掉设备",
+      "sample": "python3 -c \"import serial; s = serial.Serial('/dev/ttyUSB0', 115200, timeout=1); [print(s.readline().decode(errors='replace').rstrip()) for _ in range(10)]; s.close()\"",
+      "require": [
+        {
+          "p": "serial\\.Serial",
+          "tip": "应使用 serial.Serial 打开串口"
+        },
+        {
+          "p": "/dev/ttyUSB0|COM3|/dev/tty\\.usbserial",
+          "tip": "应指定串口设备"
+        },
+        {
+          "p": "115200",
+          "tip": "缺少波特率 115200"
+        },
+        {
+          "p": "timeout=",
+          "tip": "缺少 timeout，读不到数据时会一直阻塞"
+        },
+        {
+          "p": "close\\(\\)|with\\s+serial",
+          "tip": "读完要关闭串口（或使用 with）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "while\\s+True",
+          "tip": "无人值守的 while True 读串口会把终端占死"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.i2c-scan",
+      "track": "embedded",
+      "title": "确认 I2C 总线上到底挂了哪些设备",
+      "goal": "列出可用 I2C 总线，并用 i2cdetect 扫 I2C-1 总线上的地址（只读扫描模式）",
+      "hint": "i2cdetect -l 列总线；i2cdetect -y 1 只做读探测（-r 是 SMBus 读法，某些设备需要它）",
+      "sample": "i2cdetect -l && i2cdetect -y 1",
+      "require": [
+        {
+          "p": "i2cdetect\\s+-l",
+          "tip": "缺少 i2cdetect -l 列出总线"
+        },
+        {
+          "p": "i2cdetect\\s+-y\\s+1|i2cdetect\\s+-r\\s+1",
+          "tip": "缺少对 I2C-1 的扫描"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "i2cset|i2cwrite",
+          "tip": "扫描只读；不要往总线上写寄存器",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.freertos-assert",
+      "track": "embedded",
+      "title": "RTOS 任务卡死：从固件里找出断言与任务符号",
+      "goal": "从 fw.elf 里找出所有包含 assert 的符号，并列出 FreeRTOS 的任务相关符号（只看前 20 行）",
+      "hint": "nm -C 能看到符号名；configASSERT 触发时固件一般会停下并打印任务名",
+      "sample": "arm-none-eabi-nm -C fw.elf | grep -i assert | head -20 && arm-none-eabi-nm -C fw.elf | grep -i 'vTask\\|xTask' | head -20",
+      "require": [
+        {
+          "p": "arm-none-eabi-nm|\\bnm\\b",
+          "tip": "应使用 nm 查看符号表"
+        },
+        {
+          "p": "-C",
+          "tip": "缺少 -C，C++ 符号不可读"
+        },
+        {
+          "p": "assert",
+          "tip": "缺少断言符号筛选"
+        },
+        {
+          "p": "vTask|xTask",
+          "tip": "缺少 FreeRTOS 任务符号筛选"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应限制输出行数"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.cross-probe",
+      "track": "embedded",
+      "title": "确认交叉工具链到底为哪个芯片编译",
+      "goal": "用交叉编译器的 -dumpmachine 打出它默认的目标三元组",
+      "hint": "arm-none-eabi-gcc -dumpmachine 会告诉你默认目标；不确定工具链是不是给 Cortex-M 的时候先跑它",
+      "sample": "arm-none-eabi-gcc -dumpmachine",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器 arm-none-eabi-gcc"
+        },
+        {
+          "p": "-dumpmachine",
+          "tip": "要看目标三元组应加 -dumpmachine"
+        }
+      ],
+      "verify": {
+        "cmd": "gcc --version",
+        "expect": "gcc|Apple clang",
+        "note": "前置检查：本机有 C 编译器（交叉工具链不在本机时也能跑）"
+      },
+      "level": "easy"
+    },
+    {
+      "id": "embedded.bin-pad",
+      "track": "embedded",
+      "title": "生成固定大小、空位填 0xFF 的烧录文件",
+      "goal": "把 firmware.elf 转成二进制 firmware.bin，并用 0xFF 填充到 1 MiB（0x100000）",
+      "hint": "--pad-to 按地址填充到指定长度，--gap-fill 决定填充字节；Flash 擦除后是 0xFF，填 0x00 会让校验和不对",
+      "sample": "arm-none-eabi-objcopy -O binary --pad-to 0x100000 --gap-fill 0xFF firmware.elf firmware.bin",
+      "require": [
+        {
+          "p": "objcopy",
+          "tip": "应使用 objcopy"
+        },
+        {
+          "p": "-O\\s+binary",
+          "tip": "输出格式应为 binary"
+        },
+        {
+          "p": "--pad-to\\s+0x100000",
+          "tip": "应填充到 0x100000"
+        },
+        {
+          "p": "--gap-fill\\s+0xFF",
+          "tip": "填充字节应为 0xFF"
+        },
+        {
+          "p": "firmware\\.bin",
+          "tip": "输出文件应为 firmware.bin"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--gap-fill\\s+0x0{2}\\b|--gap-fill\\s+0\\b",
+          "tip": "Flash 空位是 0xFF，用 0x00 填充会与擦除态不一致",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.openocd-halt",
+      "track": "embedded",
+      "title": "复位并停在 main 入口",
+      "goal": "用 openocd + ST-Link 连接 STM32F4，复位后停在 main 入口，然后退出（不要继续运行）",
+      "hint": "openocd 的 -f 指定接口与目标配置，-c 里按顺序写 init、reset halt；不要用 reset run，那会让程序直接跑起来，来不及看现场",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"init; reset halt; exit\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "-f\\s+interface/",
+          "tip": "应指定调试接口配置"
+        },
+        {
+          "p": "-f\\s+target/",
+          "tip": "应指定目标芯片配置"
+        },
+        {
+          "p": "reset\\s+halt",
+          "tip": "应复位并停住：reset halt"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "reset\\s+run|resume",
+          "tip": "要看现场就别让它跑起来",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.readelf-sections",
+      "track": "embedded",
+      "title": "看固件的段布局（代码、数据、栈各占多少）",
+      "goal": "打印 firmware.elf 的段头信息（各段地址与大小），用来判断哪个段快占满",
+      "hint": "readelf -S 是段头表；-W 关掉折行，方便直接粘进工单或做 diff",
+      "sample": "arm-none-eabi-readelf -S -W firmware.elf",
+      "require": [
+        {
+          "p": "readelf",
+          "tip": "应使用 readelf"
+        },
+        {
+          "p": "-S\\b",
+          "tip": "要看段头应加 -S"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标应为 firmware.elf"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.nm-size-sort",
+      "track": "embedded",
+      "title": "按体积排序，找出最占地方的符号",
+      "goal": "列出 firmware.elf 里最大的 10 个符号（带大小与类型），用来定位\"哪段代码把 Flash 吃掉了\"",
+      "hint": "nm --size-sort 按大小排序，-S 显示大小列，-t d 用十进制；配合 tail 看最大的那几个",
+      "sample": "arm-none-eabi-nm --size-sort -S -t d firmware.elf | tail -10",
+      "require": [
+        {
+          "p": "\\bnm\\b",
+          "tip": "应使用 nm"
+        },
+        {
+          "p": "--size-sort",
+          "tip": "要按大小排序应加 --size-sort"
+        },
+        {
+          "p": "-S\\b",
+          "tip": "应显示大小列（-S）"
+        },
+        {
+          "p": "tail",
+          "tip": "只取最大的几个用 tail"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.st-flash-write",
+      "track": "embedded",
+      "title": "把固件写到 Flash 起始地址",
+      "goal": "用 st-flash 把 firmware.bin 烧到 STM32 的 0x08000000（Flash 起始地址）",
+      "hint": "st-flash write 的第二个参数是起始地址；STM32 的 Flash 从 0x08000000 开始，写错地址会连引导都起不来",
+      "sample": "st-flash write firmware.bin 0x08000000",
+      "require": [
+        {
+          "p": "st-flash",
+          "tip": "应使用 st-flash"
+        },
+        {
+          "p": "\\bwrite\\b",
+          "tip": "子命令应为 write"
+        },
+        {
+          "p": "firmware\\.bin",
+          "tip": "要烧录的文件应为 firmware.bin"
+        },
+        {
+          "p": "0x0800?0000",
+          "tip": "起始地址应为 0x08000000"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "st-flash\\s+erase|\\berase\\b",
+          "tip": "整片擦除会连引导与校准数据一起抹掉，先确认再动手",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.objdump-disassemble-func",
+      "track": "embedded",
+      "title": "只反汇编一个函数，别把整个固件dump出来",
+      "goal": "只反汇编 firmware.elf 里的 main 函数（带源码行对应关系），方便对照 C 代码看循环有没有被优化掉",
+      "hint": "--disassemble=函数名 只输出该函数；-S 会插入源码行（需要编译时带 -g，否则没有）",
+      "sample": "arm-none-eabi-objdump -d -S --disassemble=main firmware.elf",
+      "require": [
+        {
+          "p": "objdump",
+          "tip": "应使用 objdump"
+        },
+        {
+          "p": "-d\\b|--disassemble\\b",
+          "tip": "要反汇编代码段"
+        },
+        {
+          "p": "--disassemble=main|--disassemble\\s+main",
+          "tip": "应只反汇编 main 函数"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标应为 firmware.elf"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.gcc-size-compile",
+      "track": "embedded",
+      "title": "编译时就把没用的代码丢掉，再看体积",
+      "goal": "用 -Os 优化体积、打开 gc-sections 把无用段丢掉，编译 main.c 成 app.elf，然后打印各段大小",
+      "hint": "-ffunction-sections/-fdata-sections 配合 -Wl,--gc-sections 才能真正丢弃；size 默认按 text/data/bss 汇总",
+      "sample": "arm-none-eabi-gcc -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -o app.elf main.c && arm-none-eabi-size app.elf",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器"
+        },
+        {
+          "p": "-Os",
+          "tip": "应使用体积优先的 -Os"
+        },
+        {
+          "p": "gc-sections",
+          "tip": "应打开 --gc-sections 丢弃无用段"
+        },
+        {
+          "p": "arm-none-eabi-size",
+          "tip": "应打印段大小（size）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.objcopy-ihex",
+      "track": "embedded",
+      "title": "转成 Intel HEX（很多烧录器只吃 hex）",
+      "goal": "把 firmware.elf 转成 Intel HEX 格式的 firmware.hex",
+      "hint": "objcopy -O ihex 出的是 Intel HEX（带地址记录），和纯二进制的 bin 不是一回事",
+      "sample": "arm-none-eabi-objcopy -O ihex firmware.elf firmware.hex",
+      "require": [
+        {
+          "p": "objcopy",
+          "tip": "应使用 objcopy"
+        },
+        {
+          "p": "-O\\s+ihex",
+          "tip": "输出格式应为 ihex"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "输入应为 firmware.elf"
+        },
+        {
+          "p": "firmware\\.hex",
+          "tip": "输出应为 firmware.hex"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.gdb-batch-bt",
+      "track": "embedded",
+      "title": "连上调试器抓一次调用栈（不用交互）",
+      "goal": "用 gdb 以批处理方式连到本地 3333 端口的调试服务，打开固件并打印调用栈，然后退出",
+      "hint": "-batch 跑完就退出（不需要人在旁边敲）；-ex 可以重复多次按顺序执行命令",
+      "sample": "arm-none-eabi-gdb -batch -ex \"target extended-remote :3333\" -ex \"file firmware.elf\" -ex \"bt\"",
+      "require": [
+        {
+          "p": "gdb",
+          "tip": "应使用 gdb"
+        },
+        {
+          "p": "-batch",
+          "tip": "应使用 -batch 非交互执行"
+        },
+        {
+          "p": "target\\s+extended-remote|target\\s+remote",
+          "tip": "应连接调试服务（target extended-remote）"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "应打开 firmware.elf"
+        },
+        {
+          "p": "\\bbt\\b|backtrace",
+          "tip": "应打印调用栈（bt）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.openocd-verify-flash",
+      "track": "embedded",
+      "title": "烧完再校验一遍：确认 Flash 内容与文件一致",
+      "goal": "用 openocd 连上 STM32F4，把 firmware.bin 与 0x08000000 处的 Flash 内容做比对校验，然后退出",
+      "hint": "verify_image 文件 地址 会把文件与目标内存逐字节比对；烧录后跑一次能挡掉\"线接触不良导致的半截写入\"",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"init; verify_image firmware.bin 0x08000000; exit\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "-f\\s+interface/",
+          "tip": "应指定调试接口配置"
+        },
+        {
+          "p": "-f\\s+target/",
+          "tip": "应指定目标芯片配置"
+        },
+        {
+          "p": "verify_image",
+          "tip": "应做烧录校验（verify_image）"
+        },
+        {
+          "p": "0x0800?0000",
+          "tip": "校验地址应为 Flash 起始 0x08000000"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.objdump-disassemble-addr",
+      "track": "embedded",
+      "title": "按地址反汇编（只有异常现场地址时）",
+      "goal": "只有崩溃现场给的一个地址 0x08001234，反汇编该地址前后的指令，用来定位是哪个函数出的问题",
+      "hint": "--start-address/--stop-address 按地址范围反汇编；-S 会把源码行带上（前提是编译时带 -g）",
+      "sample": "arm-none-eabi-objdump -d -S --start-address=0x08001200 --stop-address=0x08001280 firmware.elf",
+      "require": [
+        {
+          "p": "objdump",
+          "tip": "应使用 objdump"
+        },
+        {
+          "p": "--start-address=0x08001200|--start-address\\s+0x08001200",
+          "tip": "应用 --start-address 指定起点"
+        },
+        {
+          "p": "--stop-address=0x08001280|--stop-address\\s+0x08001280",
+          "tip": "应用 --stop-address 指定终点"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标应为 firmware.elf"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.uart-echo-test",
+      "track": "embedded",
+      "title": "从串口发一条命令并看回显",
+      "goal": "以 115200 波特率打开串口设备 /dev/tty.usbserial-1420，发一行 help 后退出（不要留在终端里）",
+      "hint": "printf 直接写设备文件最省事；macOS 设备名是 /dev/tty.usbserial-*，Linux 一般是 /dev/ttyUSB0",
+      "sample": "printf 'help\\r\\n' > /dev/tty.usbserial-1420",
+      "require": [
+        {
+          "p": "/dev/tty",
+          "tip": "应指定串口设备"
+        },
+        {
+          "p": "help",
+          "tip": "应发送 help 命令"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf|mkfs",
+          "tip": "别对设备文件做破坏性操作",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.gcc-warning-wall",
+      "track": "embedded",
+      "title": "让编译器把可疑写法全说出来",
+      "goal": "编译 main.c 时打开常见告警并一律当成错误（嵌入式里最怕隐式类型转换与未初始化），输出到 build/app.elf",
+      "hint": "-Wall -Wextra -Werror 是基本盘；-Wconversion 能把隐式窄化转换揪出来（嵌入式里这些常是 bug）",
+      "sample": "arm-none-eabi-gcc -Wall -Wextra -Wconversion -Werror -o build/app.elf main.c",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器"
+        },
+        {
+          "p": "-Wall",
+          "tip": "应打开基础告警"
+        },
+        {
+          "p": "-Wextra",
+          "tip": "应打开额外告警"
+        },
+        {
+          "p": "-Werror",
+          "tip": "应把告警当错误"
+        },
+        {
+          "p": "build/app\\.elf",
+          "tip": "输出应为 build/app.elf"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.stack-usage",
+      "track": "embedded",
+      "title": "哪个函数最吃栈：编译期算出来",
+      "goal": "编译时让 GCC 输出每个函数的栈使用量（嵌入式栈只有几 KB，超了就是随机死机）",
+      "hint": "-fstack-usage 会生成 .su 文件，每行是函数名、字节数、是否静态；配合排序看最深的调用链",
+      "sample": "arm-none-eabi-gcc -c -fstack-usage -o app.o main.c && sort -k2 -n app.su | tail -10",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器"
+        },
+        {
+          "p": "-fstack-usage",
+          "tip": "应打开 -fstack-usage"
+        },
+        {
+          "p": "\\.su|sort|tail",
+          "tip": "要读生成的 .su 并排序看最大的几个"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.hex-verify",
+      "track": "embedded",
+      "title": "烧录前后校验 hex 的完整性",
+      "goal": "给 firmware.hex 算一份校验值（并写出校验文件），用来自动确认下载与烧录过程没出错",
+      "hint": "shasum -a 256 / sha256sum 都能算；有些烧录器还支持 --verify 参数，双保险更稳",
+      "sample": "shasum -a 256 firmware.hex > firmware.hex.sha256",
+      "require": [
+        {
+          "p": "shasum\\s+-a\\s+256|sha256sum",
+          "tip": "应用 SHA-256 工具"
+        },
+        {
+          "p": "firmware\\.hex",
+          "tip": "校验对象应为 firmware.hex"
+        },
+        {
+          "p": "\\.sha256",
+          "tip": "校验文件应以 .sha256 结尾"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.openocd-program-verify",
+      "track": "embedded",
+      "title": "一条命令完成烧录加校验",
+      "goal": "用 openocd 把 firmware.elf 烧进 STM32F4 并立刻校验（一次握手搞定，省得开会话两次）",
+      "hint": "program 命令本身就带 verify 与 reset；写成 program firmware.elf verify reset exit 最省事",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program firmware.elf verify reset exit\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "-f\\s+interface/",
+          "tip": "应指定接口配置"
+        },
+        {
+          "p": "program\\s+firmware\\.elf",
+          "tip": "应烧录 firmware.elf"
+        },
+        {
+          "p": "verify",
+          "tip": "要带 verify"
+        },
+        {
+          "p": "reset",
+          "tip": "烧完要 reset 让程序跑起来"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.map-section-summary",
+      "track": "embedded",
+      "title": "从 map 文件看各段被谁占了",
+      "goal": "在 build/app.map 里找出占用最大的几个目标文件（按行排序取末尾），定位 Flash 被谁吃掉",
+      "hint": "GNU ld 的 map 文件里 .text/.rodata 段下每行是一个目标文件加大小；sort 后看末尾即可",
+      "sample": "grep -E \"\\.(text|rodata)\" -A 200 build/app.map | sort -k2 -n | tail -10",
+      "require": [
+        {
+          "p": "app\\.map",
+          "tip": "应读 build/app.map"
+        },
+        {
+          "p": "sort|tail|head",
+          "tip": "要排序或截断，不然 map 上看不出重点"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.size-budget-check",
+      "track": "embedded",
+      "title": "把固件体积做成 CI 断言",
+      "goal": "编译后用 size 取 text+data 的总和，超过 60000 字节就让命令失败（体积预算进 CI）",
+      "hint": "size -B 输出十进制，awk 求和再比较；预算写死在校验里，涨上去就红，比人工看更靠谱",
+      "sample": "arm-none-eabi-size -B firmware.elf | awk 'NR==2 {print $1+$2}' | awk '{exit ($1 > 60000)}'",
+      "require": [
+        {
+          "p": "arm-none-eabi-size",
+          "tip": "应使用 size 取段大小"
+        },
+        {
+          "p": "\\$1\\+\\$2|text.*data|awk",
+          "tip": "要取 text+data 的和"
+        },
+        {
+          "p": "60000|exit",
+          "tip": "要有预算比较（超过就让命令失败）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.objcopy-strip-debug",
+      "track": "embedded",
+      "title": "出厂固件别带调试信息",
+      "goal": "把 firmware.elf 里的调试信息剥掉生成 firmware-release.elf（体积能小一大截），保留符号表另有用途时再说",
+      "hint": "objcopy --strip-debug 只剥调试段；--strip-all 连符号表一起剥（线上排障会少线索，慎用）",
+      "sample": "arm-none-eabi-objcopy --strip-debug firmware.elf firmware-release.elf",
+      "require": [
+        {
+          "p": "objcopy",
+          "tip": "应使用 objcopy"
+        },
+        {
+          "p": "--strip-debug|--strip-all",
+          "tip": "应剥掉调试信息"
+        },
+        {
+          "p": "firmware-release\\.elf|firmware\\.elf",
+          "tip": "输入输出文件要对得上"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--strip-all.*firmware\\.elf\\s+firmware\\.elf",
+          "tip": "别原地覆盖原文件：出问题时没法复盘",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.readelf-program-headers",
+      "track": "embedded",
+      "title": "看程序头：装进内存的布局",
+      "goal": "打印 firmware.elf 的程序头（加载地址、段大小、权限），确认 ram 与 flash 的划分",
+      "hint": "readelf -l 是程序头（装载视图）；-S 是段头（链接视图），排查装载问题时看 -l",
+      "sample": "arm-none-eabi-readelf -l firmware.elf",
+      "require": [
+        {
+          "p": "readelf",
+          "tip": "应使用 readelf"
+        },
+        {
+          "p": "-l\\b|--program-headers",
+          "tip": "要看程序头应加 -l"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标应为 firmware.elf"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.gdb-load-verify",
+      "track": "embedded",
+      "title": "调试器里校验 Flash 与文件一致",
+      "goal": "用 gdb 批处理连上调试服务后，比较固件文件与目标内存里的同名段（确认烧进去的确实是这一份）",
+      "hint": "gdb 的 compare-sections 会比较已加载文件与目标内存；-batch 跑完就退出",
+      "sample": "arm-none-eabi-gdb -batch -ex \"target extended-remote :3333\" -ex \"file firmware.elf\" -ex \"compare-sections\"",
+      "require": [
+        {
+          "p": "gdb",
+          "tip": "应使用 gdb"
+        },
+        {
+          "p": "-batch",
+          "tip": "应使用 -batch 非交互执行"
+        },
+        {
+          "p": "compare-sections",
+          "tip": "要比较文件与目标内存（compare-sections）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.serial-microcom",
+      "track": "embedded",
+      "title": "用串口工具交互式看日志（会自己退出）",
+      "goal": "打开串口设备看日志：波�600 波特率、发一个换行触发一次输出、最多等 5 秒就退出",
+      "hint": "有些固件只在收到换行后才吐日志；--immediate 与超时参数能避免卡在串口里出不来",
+      "sample": "printf '\\n' | socat - /dev/tty.usbserial-1420,b115200,raw,echo=0 | head -50",
+      "require": [
+        {
+          "p": "/dev/tty|COM\\d",
+          "tip": "应指定串口设备"
+        },
+        {
+          "p": "115200|b115200",
+          "tip": "波特率应为 115200"
+        },
+        {
+          "p": "head|timeout|-T\\s*\\d",
+          "tip": "要有超时或截断，别卡在串口里"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.gcc-lto-build",
+      "track": "embedded",
+      "title": "开 LTO 把体积再压一截",
+      "goal": "编译固件时打开链接时优化（LTO），并把优化等级设为体积优先，输出到 build/app-lto.elf",
+      "hint": "-flto 让链接器跨编译单元优化，通常能再省几个百分点；配合 -Os 与 gc-sections 效果更明显",
+      "sample": "arm-none-eabi-gcc -Os -flto -ffunction-sections -fdata-sections -Wl,--gc-sections -o build/app-lto.elf main.c",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器"
+        },
+        {
+          "p": "-flto",
+          "tip": "应打开 LTO（-flto）"
+        },
+        {
+          "p": "-Os",
+          "tip": "优化等级应为体积优先（-Os）"
+        },
+        {
+          "p": "build/app-lto\\.elf",
+          "tip": "输出应为 build/app-lto.elf"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.openocd-reset-run",
+      "track": "embedded",
+      "title": "烧完直接跑起来（对比停在入口那题）",
+      "goal": "用 openocd 把固件烧进去，校验后复位并让程序立即运行（不需要再插拔电源）",
+      "hint": "program … verify reset run 与 reset halt 的区别就在最后那一下：run 让它跑，halt 停在入口",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program firmware.elf verify reset run exit\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "program\\s+firmware\\.elf",
+          "tip": "应烧录固件"
+        },
+        {
+          "p": "verify",
+          "tip": "要带 verify"
+        },
+        {
+          "p": "reset\\s+run|run",
+          "tip": "烧完让它跑起来（reset run）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.objdump-symbols-address",
+      "track": "embedded",
+      "title": "按地址查符号：崩溃地址对应哪个函数",
+      "goal": "从 firmware.elf 的符号表里按地址排序，找出崩溃地址 0x08001234 落在哪个符号范围内",
+      "hint": "nm -n 按地址排序输出符号；配合 grep 或 awk 找\"小于崩溃地址的最后一个符号\"",
+      "sample": "arm-none-eabi-nm -n firmware.elf | awk '$1 <= \"08001234\" {last=$0} END {print last}'",
+      "require": [
+        {
+          "p": "\\bnm\\b",
+          "tip": "应使用 nm"
+        },
+        {
+          "p": "-n\\b|--numeric-sort",
+          "tip": "应按地址排序（-n）"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标应为 firmware.elf"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.elf32-gdb-file-info",
+      "track": "embedded",
+      "title": "确认用的固件没编译错架构",
+      "goal": "在 gdb 里打开固件后打印它的架构与入口地址（确认不是给错芯片编的）",
+      "hint": "gdb 的 info files 会列出架构、入口点与段；烧进去跑飞时先确认这一条",
+      "sample": "arm-none-eabi-gdb -batch -ex \"file firmware.elf\" -ex \"info files\"",
+      "require": [
+        {
+          "p": "gdb",
+          "tip": "应使用 gdb"
+        },
+        {
+          "p": "-batch",
+          "tip": "应使用 -batch"
+        },
+        {
+          "p": "info\\s+files",
+          "tip": "应打印 info files"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.objcopy-elf-to-hex-pad",
+      "track": "embedded",
+      "title": "给 hex 也补上定长填充",
+      "goal": "把 firmware.elf 转成 Intel HEX 并按 0xFF 填充到 0x100000（某些烧录器要求整片对齐）",
+      "hint": "ihex 与 binary 都能配合 --pad-to 与 --gap-fill；hex 会带上地址记录，烧录器按记录写入",
+      "sample": "arm-none-eabi-objcopy -O ihex --pad-to 0x100000 --gap-fill 0xFF firmware.elf firmware-padded.hex",
+      "require": [
+        {
+          "p": "objcopy",
+          "tip": "应使用 objcopy"
+        },
+        {
+          "p": "-O\\s+ihex",
+          "tip": "输出格式应为 ihex"
+        },
+        {
+          "p": "--pad-to\\s+0x100000",
+          "tip": "应填充到 0x100000"
+        },
+        {
+          "p": "--gap-fill\\s+0xFF",
+          "tip": "填充字节应为 0xFF"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.openocd-read-memory",
+      "track": "embedded",
+      "title": "读回一段内存确认写入成功",
+      "goal": "用 openocd 连上目标后把 0x08000000 起的 256 字节读出来（比对固件头，确认真的写进去了）",
+      "hint": "mdw/mdb 分别按字/字节读内存；只在 verify 不可用时用，读回来看固件头最直观",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"init; mdw 0x08000000 64; exit\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "mdw|mdb",
+          "tip": "要读内存（mdw/mdb）"
+        },
+        {
+          "p": "0x0800?0000",
+          "tip": "应从 Flash 起始地址读"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.gcc-map-file-only",
+      "track": "embedded",
+      "title": "只要 map 文件：给构建加一个开关",
+      "goal": "编译时生成链接 map 文件到 build/app.map（用来定位符号与段占用），输出 build/app.elf",
+      "hint": "-Wl,-Map=build/app.map 让链接器写 map；体积优化排查基本都从这里开始",
+      "sample": "arm-none-eabi-gcc -Os -Wl,-Map=build/app.map -o build/app.elf main.c",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉编译器"
+        },
+        {
+          "p": "-Wl,-Map=",
+          "tip": "应让链接器写 map 文件"
+        },
+        {
+          "p": "build/app\\.elf",
+          "tip": "输出应为 build/app.elf"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.objdump-sections-hex",
+      "track": "embedded",
+      "title": "看链接后的段偏移（谁排在前面）",
+      "goal": "用 objdump 打印 firmware.elf 的段头（含文件偏移与对齐），确认代码段与只读数据段的排布",
+      "hint": "objdump -h 是段头摘要（比 readelf -S 更短）；文件偏移对不上常是链接脚本的问题",
+      "sample": "arm-none-eabi-objdump -h firmware.elf",
+      "require": [
+        {
+          "p": "objdump",
+          "tip": "应使用 objdump"
+        },
+        {
+          "p": "-h\\b|--section-headers",
+          "tip": "要看段头（-h）"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标应为 firmware.elf"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.openocd-speed",
+      "track": "embedded",
+      "title": "烧录太慢？先把调试时钟调高",
+      "goal": "用 st-link 以 4MHz 的调试时钟连 STM32F4 并读取芯片 ID 后退出（确认提速后仍能连上）",
+      "hint": "adapter speed 决定 SWD/JTAG 时钟；SWD 一般可以到 4MHz 以上，长排线则要降速",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"adapter speed 4000; init; dap info; exit\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "adapter\\s+speed\\s+4000",
+          "tip": "应把调试时钟设为 4000 kHz"
+        },
+        {
+          "p": "dap\\s+info|init",
+          "tip": "要真正连一下（init / dap info）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.elf-entry-point",
+      "track": "embedded",
+      "title": "把入口地址读出来（复位向量对不对）",
+      "goal": "打印固件的 ELF 头信息（入口地址等），确认复位后跳转的地方是预期的向量表位置",
+      "hint": "readelf -h 给出 Entry point；配合 objdump 看向量表前几个字能确认初始栈与复位向量",
+      "sample": "arm-none-eabi-readelf -h firmware.elf",
+      "require": [
+        {
+          "p": "readelf\\s+-h|readelf\\s+--file-header",
+          "tip": "应打印 ELF 头（-h）"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标应为 firmware.elf"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.gdb-freertos-threads",
+      "track": "embedded",
+      "title": "RTOS 卡住了：一次性把每个任务的调用栈抓下来",
+      "goal": "用 gdb 连上调试端口，列出所有 RTOS 任务线程并逐个打印调用栈，抓完不重启目标（detach 而不是 quit）",
+      "hint": "FreeRTOS 的每个任务在 gdb 里就是一个线程：info threads 看谁在跑，thread apply all bt 一次拿到全部栈；抓完要 detach，硬退出会把目标留在 halted 状态",
+      "sample": "arm-none-eabi-gdb -batch -ex 'target extended-remote localhost:3333' -ex 'info threads' -ex 'thread apply all bt' -ex 'detach' firmware.elf",
+      "require": [
+        {
+          "p": "arm-none-eabi-gdb",
+          "tip": "应使用交叉工具链的 gdb"
+        },
+        {
+          "p": "-batch",
+          "tip": "用 -batch 跑非交互脚本"
+        },
+        {
+          "p": "target extended-remote localhost:3333",
+          "tip": "应连到调试端口"
+        },
+        {
+          "p": "info threads",
+          "tip": "要列出所有线程（RTOS 任务）"
+        },
+        {
+          "p": "thread apply all bt",
+          "tip": "要一次性打印所有任务调用栈"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "应带上带符号的 elf"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "embedded.freertos-stack-symbols",
+      "track": "embedded",
+      "title": "每个任务占多少栈：从符号表里看",
+      "goal": "从固件符号表里按大小列出含 stack 的符号，估算各任务的栈占用",
+      "hint": "FreeRTOS 常见写法是每个任务一个静态数组（如 xTaskStack）；nm -S --size-sort 能按大小排出来，配合 map 文件就能看出谁最费 RAM",
+      "sample": "arm-none-eabi-nm -S --size-sort firmware.elf | grep -i stack | tail -10",
+      "require": [
+        {
+          "p": "nm\\s+-S\\s+--size-sort",
+          "tip": "应使用 nm -S --size-sort 按大小排序"
+        },
+        {
+          "p": "grep\\s+-i\\s+stack",
+          "tip": "应过滤 stack 相关符号"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "目标是 firmware.elf"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.serial-baud-set",
+      "track": "embedded",
+      "title": "串口参数先对齐（波特率不对就是乱码）",
+      "goal": "把串口设备设成 115200 8N1 并关掉流控，然后才能收日志",
+      "hint": "设备名各平台不同：macOS 是 /dev/tty.usbserial-XXXX，Linux 是 /dev/ttyUSB0；乱码第一件事就是核对波特率",
+      "require": [
+        {
+          "p": "stty",
+          "tip": "应使用 stty 配置串口"
+        }
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "stty -f /dev/tty.usbserial-1420 115200 cs8 -cstopb -parenb -crtscts",
+          "require": [
+            {
+              "p": "stty\\s+-f\\s+/dev/tty\\.usbserial",
+              "tip": "macOS 的串口设备是 /dev/tty.usbserial-*（用 -f 指定）"
+            },
+            {
+              "p": "115200",
+              "tip": "波特率 115200"
+            },
+            {
+              "p": "cs8",
+              "tip": "8 位数据位（cs8）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "/dev/ttyUSB",
+              "tip": "macOS 上没有 /dev/ttyUSB*，那是 Linux 的命名",
+              "severity": "warn"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "stty -F /dev/ttyUSB0 115200 cs8 -cstopb -parenb -crtscts",
+          "require": [
+            {
+              "p": "stty\\s+-F\\s+/dev/ttyUSB0",
+              "tip": "Linux 上是 /dev/ttyUSB0，且注意是大写 -F"
+            },
+            {
+              "p": "115200",
+              "tip": "波特率 115200"
+            },
+            {
+              "p": "cs8",
+              "tip": "8 位数据位（cs8）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "/dev/tty\\.usbserial",
+              "tip": "Linux 上的串口是 /dev/ttyUSB*，不是 macOS 的 /dev/tty.usbserial-*",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "mode COM3: BAUD=115200 PARITY=n DATA=8 STOP=1",
+          "require": [
+            {
+              "p": "\\bmode\\s+COM\\d+",
+              "tip": "Windows 上用 mode COMx: 设置串口参数（没有 stty）"
+            },
+            {
+              "p": "BAUD=115200",
+              "tip": "波特率要设成 115200"
+            },
+            {
+              "p": "DATA=8",
+              "tip": "8N1 里的 8：DATA=8"
+            },
+            {
+              "p": "PARITY=n",
+              "tip": "8N1 里的 N：PARITY=n"
+            },
+            {
+              "p": "STOP=1",
+              "tip": "8N1 里的 1：STOP=1"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "stty",
+              "tip": "Windows 没有 stty（那是 Unix 的）"
+            },
+            {
+              "p": "/dev/tty",
+              "tip": "Windows 上没有 /dev/tty* 这种设备名"
+            }
+          ]
+        }
+      },
+      "level": "medium"
+    },
+    {
+      "id": "embedded.gdb-flash-verify",
+      "track": "embedded",
+      "title": "烧完要验：load + compare 一步都不能少",
+      "goal": "用 gdb 批量烧写固件、烧完逐段比对（确认写进去的内容和文件一致）、复位运行后断开",
+      "hint": "load 之后立刻 compare-sections 能把\"写失败/写一半\"挡在现场；最后 monitor reset run + detach，让板子自己跑起来",
+      "sample": "arm-none-eabi-gdb -batch -ex 'target extended-remote localhost:3333' -ex 'load' -ex 'compare-sections' -ex 'monitor reset run' -ex 'detach' firmware.elf",
+      "require": [
+        {
+          "p": "arm-none-eabi-gdb",
+          "tip": "应使用交叉工具链的 gdb"
+        },
+        {
+          "p": "-batch",
+          "tip": "用 -batch 跑非交互脚本"
+        },
+        {
+          "p": "target extended-remote localhost:3333",
+          "tip": "应连到调试端口"
+        },
+        {
+          "p": "'load'|\\bload\\b",
+          "tip": "要真的烧写（load）"
+        },
+        {
+          "p": "compare-sections",
+          "tip": "烧完要比对（compare-sections）"
+        },
+        {
+          "p": "firmware\\.elf",
+          "tip": "应带上带符号的 elf"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "embedded.picotool-uf2-load",
+      "track": "embedded",
+      "title": "RP2040 用 picotool 刷 uf2（不用拖拽）",
+      "goal": "用 picotool 把 firmware.uf2 写进板子、顺带校验，写完让它直接运行",
+      "hint": "拖拽 uf2 进 U 盘是入门做法；脚本/产线用 picotool load -f 更可靠，-v 顺带校验，-x 让它直接跑",
+      "sample": "picotool load -f -v -x firmware.uf2",
+      "require": [
+        {
+          "p": "picotool\\s+load",
+          "tip": "应使用 picotool load"
+        },
+        {
+          "p": "-f",
+          "tip": "用 -f 覆盖已有内容（否则检测到不同会拒绝）"
+        },
+        {
+          "p": "firmware\\.uf2",
+          "tip": "目标是 firmware.uf2"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "embedded.openocd-connect-under-reset",
+      "track": "embedded",
+      "title": "芯片一跑就重启？用\"复位下连接\"把固件写进去",
+      "goal": "用 openocd 在复位状态下连接目标：调低时钟、指定复位方式、连上后先 halt、再按地址烧写并校验",
+      "hint": "有些板子上电就跑飞、连不上调试口，只能\"连接时拉住复位\"；srst_only 与降速是这类板子的常规组合",
+      "sample": "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"adapter speed 1000; reset_config srst_only; init; reset halt; flash write_image erase firmware.elf; verify_image firmware.elf; reset run; shutdown\"",
+      "require": [
+        {
+          "p": "openocd",
+          "tip": "应使用 openocd"
+        },
+        {
+          "p": "reset_config",
+          "tip": "要指定复位方式（reset_config）"
+        },
+        {
+          "p": "init",
+          "tip": "要真的连上目标（init）"
+        },
+        {
+          "p": "reset\\s+halt",
+          "tip": "连上后先停住（reset halt）"
+        },
+        {
+          "p": "flash\\s+write_image\\s+erase",
+          "tip": "烧写前先擦除（flash write_image erase）"
+        },
+        {
+          "p": "verify_image",
+          "tip": "烧完要校验（verify_image）"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "embedded.gcc-memory-usage-print",
+      "track": "embedded",
+      "title": "链接完立刻看内存还剩多少（别等上板才发现）",
+      "goal": "用链接器选项在链接阶段打印各内存区的占用，并让未被引用的段被回收",
+      "hint": "--print-memory-usage 直接给出每个内存区的占用百分比；配合 --gc-sections 再砍掉没用到的段，比出问题后回头查 map 快",
+      "sample": "arm-none-eabi-gcc -Wl,--gc-sections,--print-memory-usage -Wl,-Map=app.map main.c -o app.elf",
+      "require": [
+        {
+          "p": "arm-none-eabi-gcc",
+          "tip": "应使用交叉工具链"
+        },
+        {
+          "p": "--print-memory-usage",
+          "tip": "要打印内存区占用"
+        },
+        {
+          "p": "--gc-sections",
+          "tip": "要回收未引用的段"
+        },
+        {
+          "p": "\\-Wl,-Map=",
+          "tip": "同时产出 map 文件便于复核"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "embedded.gdb-registers-after-load",
+      "track": "embedded",
+      "title": "烧完立刻看 PC 与 SP（确认复位后落在正确的地方）",
+      "goal": "用 gdb 连上调试口、复位停住、烧写固件，然后打印 PC 与 SP，最后断开",
+      "hint": "复位后 PC 应指向复位向量、SP 应落在 RAM 顶；这两个寄存器不对，后面怎么调都是白费",
+      "sample": "arm-none-eabi-gdb -batch -ex 'target extended-remote localhost:3333' -ex 'monitor reset halt' -ex 'load' -ex 'info registers pc sp' -ex 'detach' firmware.elf",
+      "require": [
+        {
+          "p": "arm-none-eabi-gdb",
+          "tip": "应使用交叉工具链的 gdb"
+        },
+        {
+          "p": "-batch",
+          "tip": "用 -batch 跑非交互脚本"
+        },
+        {
+          "p": "target extended-remote",
+          "tip": "应连到调试端口"
+        },
+        {
+          "p": "monitor reset halt",
+          "tip": "应复位并停住"
+        },
+        {
+          "p": "load",
+          "tip": "要烧写固件"
+        },
+        {
+          "p": "info registers",
+          "tip": "要打印寄存器（pc / sp）"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "embedded.rtos-stack-watermark",
+      "track": "embedded",
+      "title": "RTOS 任务快把栈用完了：把高水位打印出来",
+      "goal": "用 gdb 连上目标，打印当前任务的栈高水位（还剩多少可用栈），抓完 detach 不打断目标运行",
+      "hint": "uxTaskGetStackHighWaterMark 返回的是\"历史最少剩多少字\"，越小越危险；要先拿到任务句柄再查水位，抓完 detach",
+      "sample": "arm-none-eabi-gdb -batch -ex 'target extended-remote localhost:3333' -ex 'print uxTaskGetStackHighWaterMark(xTaskGetCurrentTaskHandle())' -ex 'detach' firmware.elf",
+      "require": [
+        {
+          "p": "arm-none-eabi-gdb",
+          "tip": "应使用交叉工具链的 gdb"
+        },
+        {
+          "p": "-batch",
+          "tip": "用 -batch 跑非交互脚本"
+        },
+        {
+          "p": "target extended-remote localhost:3333",
+          "tip": "应连上调试端口"
+        },
+        {
+          "p": "uxTaskGetStackHighWaterMark",
+          "tip": "要调用 FreeRTOS 的栈高水位接口"
+        },
+        {
+          "p": "xTaskGetCurrentTaskHandle",
+          "tip": "先取到任务句柄再查水位"
+        },
+        {
+          "p": "detach",
+          "tip": "抓完要 detach，别把目标留在 halted 状态"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "embedded.i2c-recover-force-read",
+      "track": "embedded",
+      "title": "I2C 一直超时：强制读一次确认总线活没活",
+      "goal": "用 i2ctransfer 对 0x40 设备做一次强制读（2 字节），确认是总线被拉死还是设备没应答",
+      "hint": "从机把 SDA 拉低时普通读会一直超时，-f 是强制访问；-y 跳过交互确认，适合写进排障脚本",
+      "sample": "i2ctransfer -y -f 1 w1@0x40 0x00 r2",
+      "require": [
+        {
+          "p": "i2ctransfer",
+          "tip": "应使用 i2c-tools 的 i2ctransfer"
+        },
+        {
+          "p": "-y",
+          "tip": "加 -y 走非交互，排障脚本里才跑得下去"
+        },
+        {
+          "p": "-f",
+          "tip": "总线卡死时要加 -f 强制访问"
+        },
+        {
+          "p": "0x40",
+          "tip": "应指定从机地址 0x40"
+        },
+        {
+          "p": "w1@0x40",
+          "tip": "要写明写几字节到哪个地址"
+        },
+        {
+          "p": "r2",
+          "tip": "读回 2 字节确认设备还有响应"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "embedded.esptool-write-flash",
+      "track": "embedded",
+      "title": "ESP32 烧固件：芯片、端口、三个偏移一个都不能错",
+      "goal": "用 esptool 指定芯片与串口，把 bootloader、分区表、应用按各自偏移写进 flash",
+      "hint": "偏移写错不会报错，只会起不来：bootloader 0x1000、分区表 0x8000、应用 0x10000 是 ESP32 的常规布局",
+      "sample": "esptool.py --chip esp32 --port /dev/ttyUSB0 write_flash 0x1000 bootloader.bin 0x8000 partitions.bin 0x10000 app.bin",
+      "require": [
+        {
+          "p": "esptool",
+          "tip": "应使用 esptool.py"
+        },
+        {
+          "p": "--chip esp32",
+          "tip": "要显式指定芯片型号"
+        },
+        {
+          "p": "--port",
+          "tip": "要指定串口设备"
+        },
+        {
+          "p": "write_flash",
+          "tip": "缺 write_flash 子命令"
+        },
+        {
+          "p": "0x1000 bootloader.bin",
+          "tip": "bootloader 的偏移不能写错"
+        },
+        {
+          "p": "0x8000 partitions.bin",
+          "tip": "分区表偏移不能写错"
+        },
+        {
+          "p": "0x10000 app.bin",
+          "tip": "应用镜像偏移不能写错"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "embedded.west-zephyr-build",
+      "track": "embedded",
+      "title": "Zephyr 工程：先干净构建，再烧到板子上",
+      "goal": "用 west 指定开发板做一次干净构建（产物目录明确），然后用 jlink 烧录",
+      "hint": "--pristine auto 会在配置变化时自动清构建目录，避免\"改了配置却没生效\"；构建与烧录用同一个 -d 目录，否则烧的是旧产物",
+      "sample": "west build -b nrf52840dk_nrf52840 -d build/zephyr --pristine auto && west flash -d build/zephyr --runner jlink",
+      "require": [
+        {
+          "p": "west build",
+          "tip": "用 west build 构建"
+        },
+        {
+          "p": "-b nrf52840dk_nrf52840",
+          "tip": "要指定开发板"
+        },
+        {
+          "p": "-d build/zephyr",
+          "tip": "构建目录要明确"
+        },
+        {
+          "p": "--pristine",
+          "tip": "配置变化时要干净重建"
+        },
+        {
+          "p": "west flash",
+          "tip": "构建完要烧录"
+        },
+        {
+          "p": "--runner jlink",
+          "tip": "要指定烧录器"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

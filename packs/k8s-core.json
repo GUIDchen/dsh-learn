@@ -1,0 +1,587 @@
+{
+  "id": "k8s-core",
+  "name": "Kubernetes 日常运维命令",
+  "track": "k8s",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "k8s.get-pods-wide",
+      "track": "k8s",
+      "title": "看清 Pod 落在哪个节点、IP 是多少",
+      "goal": "列出所有命名空间的 Pod，并显示所在节点与 Pod IP",
+      "hint": "-A 是 --all-namespaces，-o wide 会多出 NODE 与 IP 两列",
+      "sample": "kubectl get pods -A -o wide",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群；集群没起时会给出排查建议"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+pods|kubectl\\s+get\\s+po\\b",
+          "tip": "应使用 kubectl get pods"
+        },
+        {
+          "p": "-A|--all-namespaces",
+          "tip": "缺少 -A，只看当前命名空间会漏掉很多 Pod"
+        },
+        {
+          "p": "-o\\s*wide|--output[= ]wide",
+          "tip": "缺少 -o wide，看不到 NODE 与 IP"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+get\\s+all\\b",
+          "tip": "get all 不含 DaemonSet 等资源，排查 Pod 应直接查 pods"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.logs-follow",
+      "track": "k8s",
+      "title": "跟着看 Deployment 里某个 Pod 的日志",
+      "goal": "实时跟随 web 这个 Deployment 的日志，并且只看最近 100 行",
+      "hint": "Deployment 名可以直接给 logs，kubectl 会挑一个 Pod；--tail 控制起始行数",
+      "sample": "kubectl logs -f deploy/web --tail=100",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+logs",
+          "tip": "应使用 kubectl logs"
+        },
+        {
+          "p": "-f|--follow",
+          "tip": "缺少 -f 无法持续跟随"
+        },
+        {
+          "p": "--tail[= ]?\\d+|--tail\\s+100",
+          "tip": "应限定最近 100 行：--tail=100"
+        },
+        {
+          "p": "deploy/web|deployment/web|web",
+          "tip": "应指定 web 这个工作负载"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--previous\\s*$",
+          "tip": "--previous 看的是上一个已退出容器，本题要看当前容器"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.exec-shell",
+      "track": "k8s",
+      "title": "进入 Pod 内部排查",
+      "goal": "在 web-0 这个 Pod 里开一个交互式 shell",
+      "hint": "kubectl exec 必须用 -- 把 kubectl 的参数和容器内命令分开",
+      "sample": "kubectl exec -it web-0 -- sh",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+exec",
+          "tip": "应使用 kubectl exec"
+        },
+        {
+          "p": "-it|-i\\s+-t|--stdin",
+          "tip": "缺少 -it 无法交互"
+        },
+        {
+          "p": "web-0",
+          "tip": "应指定 Pod 名 web-0"
+        },
+        {
+          "p": "--\\s*(sh|bash)",
+          "tip": "容器内命令前要加 --，避免被当成 kubectl 参数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+run",
+          "tip": "run 是新起一个 Pod，进入现有 Pod 要用 exec"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.describe-pod",
+      "track": "k8s",
+      "title": "看 Pod 为什么起不来",
+      "goal": "查看 web-0 的详细事件与状态，用于定位调度或拉镜像失败",
+      "hint": "describe 会把 Events 附在末尾，比 get 更有信息量",
+      "sample": "kubectl describe pod web-0",
+      "verify": {
+        "cmd": "kubectl get pods -A",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+describe\\s+pod|kubectl\\s+describe\\s+po\\b",
+          "tip": "应使用 kubectl describe pod"
+        },
+        {
+          "p": "web-0",
+          "tip": "应指定 Pod 名 web-0"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+get\\s+pod\\s+web-0\\s*$",
+          "tip": "get 只有摘要，排查要看 describe 的事件流"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.port-forward",
+      "track": "k8s",
+      "title": "把集群里的服务临时映射到本机",
+      "goal": "把 Service web 的 80 端口映射到本机 8080，方便本地调试",
+      "hint": "port-forward 支持 svc/ 与 pod/ 前缀，前者会自动选后端的 Pod",
+      "sample": "kubectl port-forward svc/web 8080:80",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+port-forward",
+          "tip": "应使用 kubectl port-forward"
+        },
+        {
+          "p": "svc/web|service/web|pod/web-0",
+          "tip": "应指定要转发的 Service（svc/web）"
+        },
+        {
+          "p": "8080:80",
+          "tip": "端口映射应写成 本机:远端 即 8080:80"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+expose",
+          "tip": "expose 是长期暴露服务，临时调试用 port-forward"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.rollout-status",
+      "track": "k8s",
+      "title": "确认滚动更新是否完成",
+      "goal": "等待并确认 web 这个 Deployment 的这次发布已经完成",
+      "hint": "rollout status 会阻塞到完成或超时，是发布流水线里最常用的一句",
+      "sample": "kubectl rollout status deploy/web",
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+rollout\\s+status",
+          "tip": "应使用 kubectl rollout status"
+        },
+        {
+          "p": "deploy/web|deployment/web",
+          "tip": "应指定 Deployment web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--watch",
+          "tip": "rollout status 本身就会等待，不需要再 --watch"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.apply-dry-run",
+      "track": "k8s",
+      "title": "不改变集群地校验清单文件",
+      "goal": "先看看 deploy.yaml 会被提交成什么样，但不要真的改动集群",
+      "hint": "--dry-run=client 只做客户端校验，不会发写请求；server 侧校验则要连 API Server",
+      "sample": "kubectl apply -f deploy.yaml --dry-run=client -o yaml",
+      "verify": {
+        "cmd": "kubectl version --client",
+        "expect": "Client Version|clientVersion",
+        "note": "只检查 kubectl CLI 是否可用，不需要集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+apply",
+          "tip": "应使用 kubectl apply"
+        },
+        {
+          "p": "-f\\s+deploy\\.yaml|--filename[= ]deploy\\.yaml",
+          "tip": "应指定清单文件 deploy.yaml"
+        },
+        {
+          "p": "--dry-run[= ](client|server)",
+          "tip": "缺少 --dry-run，会真的改动集群"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+apply.*--force",
+          "tip": "--force 会绕过冲突检查，校验场景绝不要用"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.context-switch",
+      "track": "k8s",
+      "title": "切换到 prod 上下文并确认当前上下文",
+      "goal": "把当前 kubectl 上下文切到 prod，并打印出确认信息",
+      "hint": "上下文决定了你在操作哪个集群，误切到生产是经典事故",
+      "sample": "kubectl config use-context prod && kubectl config current-context",
+      "verify": {
+        "cmd": "kubectl config get-contexts",
+        "expect": "NAME",
+        "note": "只读本地 kubeconfig，集群没起也能执行"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+config\\s+use-context",
+          "tip": "应使用 kubectl config use-context"
+        },
+        {
+          "p": "prod",
+          "tip": "应切换到 prod 上下文"
+        },
+        {
+          "p": "kubectl\\s+config\\s+current-context",
+          "tip": "切换后应确认真实生效的上下文"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+config\\s+delete-context",
+          "tip": "本题只切换上下文，不要删除任何配置"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.delete-one-pod",
+      "track": "k8s",
+      "title": "安全地重启一个卡住的 Pod",
+      "goal": "只删掉 web-0 这一个 Pod，让控制器把它重建出来（不要波及别的 Pod 和数据）",
+      "hint": "删单个 Pod 是滚动重建的标准动作；带 --all 或删命名空间会连带毁掉整个环境",
+      "sample": "kubectl delete pod web-0",
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "require": [
+        {
+          "p": "kubectl\\s+delete\\s+pod",
+          "tip": "应使用 kubectl delete pod"
+        },
+        {
+          "p": "web-0",
+          "tip": "应明确指定 Pod 名 web-0"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--all",
+          "tip": "不要用 --all，会把该命名空间的 Pod 全部删掉",
+          "severity": "block"
+        },
+        {
+          "p": "delete\\s+(ns|namespace)",
+          "tip": "删命名空间会带走里面所有资源，不可用于重启单个 Pod",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "k8s.top-pods",
+      "track": "k8s",
+      "title": "按 CPU 使用排出最耗资源的 Pod",
+      "goal": "查看所有命名空间里 Pod 的资源占用，按 CPU 排序，只看前 10 行",
+      "hint": "kubectl top 需要 metrics-server；--sort-by=cpu 才看得出谁在吃资源",
+      "sample": "kubectl top pods -A --sort-by=cpu | head -10",
+      "require": [
+        {
+          "p": "kubectl\\s+top\\s+pods",
+          "tip": "应使用 kubectl top pods"
+        },
+        {
+          "p": "-A\\b|--all-namespaces",
+          "tip": "缺少 -A（所有命名空间）"
+        },
+        {
+          "p": "--sort-by=cpu",
+          "tip": "缺少 --sort-by=cpu"
+        },
+        {
+          "p": "head\\s+-10|head\\s+-n\\s*10",
+          "tip": "应只取前 10 行"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete",
+          "tip": "看资源占用不要删东西",
+          "severity": "block"
+        }
+      ],
+      "verify": {
+        "cmd": "kubectl get pods -A",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群与 metrics-server"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "k8s.node-allocatable",
+      "track": "k8s",
+      "title": "看节点还剩多少可分配资源",
+      "goal": "describe 节点 node-1，并过滤出 Allocatable 之后 6 行",
+      "hint": "describe node 里的 Allocatable / Allocated resources 决定\"还能不能调度上去\"",
+      "sample": "kubectl describe node node-1 | grep -A 6 Allocatable",
+      "require": [
+        {
+          "p": "kubectl\\s+describe\\s+node\\s+node-1",
+          "tip": "缺少 kubectl describe node node-1"
+        },
+        {
+          "p": "grep\\s+-A\\s*6",
+          "tip": "缺少 grep -A 6"
+        },
+        {
+          "p": "Allocatable|Allocated",
+          "tip": "应过滤可分配/已分配资源段"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "kubectl get nodes",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "level": "easy"
+    },
+    {
+      "id": "k8s.drain-node",
+      "track": "k8s",
+      "title": "安全腾空一个节点（维护前必做）",
+      "goal": "驱逐 node-1 上的业务 Pod：忽略 DaemonSet、允许删除 emptyDir 数据、并设置超时",
+      "hint": "drain 会驱逐 Pod；--ignore-daemonsets 与 --delete-emptydir-data 是常见两件套，维护窗口要先 cordon",
+      "sample": "kubectl drain node-1 --ignore-daemonsets --delete-emptydir-data --timeout=120s",
+      "require": [
+        {
+          "p": "kubectl\\s+drain\\s+node-1",
+          "tip": "应使用 kubectl drain node-1"
+        },
+        {
+          "p": "--ignore-daemonsets",
+          "tip": "缺少 --ignore-daemonsets"
+        },
+        {
+          "p": "--delete-emptydir-data",
+          "tip": "缺少 --delete-emptydir-data（否则会被 emptyDir 拦住）"
+        },
+        {
+          "p": "--timeout",
+          "tip": "缺少 --timeout，卡住时会一直等"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--force/delete",
+          "tip": "不要用 --force 强删由控制器管理的 Pod",
+          "severity": "block"
+        },
+        {
+          "p": "kubectl\\s+delete\\s+node",
+          "tip": "维护是腾空节点，不是删节点",
+          "severity": "block"
+        }
+      ],
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群（drain 是写操作，这里只做只读前置检查）"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "k8s.field-selector",
+      "track": "k8s",
+      "title": "只看没跑起来的 Pod（字段选择器）",
+      "goal": "列出所有命名空间里状态不是 Running 的 Pod",
+      "hint": "--field-selector 在服务端过滤，比 get 全部再 grep 更省流量也更准",
+      "sample": "kubectl get pods -A --field-selector status.phase!=Running",
+      "require": [
+        {
+          "p": "kubectl\\s+get\\s+pods",
+          "tip": "应使用 kubectl get pods"
+        },
+        {
+          "p": "-A\\b|--all-namespaces",
+          "tip": "缺少 -A（所有命名空间）"
+        },
+        {
+          "p": "--field-selector",
+          "tip": "缺少 --field-selector"
+        },
+        {
+          "p": "status\\.phase",
+          "tip": "过滤字段应为 status.phase"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "kubectl get pods -A",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "k8s.logs-previous",
+      "track": "k8s",
+      "title": "容器重启过：看上一次崩溃时的日志",
+      "goal": "查看 web-0 这个 Pod 里上一次容器实例的最后 100 行日志",
+      "hint": "--previous 读的是上一个已死容器的日志；CrashLoopBackOff 排障基本靠它",
+      "sample": "kubectl logs web-0 --previous --tail 100",
+      "require": [
+        {
+          "p": "kubectl\\s+logs\\b",
+          "tip": "应使用 kubectl logs"
+        },
+        {
+          "p": "web-0",
+          "tip": "应指定 Pod web-0"
+        },
+        {
+          "p": "--previous|-p\\b",
+          "tip": "缺少 --previous（看上一次实例）"
+        },
+        {
+          "p": "--tail\\s+100",
+          "tip": "缺少 --tail 100"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "kubectl get pods",
+        "expect": "NAME|No resources",
+        "note": "前置检查：需要可连接的集群（--previous 要有重启过的容器）"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "k8s.rollout-restart",
+      "track": "k8s",
+      "title": "不换镜像也要滚动重启一次",
+      "goal": "重启 web 这个 Deployment 的滚动更新（用 rollout restart），并等待这次滚动完成",
+      "hint": "rollout restart 会给 Pod 模板加一个注解，触发和换镜像一样的滚动流程",
+      "sample": "kubectl rollout restart deployment/web && kubectl rollout status deployment/web",
+      "require": [
+        {
+          "p": "kubectl\\s+rollout\\s+restart",
+          "tip": "应使用 kubectl rollout restart"
+        },
+        {
+          "p": "deployment/web|deployment\\s+web",
+          "tip": "应指定 Deployment web"
+        },
+        {
+          "p": "kubectl\\s+rollout\\s+status",
+          "tip": "缺少 rollout status 确认结果"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete\\s+pod",
+          "tip": "用 rollout restart，不要手删 Pod（控制器会重建但不受控）"
+        }
+      ],
+      "verify": {
+        "cmd": "kubectl get ns",
+        "expect": "NAME",
+        "note": "前置检查：需要可连接的集群（restart 是写操作，这里只做只读前置检查）"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "k8s.rollout-history",
+      "track": "k8s",
+      "title": "看一次发布的历史版本",
+      "goal": "列出 web 这个 Deployment 的发布历史，方便挑版本回滚",
+      "hint": "kubectl rollout history 读的是 Deployment 的修订版记录；加 --revision 看某版的具体改动",
+      "sample": "kubectl rollout history deploy/web",
+      "require": [
+        {
+          "p": "kubectl\\s+rollout\\s+history",
+          "tip": "应使用 kubectl rollout history"
+        },
+        {
+          "p": "deploy(ment)?[/\\s]web",
+          "tip": "对象应为 Deployment web"
+        }
+      ],
+      "level": "easy",
+      "verify": {
+        "cmd": "kubectl version --client",
+        "expect": "Client Version|clientVersion",
+        "note": "前置检查：本机 kubectl 是否可用；没有集群也能跑"
+      }
+    },
+    {
+      "id": "k8s.rollout-undo",
+      "track": "k8s",
+      "title": "回滚到指定版本",
+      "goal": "把 web 这个 Deployment 回滚到第 3 个修订版（不要动别的对象）",
+      "hint": "kubectl rollout undo --to-revision 指定版本；不带 --to-revision 是回滚上一版",
+      "sample": "kubectl rollout undo deploy/web --to-revision=3",
+      "require": [
+        {
+          "p": "kubectl\\s+rollout\\s+undo",
+          "tip": "应使用 kubectl rollout undo"
+        },
+        {
+          "p": "deploy(ment)?[/\\s]web",
+          "tip": "对象应为 Deployment web"
+        },
+        {
+          "p": "--to-revision[=\\s]3",
+          "tip": "应指定 --to-revision=3"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+(delete|edit)\\b",
+          "tip": "回滚不是删对象、也不是手改 spec",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium",
+      "verify": {
+        "cmd": "kubectl version --client",
+        "expect": "Client Version|clientVersion",
+        "note": "前置检查：本机 kubectl 是否可用；没有集群也能跑"
+      }
+    }
+  ]
+}

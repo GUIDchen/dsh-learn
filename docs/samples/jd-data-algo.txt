@@ -1,0 +1,17 @@
+示例智能（示例数据） 招聘 算法/数据工程师
+
+岗位职责
+负责视觉模型训练与推理部署（PyTorch / ONNX / TensorRT）
+负责数据管道（Spark / Flink）与特征工程
+
+任职要求
+熟悉 Python 与 Linux
+熟悉 PyTorch，了解模型量化与推理加速
+熟悉 Docker，了解 Kubernetes 部署
+熟悉 OpenCV 与目标检测
+
+加分项
+了解 Milvus 向量检索与 RAG
+了解 Airflow 调度
+
+工作地点：北京　薪资：40-70K　2 天前发布

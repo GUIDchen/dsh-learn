@@ -1,0 +1,270 @@
+{
+  "id": "security-advanced",
+  "name": "安全进阶（权限巡检、登录审计、依赖漏洞、镜像扫描）",
+  "track": "security",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "security.world-writable",
+      "track": "security",
+      "title": "找出全局可写的文件（权限过宽的常见来源）",
+      "goal": "在 /etc 下找出其他用户可写的普通文件，只列前 20 条（不修改任何权限）",
+      "hint": "-perm -o+w 表示「其他用户可写」；-type f 只看普通文件；配合 -xdev 避免跨文件系统",
+      "sample": "find /etc -xdev -type f -perm -o+w 2>/dev/null | head -20",
+      "require": [
+        {
+          "p": "find\\s+/etc",
+          "tip": "应在 /etc 下查找"
+        },
+        {
+          "p": "-type\\s+f",
+          "tip": "缺少 -type f（只看普通文件）"
+        },
+        {
+          "p": "-perm\\s+-o\\+w",
+          "tip": "缺少 -perm -o+w（其他用户可写）"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应只取前 20 条"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "chmod|chown",
+          "tip": "巡检只读：改权限要单独走变更",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.failed-logins",
+      "track": "security",
+      "title": "看有没有人在爆破 SSH",
+      "goal": "统计最近的失败登录记录里出现次数最多的前 10 个来源 IP",
+      "hint": "lastb 读失败登录记录；awk 取 IP 再计数排序是标准套路（无记录时说明本机没暴露 SSH）",
+      "sample": "lastb -w 2>/dev/null | awk '{print $3}' | sort | uniq -c | sort -rn | head -10",
+      "require": [
+        {
+          "p": "lastb|journalctl.*sshd|auth\\.log",
+          "tip": "应使用 lastb 或系统日志查失败登录"
+        },
+        {
+          "p": "awk",
+          "tip": "缺少 awk 提取来源字段"
+        },
+        {
+          "p": "uniq\\s+-c",
+          "tip": "缺少 uniq -c 计数"
+        },
+        {
+          "p": "sort\\s+-rn|sort\\s+-nr",
+          "tip": "缺少按次数倒序"
+        },
+        {
+          "p": "head\\s+-10|head\\s+-n\\s*10",
+          "tip": "应只取前 10 个"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "security.dependency-audit",
+      "track": "security",
+      "title": "检查依赖里已知漏洞（npm audit 只读模式）",
+      "goal": "对当前项目跑 npm audit，只看高危与严重级别的 JSON 结果（不要自动修复）",
+      "hint": "npm audit --json 便于接入流水线；--audit-level=high 控制阈值；fix 会改依赖，属另一件事",
+      "sample": "npm audit --json --audit-level=high",
+      "require": [
+        {
+          "p": "npm\\s+audit",
+          "tip": "应使用 npm audit"
+        },
+        {
+          "p": "--json",
+          "tip": "缺少 --json（便于流水线解析）"
+        },
+        {
+          "p": "audit-level",
+          "tip": "缺少 --audit-level 控制阈值"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "npm\\s+audit\\s+fix|npm\\s+audit.*--force",
+          "tip": "审计只读：自动修复会改依赖，需单独评审",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.image-scan",
+      "track": "security",
+      "title": "镜像上线前扫一遍（以 trivy 为例）",
+      "goal": "扫描本地镜像 app:1.0，只看高危与严重漏洞，输出为 JSON",
+      "hint": "trivy image 是常见选择；--severity 控制级别；--format json 便于存档",
+      "sample": "trivy image --severity HIGH,CRITICAL --format json app:1.0",
+      "require": [
+        {
+          "p": "trivy\\s+image|grype|docker\\s+scan",
+          "tip": "应使用镜像扫描工具（trivy / grype / docker scan）"
+        },
+        {
+          "p": "app:1\\.0",
+          "tip": "应指定被扫描的镜像 app:1.0"
+        },
+        {
+          "p": "--severity|HIGH|CRITICAL",
+          "tip": "缺少严重级别过滤"
+        },
+        {
+          "p": "--format\\s+json|--json|-f\\s+json",
+          "tip": "缺少 JSON 输出，结果不好归档"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+rm|docker\\s+rmi",
+          "tip": "扫描不改动镜像与容器",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.file-capabilities",
+      "track": "security",
+      "title": "找出带特殊权限位的可执行文件（提权面）",
+      "goal": "在 /usr/bin 下找出带 setuid 或 setgid 位的文件（只列前 20 个）",
+      "hint": "-perm -4000 是 setuid、-2000 是 setgid；这类文件多了就是提权面",
+      "sample": "find /usr/bin -xdev -type f -perm -4000 -o -type f -perm -2000 2>/dev/null | head -20",
+      "require": [
+        {
+          "p": "find\\s+/usr/bin",
+          "tip": "应在 /usr/bin 下查找"
+        },
+        {
+          "p": "-perm\\s+-4000|setuid",
+          "tip": "缺少 setuid 位筛选（-perm -4000）"
+        },
+        {
+          "p": "-perm\\s+-2000|setgid",
+          "tip": "缺少 setgid 位筛选（-perm -2000）"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应只取前 20 个"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "chmod\\s+-?s|chmod\\s+[0-7]*[467][0-7]*",
+          "tip": "巡检只读：不要加特殊权限位",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.auditd-rules",
+      "track": "security",
+      "title": "看审计规则覆盖了哪些关键文件（等保常见项）",
+      "goal": "用 auditctl 列出当前内核审计规则（只读）",
+      "hint": "auditctl -l 列出规则；没有输出说明没开审计——很多合规检查项就看这个",
+      "sample": "auditctl -l",
+      "require": [
+        {
+          "p": "auditctl\\s+-l",
+          "tip": "应使用 auditctl -l 列出规则"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "auditctl\\s+-D|auditctl\\s+-W",
+          "tip": "查看规则不要删规则",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.secrets-in-git",
+      "track": "security",
+      "title": "别把密钥提交进仓库：扫历史提交",
+      "goal": "在当前仓库的历史里搜索包含 password 或 API_KEY 的提交（只列前 20 条结果）",
+      "hint": "git log -S 搜内容变更、-p 看 diff；发现后要轮换密钥再清历史，光删文件不够",
+      "sample": "git log -p -S 'API_KEY' --all | grep -n 'API_KEY' | head -20",
+      "require": [
+        {
+          "p": "git\\s+log",
+          "tip": "应在 git 历史里搜索"
+        },
+        {
+          "p": "-S\\s+|--pickaxe",
+          "tip": "缺少 -S（按内容搜索）"
+        },
+        {
+          "p": "API_KEY|password|secret",
+          "tip": "应搜索密钥类关键字"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应限制输出条数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "filter-branch|filter-repo|push\\s+--force",
+          "tip": "扫描是只读的：清历史要单独评估（会影响协作者）",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.env-secret-scan",
+      "track": "security",
+      "title": "扫一遍仓库里有没有明文密钥",
+      "goal": "在当前目录递归查 AWS_SECRET 或「PRIVATE KEY」，跳过 .git 目录与二进制文件，带上文件名与行号",
+      "hint": "grep -rIn 的 I 跳过二进制、n 带行号；--exclude-dir=.git 避免命中 Git 内部对象",
+      "sample": "grep -rIn --exclude-dir=.git -E 'AWS_SECRET|PRIVATE KEY' .",
+      "require": [
+        {
+          "p": "grep\\s+-r|grep\\s+--recursive",
+          "tip": "要递归查找"
+        },
+        {
+          "p": "-n\\b",
+          "tip": "要带行号"
+        },
+        {
+          "p": "-I\\b",
+          "tip": "要跳过二进制文件（-I）"
+        },
+        {
+          "p": "--exclude-dir=\\.git|-e\\s+\\.git|--exclude-dir",
+          "tip": "要排除 .git 目录"
+        },
+        {
+          "p": "AWS_SECRET",
+          "tip": "要搜 AWS_SECRET"
+        },
+        {
+          "p": "PRIVATE KEY",
+          "tip": "要搜 PRIVATE KEY"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+filter-branch|git\\s+filter-repo|rm\\s+-rf",
+          "tip": "扫到密钥先别自己删库/重写历史，先报告",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

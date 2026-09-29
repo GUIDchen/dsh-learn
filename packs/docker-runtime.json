@@ -1,0 +1,111 @@
+{
+  "id": "docker-runtime",
+  "name": "Docker 运行时约束（资源、只读、拷贝）",
+  "track": "docker",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "docker.limit-resources",
+      "track": "docker",
+      "title": "给容器戴上资源紧箍",
+      "goal": "启动 web 容器时限制：最多用 1.5 个 CPU、512MB 内存，并保证内存不足时被杀死而不是拖垮宿主机",
+      "hint": "--cpus 与 --memory 是硬限制；--memory-swap 等于 --memory 时表示禁用 swap",
+      "sample": "docker run -d --name web --cpus=1.5 --memory=512m --memory-swap=512m -p 8080:80 nginx:1.25",
+      "require": [
+        {
+          "p": "docker\\s+run",
+          "tip": "应使用 docker run"
+        },
+        {
+          "p": "--cpus[= ]1\\.5",
+          "tip": "缺少 --cpus=1.5 限制 CPU"
+        },
+        {
+          "p": "--memory[= ]512m|--memory[= ]512M",
+          "tip": "缺少 --memory=512m 限制内存"
+        },
+        {
+          "p": "--memory-swap[= ]512m",
+          "tip": "建议同时限制 --memory-swap，避免容器吃 swap"
+        },
+        {
+          "p": "--name\\s+web",
+          "tip": "容器名应为 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--cpu-shares",
+          "tip": "--cpu-shares 只是相对权重，不能硬限流；硬限要用 --cpus"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.readonly-rootfs",
+      "track": "docker",
+      "title": "以只读根文件系统运行容器",
+      "goal": "让 web 容器的根文件系统只读，同时给它一块可写的临时目录 /tmp 和 /run",
+      "hint": "--read-only 之后容器内多数路径都写不了，需要临时写入的地方用 --tmpfs 挂内存盘",
+      "sample": "docker run -d --name web --read-only --tmpfs /tmp --tmpfs /run nginx:1.25",
+      "require": [
+        {
+          "p": "docker\\s+run",
+          "tip": "应使用 docker run"
+        },
+        {
+          "p": "--read-only",
+          "tip": "缺少 --read-only"
+        },
+        {
+          "p": "--tmpfs\\s+/tmp",
+          "tip": "需要给 /tmp 挂一块可写的 tmpfs"
+        },
+        {
+          "p": "--tmpfs\\s+/run",
+          "tip": "需要给 /run 挂一块可写的 tmpfs"
+        },
+        {
+          "p": "--name\\s+web",
+          "tip": "容器名应为 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-v\\s+/tmp|--volume\\s+/tmp",
+          "tip": "临时目录用 --tmpfs（内存盘）更合适，不要挂宿主机 /tmp"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.copy-from-container",
+      "track": "docker",
+      "title": "把容器里的日志拷到宿主机",
+      "goal": "把运行中的 web 容器里的 /var/log/nginx/access.log 拷到当前目录，命名为 access-copy.log",
+      "hint": "docker cp 的格式是 容器:路径 本地路径；容器没运行也能拷（只要它还在）",
+      "sample": "docker cp web:/var/log/nginx/access.log ./access-copy.log",
+      "require": [
+        {
+          "p": "docker\\s+cp",
+          "tip": "应使用 docker cp"
+        },
+        {
+          "p": "web:/var/log/nginx/access\\.log",
+          "tip": "源要写成 容器名:容器内路径"
+        },
+        {
+          "p": "access-copy\\.log",
+          "tip": "目标文件名应为 access-copy.log"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+exec.*cat\\s*>",
+          "tip": "用 docker exec cat 重定向不如 docker cp 直接（也更容易写坏文件）"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

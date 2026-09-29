@@ -1,0 +1,229 @@
+{
+  "id": "c-advanced",
+  "name": "C 语言进阶（预处理、宏、严格模式、内存布局）",
+  "track": "c",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "c.preprocess-only",
+      "track": "c",
+      "title": "只看预处理结果（宏到底展开成什么）",
+      "goal": "用 gcc 只做预处理，把 main.c 的宏展开结果打印出来，去掉行号标记，只看前 20 行",
+      "hint": "-E 只预处理；-P 去掉 # 行号标记；宏没按预期展开时，这一步最快定位",
+      "sample": "gcc -E -P main.c | head -20",
+      "require": [
+        {
+          "p": "gcc|clang",
+          "tip": "应使用 gcc 或 clang"
+        },
+        {
+          "p": "-E\\b",
+          "tip": "缺少 -E（只做预处理）"
+        },
+        {
+          "p": "-P\\b",
+          "tip": "缺少 -P（去掉行号标记，输出更像源码）"
+        },
+        {
+          "p": "main\\.c",
+          "tip": "应指定 main.c"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应只取前 20 行"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-o\\s+\\S+\\.o",
+          "tip": "-E 只是预处理，不需要产出目标文件"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "c.define-macro",
+      "track": "c",
+      "title": "不改代码，靠编译期宏切换行为",
+      "goal": "编译 main.c 时用 -D 定义 DEBUG_LEVEL=2，产物叫 app（同时打开 -Wall）",
+      "hint": "-D 定义宏，等价于在文件顶部写 #define（但不用改代码，方便在 CI 上切换）",
+      "sample": "gcc -Wall -DDEBUG_LEVEL=2 -o app main.c",
+      "require": [
+        {
+          "p": "gcc|clang",
+          "tip": "应使用 gcc 或 clang"
+        },
+        {
+          "p": "-DDEBUG_LEVEL=2|-D\\s+DEBUG_LEVEL=2",
+          "tip": "缺少 -DDEBUG_LEVEL=2"
+        },
+        {
+          "p": "-o\\s+app",
+          "tip": "产物应命名为 app"
+        },
+        {
+          "p": "main\\.c",
+          "tip": "应编译 main.c"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "c.werror-strict",
+      "track": "c",
+      "title": "把警告当错误（CI 上的严格模式）",
+      "goal": "用 gcc 编译 main.c：打开全部警告与额外警告，并把警告视为错误，产物叫 app",
+      "hint": "-Werror 让任何警告直接失败；CI 上跑一次，能挡掉大部分「先合了再说」的代码",
+      "sample": "gcc -Wall -Wextra -Werror -o app main.c",
+      "require": [
+        {
+          "p": "gcc|clang",
+          "tip": "应使用 gcc 或 clang"
+        },
+        {
+          "p": "-Wall",
+          "tip": "缺少 -Wall"
+        },
+        {
+          "p": "-Wextra",
+          "tip": "缺少 -Wextra"
+        },
+        {
+          "p": "-Werror",
+          "tip": "缺少 -Werror（警告视为错误）"
+        },
+        {
+          "p": "-o\\s+app",
+          "tip": "产物应命名为 app"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-Wno-|--no-warnings",
+          "tip": "严格模式里不要逐条关警告，应该改代码"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "c.memory-layout",
+      "track": "c",
+      "title": "看清结构体的真实内存布局（对齐与填充）",
+      "goal": "编译并运行一段 12 行以内的程序，打印结构体大小与两个成员偏移（用 -Wall 编译，输出无警告）",
+      "hint": "sizeof 给大小，offsetof 给偏移；对齐会让结构体比「成员之和」更大",
+      "sample": "printf '#include <stdio.h>\\n#include <stddef.h>\\nstruct S { char a; int b; };\\nint main(){ printf(\"%zu %zu %zu\\\\n\", sizeof(struct S), offsetof(struct S, a), offsetof(struct S, b)); }\\n' > layout.c && gcc -Wall -o layout layout.c && ./layout",
+      "require": [
+        {
+          "p": "stddef\\.h|offsetof",
+          "tip": "缺少 offsetof（在 stddef.h 里）"
+        },
+        {
+          "p": "sizeof",
+          "tip": "缺少 sizeof 查看大小"
+        },
+        {
+          "p": "gcc|clang",
+          "tip": "应编译一次"
+        },
+        {
+          "p": "-Wall",
+          "tip": "缺少 -Wall"
+        },
+        {
+          "p": "\\./layout",
+          "tip": "编译后要运行看输出"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf|rm\\s+layout",
+          "tip": "练习不需要删除文件",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "c.include-trace",
+      "track": "c",
+      "title": "这个宏/类型是从哪个头文件来的（-H 一行行列出来）",
+      "goal": "编译时打印实际用到的头文件层级，确认某个定义来自哪个 include 路径",
+      "hint": "gcc -H 会把每个被包含的头文件按层级打出来；同名头文件装在多个路径下时，这一招能直接看出编译器选了哪一个",
+      "sample": "gcc -H -E main.c -o /dev/null",
+      "require": [
+        {
+          "p": "gcc\\s+.*-H",
+          "tip": "应使用 gcc -H 打印头文件层级"
+        },
+        {
+          "p": "-E",
+          "tip": "只要预处理结果（-E）"
+        },
+        {
+          "p": "main\\.c",
+          "tip": "应指定源文件"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "c.static-lib-symbols",
+      "track": "c",
+      "title": "静态库里到底有哪些符号（链接报错前先看它）",
+      "goal": "列出静态库 libfoo.a 里已定义的函数符号，确认链接时找得到目标函数",
+      "hint": "nm -g 只看外部符号（T 是已定义代码、U 是未定义引用）；\"undefined reference\" 十有八九是库里根本没有那个符号，或顺序不对",
+      "sample": "nm -g libfoo.a | grep ' T '",
+      "require": [
+        {
+          "p": "nm\\s+-g",
+          "tip": "应使用 nm -g 看外部符号"
+        },
+        {
+          "p": "libfoo\\.a",
+          "tip": "目标应是静态库 libfoo.a"
+        },
+        {
+          "p": "grep",
+          "tip": "应过滤出已定义的符号（T）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "c.sanitizer-address-undefined",
+      "track": "c",
+      "title": "一次同时开 ASan 与 UBSan（带调试信息）",
+      "goal": "用 clang 同时打开地址与未定义行为两个 sanitizer，带调试符号、低优化，并且真的跑一次程序",
+      "hint": "-fsanitize=address,undefined 一次抓越界与整数溢出；-g 才有可读栈帧；-fno-omit-frame-pointer 让回溯完整",
+      "sample": "clang -fsanitize=address,undefined -g -O1 -fno-omit-frame-pointer app.c -o app && ./app",
+      "require": [
+        {
+          "p": "clang",
+          "tip": "应使用 clang 编译"
+        },
+        {
+          "p": "-fsanitize=address,undefined",
+          "tip": "应同时开 ASan 与 UBSan"
+        },
+        {
+          "p": "\\-g\\b",
+          "tip": "要带调试信息（-g）"
+        },
+        {
+          "p": "\\-O[01]",
+          "tip": "sanitizer 下别开高优化（用 -O0/-O1）"
+        },
+        {
+          "p": "app\\.c",
+          "tip": "应指定源文件 app.c"
+        },
+        {
+          "p": "&&\\s*\\./app",
+          "tip": "编译完要真的跑一次（&& ./app）"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

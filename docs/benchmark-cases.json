@@ -1,0 +1,81 @@
+{
+  "note": "固定评测集：每条给一段岗位描述与期望字段。规则引擎与可选模型跑同一套用例，产出 docs/BENCHMARK.md 的对比表。",
+  "cases": [
+    {
+      "id": "go-ops",
+      "text": "招聘 Go 工程师：熟悉 docker build 与 kubectl，会用 git rebase，本科，上海，25-40K",
+      "expect": {
+        "title": "Go 工程师",
+        "location": "上海",
+        "education": "本科",
+        "stack": [
+          "docker",
+          "git"
+        ]
+      }
+    },
+    {
+      "id": "k8s-sre",
+      "text": "SRE 工程师（Kubernetes 方向）：要求精通 k8s 与 Prometheus，熟悉 helm，3 年以上经验，北京，学历不限",
+      "expect": {
+        "title": "SRE 工程师",
+        "location": "北京",
+        "education": "不限",
+        "stack": [
+          "kubernetes",
+          "prometheus"
+        ]
+      }
+    },
+    {
+      "id": "python-data",
+      "text": "数据开发工程师：Python + SQL，熟悉 pandas 与 Airflow，硕士优先，杭州",
+      "expect": {
+        "title": "数据开发工程师",
+        "location": "杭州",
+        "education": "硕士",
+        "stack": [
+          "python",
+          "sql"
+        ]
+      }
+    },
+    {
+      "id": "linux-ops",
+      "text": "Linux 运维工程师：熟练 shell 脚本、systemd 与 nginx，会用 tcpdump 抓包，大专以上，深圳",
+      "expect": {
+        "title": "Linux 运维工程师",
+        "location": "深圳",
+        "education": "大专",
+        "stack": [
+          "shell",
+          "systemd",
+          "nginx"
+        ]
+      }
+    },
+    {
+      "id": "net-eng",
+      "text": "网络工程师：熟悉 BGP 与 OSPF，会配置 nginx 反向代理，本科，成都",
+      "expect": {
+        "title": "网络工程师",
+        "location": "成都",
+        "education": "本科",
+        "stack": [
+          "nginx"
+        ]
+      }
+    },
+    {
+      "id": "db-pg",
+      "text": "数据库工程师（PostgreSQL）：精通 SQL 调优与 pg_dump 备份恢复，本科，远程办公",
+      "expect": {
+        "title": "数据库工程师",
+        "stack": [
+          "postgresql",
+          "sql"
+        ]
+      }
+    }
+  ]
+}

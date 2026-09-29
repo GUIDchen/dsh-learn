@@ -1,0 +1,111 @@
+{
+  "id": "python-data",
+  "name": "Python 数据与接口（pandas / FastAPI / requests）",
+  "track": "python",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "python.pandas-groupby",
+      "track": "python",
+      "title": "一行命令读出 CSV 里各分组的条数",
+      "goal": "用 python3 一行读 sales.csv，按 region 分组统计条数并打印",
+      "hint": "pd.read_csv 之后 groupby(...).size() 最快看出数据分布",
+      "sample": "python3 -c \"import pandas as pd; print(pd.read_csv('sales.csv').groupby('region').size())\"",
+      "require": [
+        {
+          "p": "pandas\\s+as\\s+pd",
+          "tip": "应导入 pandas"
+        },
+        {
+          "p": "read_csv",
+          "tip": "缺少 pd.read_csv"
+        },
+        {
+          "p": "groupby\\(",
+          "tip": "缺少 groupby 分组"
+        },
+        {
+          "p": "region",
+          "tip": "应按 region 分组"
+        },
+        {
+          "p": "\\.size\\(\\)|count\\(\\)",
+          "tip": "缺少统计条数的聚合"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "\\.to_csv\\(.*sales",
+          "tip": "本题只读统计，不要覆盖原数据文件",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "python.fastapi-run",
+      "track": "python",
+      "title": "本地起一个 FastAPI 服务（带热重载）",
+      "goal": "用 uvicorn 起 app:app：监听 8000，开启热重载",
+      "hint": "uvicorn 的 --reload 只适合开发；生产要用多 worker",
+      "sample": "uvicorn app:app --host 127.0.0.1 --port 8000 --reload",
+      "require": [
+        {
+          "p": "uvicorn",
+          "tip": "应使用 uvicorn"
+        },
+        {
+          "p": "app:app|\\S+:app",
+          "tip": "缺少 模块:对象 形式的入口"
+        },
+        {
+          "p": "--port\\s+8000",
+          "tip": "缺少 --port 8000"
+        },
+        {
+          "p": "--reload",
+          "tip": "缺少 --reload（开发环境热重载）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--host\\s+0\\.0\\.0\\.0",
+          "tip": "开发服务默认只监听本机；对外暴露要另做鉴权"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "python.requests-check",
+      "track": "python",
+      "title": "用 requests 探接口并做基本断言",
+      "goal": "请求 http://localhost:8000/api/health，断言状态码是 200，并打印耗时与响应 JSON",
+      "hint": "raise_for_status 会自己抛异常；timeout 一定要写，否则脚本会挂死",
+      "sample": "python3 -c \"import requests,time; t=time.time(); r=requests.get('http://localhost:8000/api/health', timeout=5); r.raise_for_status(); print(r.status_code, round(time.time()-t,3), r.json())\"",
+      "require": [
+        {
+          "p": "import\\s+requests",
+          "tip": "应导入 requests"
+        },
+        {
+          "p": "requests\\.get",
+          "tip": "缺少 requests.get"
+        },
+        {
+          "p": "timeout=",
+          "tip": "缺少 timeout，请求可能一直挂着"
+        },
+        {
+          "p": "raise_for_status",
+          "tip": "缺少 raise_for_status 让失败可见"
+        },
+        {
+          "p": "\\.json\\(\\)",
+          "tip": "缺少解析响应 JSON"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    }
+  ]
+}

@@ -1,0 +1,383 @@
+{
+  "id": "lang-core",
+  "name": "其他语言与后端（Go / Java / 前端与接口）",
+  "track": "lang",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "lang.java-build-run",
+      "track": "lang",
+      "title": "不靠 IDE：手工编译并运行一个 Java 类",
+      "goal": "把 App.java 编译到 out 目录，然后用 App 类名运行它（classpath 指向 out）",
+      "hint": "javac -d 指定输出目录；java -cp 指定类路径，启动时写的是类名不是文件名",
+      "sample": "javac -d out App.java && java -cp out App",
+      "require": [
+        {
+          "p": "javac\\s+-d\\s+out",
+          "tip": "缺少 javac -d out 指定输出目录"
+        },
+        {
+          "p": "App\\.java",
+          "tip": "应编译 App.java"
+        },
+        {
+          "p": "java\\s+-cp\\s+out\\s+App",
+          "tip": "运行应是 java -cp out App（写类名，不是路径）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "java\\s+App\\.java|java\\s+out/App",
+          "tip": "java 后面要跟类名；-cp 负责告诉它去哪找"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "lang.jvm-diagnose",
+      "track": "lang",
+      "title": "Java 服务卡住了：先看线程栈",
+      "goal": "用 jstack 打印进程 12345 的线程栈，输出到 app-thread.txt",
+      "hint": "jstack 是 JDK 自带的线程栈工具；先 jps 找 pid 也行",
+      "sample": "jstack 12345 > app-thread.txt",
+      "require": [
+        {
+          "p": "jstack",
+          "tip": "应使用 jstack"
+        },
+        {
+          "p": "12345",
+          "tip": "应指定进程号 12345"
+        },
+        {
+          "p": "app-thread\\.txt",
+          "tip": "输出应重定向到 app-thread.txt"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kill\\s+-9",
+          "tip": "排障先取证，别直接 kill -9",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "lang.frontend-build",
+      "track": "lang",
+      "title": "前端产物按锁文件安装并构建",
+      "goal": "用锁文件安装依赖并构建前端产物（跑 build 脚本）",
+      "hint": "npm ci 严格按 package-lock.json；npm run build 跑的是 package.json 里的 scripts.build",
+      "sample": "npm ci && npm run build",
+      "require": [
+        {
+          "p": "npm\\s+ci",
+          "tip": "应使用 npm ci（严格按锁文件）"
+        },
+        {
+          "p": "npm\\s+run\\s+build",
+          "tip": "缺少 npm run build"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "npm\\s+install\\b",
+          "tip": "CI/交付场景用 npm ci，npm install 会改锁文件"
+        }
+      ],
+      "verify": {
+        "cmd": "node -v",
+        "expect": "v\\d+",
+        "note": "前置检查：前端构建需要 Node"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "lang.rest-probe",
+      "track": "lang",
+      "title": "探一个 REST 接口：只取状态码与耗时",
+      "goal": "用 curl 请求 /api/health，只输出 HTTP 状态码与总耗时，不要输出正文",
+      "hint": "-s -o /dev/null 丢掉正文；-w 指定要打印的变量",
+      "sample": "curl -s -o /dev/null -w '%{http_code} %{time_total}\\n' http://localhost:8080/api/health",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "-o\\s+/dev/null|-o\\s+NUL",
+          "tip": "缺少 -o /dev/null，正文会混进输出"
+        },
+        {
+          "p": "-w\\s+",
+          "tip": "缺少 -w 指定输出格式"
+        },
+        {
+          "p": "http_code",
+          "tip": "缺少 %{http_code}"
+        },
+        {
+          "p": "time_total",
+          "tip": "缺少 %{time_total}"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-X\\s+(POST|DELETE|PUT)",
+          "tip": "健康检查是只读的 GET，不要发写请求"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "lang.java-jar",
+      "track": "lang",
+      "title": "把 class 文件打成可执行 jar",
+      "goal": "把 out 目录里的 class 打成 app.jar，并指定主类 com.example.App",
+      "hint": "jar 用 -C 切换目录再打包，加 --main-class 才能 java -jar 直接跑",
+      "sample": "jar --create --file app.jar --main-class com.example.App -C out .",
+      "require": [
+        {
+          "p": "jar\\s+",
+          "tip": "应使用 jar 命令"
+        },
+        {
+          "p": "--create|-c\\b",
+          "tip": "缺少 --create"
+        },
+        {
+          "p": "--file\\s+app\\.jar|-f\\s+app\\.jar",
+          "tip": "输出应为 app.jar"
+        },
+        {
+          "p": "--main-class|Main-Class|com\\.example\\.App",
+          "tip": "缺少主类声明"
+        },
+        {
+          "p": "-C\\s+out",
+          "tip": "缺少 -C out 切换打包目录"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "lang.frontend-lint-test",
+      "track": "lang",
+      "title": "前端流水线：先 lint 再跑测试",
+      "goal": "按顺序跑前端的 lint 与测试脚本（用 npm run 调用 package.json 里的脚本）",
+      "hint": "顺序很关键：lint 先失败就不必等测试；两个脚本都用 npm run 调，别直接调二进制",
+      "sample": "npm run lint && npm test",
+      "require": [
+        {
+          "p": "npm\\s+run\\s+lint",
+          "tip": "缺少 npm run lint"
+        },
+        {
+          "p": "npm\\s+(run\\s+)?test",
+          "tip": "缺少 npm test / npm run test"
+        },
+        {
+          "p": "&&",
+          "tip": "两步要串起来（lint 失败就不该继续跑测试）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "npx\\s+(eslint|jest|vitest)",
+          "tip": "用 package.json 里的脚本，别绕过版本锁定直接跑 npx"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "lang.jvm-thread-dump",
+      "track": "lang",
+      "title": "JVM 卡住了：先拿线程转储",
+      "goal": "对正在运行的 Java 进程打一份线程转储，只保留前 40 行看主线",
+      "hint": "jstack <pid> 打印所有线程栈；CPU 打满时先看 RUNNABLE 的线程，卡死时看 BLOCKED 与持锁的那一对",
+      "sample": "jstack 12345 | head -40",
+      "require": [
+        {
+          "p": "jstack",
+          "tip": "应使用 jstack 打线程转储"
+        },
+        {
+          "p": "\\d+",
+          "tip": "要给出目标进程号"
+        },
+        {
+          "p": "head|grep",
+          "tip": "输出很长，应截取或过滤"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "lang.node-heap-limit",
+      "track": "lang",
+      "title": "Node 内存上限要显式写出来（别等容器 OOM）",
+      "goal": "用 1GB 的堆上限启动 Node 进程，并关掉旧版堆行为",
+      "hint": "容器里 Node 常按宿主机的内存算默认堆，容易直接被 OOMKilled；--max-old-space-size 是关键旋钮",
+      "sample": "node --max-old-space-size=1024 server.js",
+      "require": [
+        {
+          "p": "node\\s+--max-old-space-size=1024",
+          "tip": "应显式设置堆上限（--max-old-space-size=1024）"
+        },
+        {
+          "p": "server\\.js",
+          "tip": "要启动的就是目标脚本"
+        }
+      ],
+      "level": "easy",
+      "verify": {
+        "cmd": "node -v",
+        "expect": "v\\d+",
+        "note": "环境前置：本机 Node 版本（堆上限参数随版本略有差异）"
+      }
+    },
+    {
+      "id": "lang.tsc-noemit-check",
+      "track": "lang",
+      "title": "TS 类型检查不产出文件（CI 里最常用的一步）",
+      "goal": "用 tsc 做一次类型检查但不生成任何 JS 文件",
+      "hint": "--noEmit 让 tsc 只做类型检查；CI 里与打包分开跑，能在不产出构建物的前提下挡住类型错误",
+      "sample": "npx tsc --noEmit",
+      "require": [
+        {
+          "p": "tsc",
+          "tip": "应使用 tsc"
+        },
+        {
+          "p": "--noEmit",
+          "tip": "应加上 --noEmit（只检查不产出）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "lang.frontend-bundle-size",
+      "track": "lang",
+      "title": "前端包体积先看主包有多大",
+      "goal": "用 vite 构建并把构建产物的体积报告打开，确认主包与可分包的依赖",
+      "hint": "构建日志里的 gzip 后体积才是用户实际下载的量；reportCompressedSize 打开才有这一行",
+      "sample": "npx vite build --reportCompressedSize",
+      "require": [
+        {
+          "p": "vite\\s+build",
+          "tip": "应使用 vite build"
+        },
+        {
+          "p": "--reportCompressedSize",
+          "tip": "要打开压缩体积报告"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "lang.eslint-fix-dry",
+      "track": "lang",
+      "title": "先看 lint 会改什么，再让它动手",
+      "goal": "让 eslint 只报告可自动修复的问题，不真的改文件",
+      "hint": "lint 自动修复会一次改一片：CI/评审前先 --fix-dry-run 看清楚改动范围",
+      "sample": "npx eslint --fix-dry-run src",
+      "require": [
+        {
+          "p": "eslint",
+          "tip": "应使用 eslint"
+        },
+        {
+          "p": "--fix-dry-run",
+          "tip": "应加上 --fix-dry-run（只演练不落盘）"
+        },
+        {
+          "p": "src",
+          "tip": "范围限定在 src"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "lang.node-trace-warnings",
+      "track": "lang",
+      "title": "Node 启动时的警告要能追到源头",
+      "goal": "启动 Node 时把所有警告的堆栈打出来，定位是哪一层触发了弃用警告",
+      "hint": "--trace-warnings 会把 Warning 的调用栈一并打印；不打开只能看到一句话，根本不知道谁触发的",
+      "sample": "node --trace-warnings server.js",
+      "require": [
+        {
+          "p": "node\\s+--trace-warnings",
+          "tip": "应打开 --trace-warnings"
+        },
+        {
+          "p": "server\\.js",
+          "tip": "要启动的就是目标脚本"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "lang.node-heap-snapshot",
+      "track": "lang",
+      "title": "内存涨了：先留一份堆快照",
+      "goal": "以检查模式启动 Node 并在信号触发时写堆快照（便于事后用 Chrome DevTools 比对）",
+      "hint": "--inspect 打开调试器端口，SIGUSR2 触发快照；两份快照对比才能看出是谁在涨",
+      "sample": "node --inspect --heapsnapshot-signal=SIGUSR2 server.js",
+      "require": [
+        {
+          "p": "node\\s+--inspect",
+          "tip": "应打开 --inspect"
+        },
+        {
+          "p": "--heapsnapshot-signal=SIGUSR2",
+          "tip": "应指定触发快照的信号"
+        },
+        {
+          "p": "server\\.js",
+          "tip": "要启动的就是目标脚本"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "lang.maven-dependency-tree-conflict",
+      "track": "lang",
+      "title": "同一个库两个版本：用依赖树找出是谁引进来的",
+      "goal": "打印依赖树定位某个库的冲突来源，并只保留该子树的路径（含依赖调解结果），同时列出被判定的版本",
+      "hint": "-Dincludes 能只留下关心的那条依赖，输出从几十屏变成几行；dependency:tree 还会标出被调解掉的版本（omitted for conflict）",
+      "sample": "mvn -q dependency:tree -Dincludes=com.fasterxml.jackson.core:jackson-databind && mvn -q dependency:tree -Dverbose -Dincludes=com.fasterxml.jackson.core:jackson-databind",
+      "require": [
+        {
+          "p": "mvn",
+          "tip": "用 Maven 打印依赖树"
+        },
+        {
+          "p": "dependency:tree",
+          "tip": "要的是依赖树，不是依赖列表"
+        },
+        {
+          "p": "-Dincludes=",
+          "tip": "要用 includes 只留关心的子树的，避免刷屏"
+        },
+        {
+          "p": "jackson-databind",
+          "tip": "要指定冲突的构件"
+        },
+        {
+          "p": "-Dverbose",
+          "tip": "verbose 才会打印被调解掉的版本"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "dependency:purge-local-repository|rm -rf ~/.m2",
+          "severity": "block",
+          "tip": "别用清空本地仓库来\"解决\"依赖冲突：缓存删了不等于冲突没了，还要重下几十个包"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

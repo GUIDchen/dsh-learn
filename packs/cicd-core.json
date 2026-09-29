@@ -1,0 +1,156 @@
+{
+  "id": "cicd-core",
+  "name": "持续集成与发布（CI 步骤、制品、回滚）",
+  "track": "ops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "cicd.npm-ci",
+      "track": "ops",
+      "title": "流水线里装依赖要用锁文件",
+      "goal": "在 CI 上安装依赖并跑测试：必须走锁文件、必须能在干净环境复现",
+      "hint": "npm ci 严格按 package-lock.json 安装；npm install 会顺手改锁文件，CI 上等于不可复现",
+      "sample": "npm ci && npm test",
+      "require": [
+        {
+          "p": "npm\\s+ci",
+          "tip": "应使用 npm ci（严格按锁文件安装）"
+        },
+        {
+          "p": "npm\\s+test",
+          "tip": "安装完要跑测试"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "npm\\s+install",
+          "tip": "CI 上用 npm install 会改写锁文件，构建不可复现"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cicd.image-tag-sha",
+      "track": "ops",
+      "title": "打上 commit 号再推镜像",
+      "goal": "构建镜像并推送到 registry.local/app，tag 用当次提交的短 SHA",
+      "hint": "用 git rev-parse --short HEAD 拿短 SHA：比 latest 可追溯得多",
+      "sample": "docker build -t registry.local/app:$(git rev-parse --short HEAD) . && docker push registry.local/app:$(git rev-parse --short HEAD)",
+      "require": [
+        {
+          "p": "docker\\s+build",
+          "tip": "应使用 docker build"
+        },
+        {
+          "p": "registry\\.local/app",
+          "tip": "镜像名应为 registry.local/app"
+        },
+        {
+          "p": "git\\s+rev-parse\\s+--short\\s+HEAD",
+          "tip": "tag 应使用 git rev-parse --short HEAD"
+        },
+        {
+          "p": "docker\\s+push",
+          "tip": "构建完要推送"
+        }
+      ],
+      "forbid": [
+        {
+          "p": ":latest\\b",
+          "tip": "不要用 latest 当发布 tag：回滚时无法定位版本"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cicd.artifact-upload",
+      "track": "ops",
+      "title": "把构建产物上传到制品库",
+      "goal": "用 curl 把 app.tar.gz 上传到 Nexus 的 raw 仓库（用 ci 账号与 CI 变量里的令牌）",
+      "hint": "-T 是上传文件；-u 传用户名与密码；令牌从环境变量读，不要写死在脚本里",
+      "sample": "curl -T app.tar.gz -u ci:$CI_TOKEN https://nexus.local/repository/raw/app/",
+      "require": [
+        {
+          "p": "curl\\s+-T\\s+app\\.tar\\.gz",
+          "tip": "缺少 curl -T app.tar.gz"
+        },
+        {
+          "p": "-u\\s+ci:",
+          "tip": "缺少 -u ci: 指定账号"
+        },
+        {
+          "p": "CI_TOKEN|\\$\\{?[A-Z_]*TOKEN",
+          "tip": "令牌应从环境变量读"
+        },
+        {
+          "p": "/repository/",
+          "tip": "应指向 Nexus 的仓库路径"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-u\\s+ci:[^$\\{]\\S{6,}",
+          "tip": "不要把令牌明文写在命令里（会进历史与日志）",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cicd.rollback",
+      "track": "ops",
+      "title": "发布出问题，先回滚再说",
+      "goal": "把 web 这个 Deployment 回滚到上一个版本",
+      "hint": "kubectl rollout undo 就是回滚上一个 revision；rollout history 可以看历史",
+      "sample": "kubectl rollout undo deployment/web",
+      "require": [
+        {
+          "p": "kubectl\\s+rollout\\s+undo",
+          "tip": "应使用 kubectl rollout undo"
+        },
+        {
+          "p": "deploy(ment)?/web|deployment\\s+web",
+          "tip": "应指定 Deployment web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+delete\\s+deployment",
+          "tip": "回滚不需要删掉 Deployment",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "cicd.env-check",
+      "track": "ops",
+      "title": "发布前确认 CI 变量真的注入了",
+      "goal": "列出所有 CI_ 开头的环境变量，按名字排序",
+      "hint": "env 打印全部变量，grep 过滤，sort 让顺序稳定（方便对比两次构建）",
+      "sample": "env | grep '^CI_' | sort",
+      "require": [
+        {
+          "p": "env",
+          "tip": "应使用 env 打印环境变量"
+        },
+        {
+          "p": "grep\\s+['\\\"]?\\^?CI_",
+          "tip": "缺少过滤 CI_ 前缀"
+        },
+        {
+          "p": "sort",
+          "tip": "缺少 sort，输出顺序不稳定不利于对比"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "env\\s*>|printenv\\s*>|\\.\\s+\\.env",
+          "tip": "不要把全部环境变量落盘成文件（里面有密钥）",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

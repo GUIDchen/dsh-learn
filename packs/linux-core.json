@@ -1,0 +1,181 @@
+{
+  "id": "linux-core",
+  "name": "Linux 命令核心",
+  "track": "linux",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "linux.platform-probe",
+      "track": "linux",
+      "title": "判断当前系统类型",
+      "goal": "输出当前操作系统类型，用于对照后面的 Docker 运行时差异",
+      "hint": "uname -s 在 macOS 输出 Darwin，在 Linux 输出 Linux",
+      "sample": "uname -s",
+      "require": [
+        {
+          "p": "uname\\s+-s",
+          "tip": "应使用 uname -s 查看系统类型"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "uname -s",
+        "expect": "Darwin|Linux",
+        "note": "只读命令，任何平台都能安全执行"
+      },
+      "level": "easy"
+    },
+    {
+      "id": "linux.sed-inplace",
+      "track": "linux",
+      "title": "原地替换文件中的文本（BSD 与 GNU 写法不同）",
+      "goal": "把 a.txt 中所有 foo 替换成 bar，直接作用于原文件，不产生中间文件",
+      "hint": "BSD sed（macOS）的 -i 必须带一个备份后缀，GNU sed（Linux）不能带",
+      "variants": {
+        "darwin": {
+          "sample": "sed -i '' 's/foo/bar/g' a.txt",
+          "require": [
+            {
+              "p": "sed\\s+-i\\s+''",
+              "tip": "macOS 的 BSD sed 要写成 sed -i ''（空备份后缀），否则报 invalid command code"
+            },
+            {
+              "p": "s/foo/bar/g",
+              "tip": "替换表达式应为 s/foo/bar/g"
+            },
+            {
+              "p": "a\\.txt",
+              "tip": "应指定目标文件 a.txt"
+            }
+          ],
+          "forbid": []
+        },
+        "linux": {
+          "sample": "sed -i 's/foo/bar/g' a.txt",
+          "require": [
+            {
+              "p": "sed\\s+-i",
+              "tip": "应使用 sed -i 原地替换"
+            },
+            {
+              "p": "s/foo/bar/g",
+              "tip": "替换表达式应为 s/foo/bar/g"
+            },
+            {
+              "p": "a\\.txt",
+              "tip": "应指定目标文件 a.txt"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "sed\\s+-i\\s+''",
+              "tip": "GNU sed 不接受空备份后缀，它会把 '' 当成文件名"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"(Get-Content a.txt) -replace 'foo','bar' | Set-Content a.txt\"",
+          "require": [
+            {
+              "p": "Get-Content",
+              "tip": "先读原文件"
+            },
+            {
+              "p": "-replace",
+              "tip": "用 -replace 做替换"
+            },
+            {
+              "p": "Set-Content a\\.txt",
+              "tip": "替换结果要写回文件（PowerShell 没有 sed -i）"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "sed",
+          "tip": "应使用 sed 命令"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "linux.date-offset",
+      "track": "linux",
+      "title": "计算明天的日期",
+      "goal": "输出明天日期的 YYYY-MM-DD 形式",
+      "hint": "BSD date 用 -v 偏移，GNU date 用 -d",
+      "variants": {
+        "darwin": {
+          "sample": "date -v+1d '+%Y-%m-%d'",
+          "require": [
+            {
+              "p": "date\\s+-v\\+1d",
+              "tip": "macOS 的 BSD date 用 -v+1d 做日期偏移"
+            },
+            {
+              "p": "\\+%Y-%m-%d",
+              "tip": "输出格式应为 +%Y-%m-%d"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "date\\s+-d",
+              "tip": "macOS 的 date 不支持 -d（那是 GNU 写法），会报 illegal option"
+            }
+          ],
+          "verify": {
+            "cmd": "date -v+1d '+%Y-%m-%d'",
+            "expect": "^\\d{4}-\\d{2}-\\d{2}$",
+            "note": "只读命令"
+          }
+        },
+        "linux": {
+          "sample": "date -d '+1 day' '+%Y-%m-%d'",
+          "require": [
+            {
+              "p": "date\\s+-d",
+              "tip": "GNU date 用 -d 做日期偏移"
+            },
+            {
+              "p": "\\+%Y-%m-%d",
+              "tip": "输出格式应为 +%Y-%m-%d"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "date\\s+-v",
+              "tip": "GNU date 不支持 -v（那是 BSD 写法）"
+            }
+          ],
+          "verify": {
+            "cmd": "date -d '+1 day' '+%Y-%m-%d'",
+            "expect": "^\\d{4}-\\d{2}-\\d{2}$",
+            "note": "只读命令"
+          }
+        },
+        "win32": {
+          "sample": "powershell -c \"(Get-Date).AddDays(1).ToString('yyyy-MM-dd')\"",
+          "require": [
+            {
+              "p": "Get-Date",
+              "tip": "用 Get-Date 取当前时间"
+            },
+            {
+              "p": "AddDays\\(1\\)",
+              "tip": "用 AddDays(1) 加一天"
+            },
+            {
+              "p": "yyyy-MM-dd",
+              "tip": "要按 yyyy-MM-dd 格式化输出"
+            }
+          ]
+        }
+      },
+      "require": [],
+      "forbid": [],
+      "level": "medium"
+    }
+  ]
+}

@@ -1,0 +1,612 @@
+{
+  "id": "git-core",
+  "name": "Git 命令核心",
+  "track": "git",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "git.version-check",
+      "track": "git",
+      "title": "确认 git 版本与可用性",
+      "goal": "输出本机 git 的版本号",
+      "hint": "版本检查是最常见的排障第一步：老版本可能没有 switch 等新命令",
+      "sample": "git --version",
+      "require": [
+        {
+          "p": "git\\s+--version",
+          "tip": "应使用 git --version"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "git --version",
+        "expect": "git version \\d+\\.\\d+",
+        "note": "只读命令，任何平台都能安全执行"
+      },
+      "level": "easy"
+    },
+    {
+      "id": "git.status-short",
+      "track": "git",
+      "title": "一行看清工作区状态和当前分支",
+      "goal": "用简洁格式输出工作区状态，并同时显示当前分支",
+      "hint": "status 的 -s 是简洁输出，-b 是显示分支",
+      "sample": "git status -sb",
+      "require": [
+        {
+          "p": "git\\s+status",
+          "tip": "应使用 git status"
+        },
+        {
+          "p": "-sb|-bs|-s\\s+-b|-b\\s+-s|--short",
+          "tip": "缺少简洁输出（-s / --short）"
+        },
+        {
+          "p": "-b|--branch",
+          "tip": "缺少显示分支（-b / --branch）"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "git.log-graph",
+      "track": "git",
+      "title": "一行式查看最近 10 条提交的分叉结构",
+      "goal": "用一行一个提交、带图形线的方式展示最近 10 条历史",
+      "hint": "oneline 压成一行，graph 画分叉，-n 限定条数",
+      "sample": "git log --oneline --graph --decorate -n 10",
+      "require": [
+        {
+          "p": "git\\s+log",
+          "tip": "应使用 git log"
+        },
+        {
+          "p": "--oneline",
+          "tip": "缺少 --oneline"
+        },
+        {
+          "p": "--graph",
+          "tip": "缺少 --graph 看不出分叉"
+        },
+        {
+          "p": "-n\\s*10|-10\\b|--max-count[= ]10",
+          "tip": "应限定最近 10 条"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "git.diff-staged",
+      "track": "git",
+      "title": "只看已暂存、还没提交的改动",
+      "goal": "对比暂存区与最后一次提交，确认这次要提交的内容",
+      "hint": "--staged 与 --cached 等价；不带参数的 git diff 看的是工作区",
+      "sample": "git diff --staged",
+      "require": [
+        {
+          "p": "git\\s+diff",
+          "tip": "应使用 git diff"
+        },
+        {
+          "p": "--staged|--cached",
+          "tip": "缺少 --staged/--cached，那样看的是工作区改动"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--staged\\s+HEAD|--cached\\s+HEAD",
+          "tip": "多余参数，--staged 本身就表示对比 HEAD"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.switch-create",
+      "track": "git",
+      "title": "新建并切换到分支 feature/report",
+      "goal": "创建 feature/report 分支并立刻切过去（使用 git 2.23+ 的新命令）",
+      "hint": "switch 的 -c 表示创建，比 checkout -b 语义更清晰",
+      "sample": "git switch -c feature/report",
+      "require": [
+        {
+          "p": "git\\s+switch",
+          "tip": "应用语义更清晰的 git switch（需要 git 2.23+）"
+        },
+        {
+          "p": "-c|--create",
+          "tip": "缺少 -c 表示创建新分支"
+        },
+        {
+          "p": "feature/report",
+          "tip": "分支名应为 feature/report"
+        }
+      ],
+      "forbid": [],
+      "level": "easy",
+      "verify": {
+        "cmd": "git --version",
+        "expect": "git version",
+        "note": "环境前置：本机 git 版本"
+      }
+    },
+    {
+      "id": "git.restore-staged",
+      "track": "git",
+      "title": "把文件撤出暂存区但保留工作区改动",
+      "goal": "误把 report.md 加了暂存，把它退回去，但不要丢掉已写的修改",
+      "hint": "restore --staged 只动暂存区；--hard 之类的操作会直接毁掉改动",
+      "sample": "git restore --staged report.md",
+      "require": [
+        {
+          "p": "git\\s+restore",
+          "tip": "应使用 git restore"
+        },
+        {
+          "p": "--staged",
+          "tip": "缺少 --staged，否则会改工作区文件"
+        },
+        {
+          "p": "report\\.md",
+          "tip": "应指定文件 report.md"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--hard",
+          "tip": "绝不要用 --hard，会丢工作区改动",
+          "severity": "block"
+        },
+        {
+          "p": "git\\s+checkout\\s+--",
+          "tip": "旧写法会覆盖工作区，改用 restore --staged"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.stash-cycle",
+      "track": "git",
+      "title": "临时收走改动，切分支后再取回",
+      "goal": "把当前未提交的改动暂存起来（带说明 wip），处理完别的事情后恢复它们",
+      "hint": "stash push -m 带说明方便回看，stash pop 恢复并从栈里移除",
+      "sample": "git stash push -m wip && git stash pop",
+      "require": [
+        {
+          "p": "git\\s+stash",
+          "tip": "应使用 git stash"
+        },
+        {
+          "p": "push|-m\\s+wip|save",
+          "tip": "应把改动入栈并带说明 wip"
+        },
+        {
+          "p": "wip",
+          "tip": "说明文字应为 wip"
+        },
+        {
+          "p": "git\\s+stash\\s+(pop|apply)",
+          "tip": "恢复时应使用 git stash pop 或 apply"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+checkout\\s+\\.",
+          "tip": "不要用 checkout . 丢弃改动，那是删数据不是暂存",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.amend-message",
+      "track": "git",
+      "title": "补文件到最后一次提交但不改提交信息",
+      "goal": "把刚漏掉的文件并进上一次提交，并保持原有提交信息不变",
+      "hint": "--amend 改写上一次提交，--no-edit 表示沿用原信息",
+      "sample": "git add report.md && git commit --amend --no-edit",
+      "require": [
+        {
+          "p": "git\\s+add",
+          "tip": "应先把漏掉的文件加入暂存区"
+        },
+        {
+          "p": "git\\s+commit",
+          "tip": "应使用 git commit"
+        },
+        {
+          "p": "--amend",
+          "tip": "缺少 --amend"
+        },
+        {
+          "p": "--no-edit",
+          "tip": "缺少 --no-edit，会弹出编辑器并可能改掉提交信息"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--amend\\s+-m",
+          "tip": "带 -m 会覆盖原提交信息，本题要求保持原信息"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.autocrlf-cross-platform",
+      "track": "git",
+      "title": "跨平台换行符配置（macOS/Linux 与 Windows 不同）",
+      "goal": "配置全局换行符策略：在 macOS/Linux 上提交时统一转成 LF；Windows 上检出时转成 CRLF",
+      "hint": "macOS/Linux 用 input（只在提交时转 LF），Windows 惯用 true；不一致会导致整文件 diff 抖动",
+      "sample": "git config --global core.autocrlf input",
+      "variants": {
+        "win32": {
+          "sample": "git config --global core.autocrlf true",
+          "require": [
+            {
+              "p": "git\\s+config",
+              "tip": "应使用 git config"
+            },
+            {
+              "p": "--global",
+              "tip": "缺少 --global，跨仓库生效必须写全局配置"
+            },
+            {
+              "p": "core\\.autocrlf",
+              "tip": "配置项应为 core.autocrlf"
+            },
+            {
+              "p": "true",
+              "tip": "Windows 上应设为 true"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\binput\\b",
+              "tip": "Windows 上设 input 会让工作区文件保持 LF，老编辑器易出问题"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "git\\s+config",
+          "tip": "应使用 git config"
+        },
+        {
+          "p": "--global",
+          "tip": "缺少 --global，跨仓库生效必须写全局配置"
+        },
+        {
+          "p": "core\\.autocrlf",
+          "tip": "配置项应为 core.autocrlf"
+        },
+        {
+          "p": "input",
+          "tip": "macOS/Linux 上应设为 input"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "core\\.autocrlf\\s+true",
+          "tip": "macOS/Linux 上设 true 会在检出时改成 CRLF，和 Linux 协作时容易整文件抖动"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.stash-untracked",
+      "track": "git",
+      "title": "连新文件一起收进 stash（默认不会收）",
+      "goal": "把工作区改动（包括未跟踪的新文件）收进 stash，并在放回后确认新文件也回来了",
+      "hint": "git stash 默认只收已跟踪文件；新文件必须加 -u（untracked）",
+      "sample": "git stash -u && git stash pop",
+      "require": [
+        {
+          "p": "git\\s+stash\\s+-u|git\\s+stash\\s+--include-untracked",
+          "tip": "缺少 -u：默认不会收未跟踪的新文件"
+        },
+        {
+          "p": "git\\s+stash\\s+pop|git\\s+stash\\s+apply",
+          "tip": "收起来后要放回来（pop/apply）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+stash\\s+(drop|clear)",
+          "tip": "把 stash 删掉等于丢改动",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.blame-range",
+      "track": "git",
+      "title": "只看某一行的提交作者（blame 指定行范围）",
+      "goal": "查看 src/app.js 第 10 到 20 行分别是谁、在哪次提交里改的",
+      "hint": "-L 起,止 指定行范围；大文件上比全量 blame 快得多",
+      "sample": "git blame -L 10,20 src/app.js",
+      "require": [
+        {
+          "p": "git\\s+blame",
+          "tip": "应使用 git blame"
+        },
+        {
+          "p": "-L\\s*10,\\s*20",
+          "tip": "缺少 -L 10,20 指定行范围"
+        },
+        {
+          "p": "src/app\\.js",
+          "tip": "应指定文件 src/app.js"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "git.log-follow",
+      "track": "git",
+      "title": "文件被重命名过，也要看到完整历史",
+      "goal": "查看 src/app.js 的历史（包含重命名之前的提交），一行一条，最多 20 条",
+      "hint": "--follow 会跨重命名追踪；--oneline 一行一条便于扫读",
+      "sample": "git log --follow --oneline -20 -- src/app.js",
+      "require": [
+        {
+          "p": "git\\s+log",
+          "tip": "应使用 git log"
+        },
+        {
+          "p": "--follow",
+          "tip": "缺少 --follow（否则重命名前的历史断了）"
+        },
+        {
+          "p": "--oneline",
+          "tip": "缺少 --oneline"
+        },
+        {
+          "p": "--?\\s*src/app\\.js|--\\s+src/app\\.js",
+          "tip": "应把文件路径放在 -- 之后"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "git.annotated-tag",
+      "track": "git",
+      "title": "打一个带说明的发布标签并推送",
+      "goal": "给当前提交打一个附注标签 v1.0（说明写 release 1.0），然后只把标签推到远端",
+      "hint": "-a 是附注标签（带作者/时间/说明），轻量标签只是一个指针；--tags 只推标签不推分支",
+      "sample": "git tag -a v1.0 -m 'release 1.0' && git push origin --tags",
+      "require": [
+        {
+          "p": "git\\s+tag\\s+-a\\s+v1\\.0",
+          "tip": "缺少 git tag -a v1.0（附注标签）"
+        },
+        {
+          "p": "-m\\s+",
+          "tip": "附注标签要带说明（-m）"
+        },
+        {
+          "p": "git\\s+push",
+          "tip": "打完标签要推送"
+        },
+        {
+          "p": "--tags|v1\\.0",
+          "tip": "推送时要么 --tags，要么指定标签名"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+push\\s+--force",
+          "tip": "推标签不需要强推",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.rebase-onto",
+      "track": "git",
+      "title": "把一段提交挪到另一个基点上",
+      "goal": "把 feature 分支上从 main 分出来之后的提交，整体挪到 release 分支上",
+      "hint": "--onto 的语义是「把 A..B 这一段的提交，重放到 C 之上」",
+      "sample": "git rebase --onto release main feature",
+      "require": [
+        {
+          "p": "git\\s+rebase\\s+--onto\\s+release\\s+main\\s+feature",
+          "tip": "写法应为 git rebase --onto release main feature"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+reset\\s+--hard",
+          "tip": "挪提交用 rebase，不要用 reset --hard 丢改动",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.clean-dry-run",
+      "track": "git",
+      "title": "看看 git clean 会删掉什么（先干跑，别真删）",
+      "goal": "用 git clean 预演：显示将被删除的未跟踪文件与目录，但不真的删除",
+      "hint": "-n 是干跑（dry-run）、-d 包含目录；真删要用 -f，所以先看清清单",
+      "sample": "git clean -nd",
+      "require": [
+        {
+          "p": "git\\s+clean",
+          "tip": "应使用 git clean"
+        },
+        {
+          "p": "-n\\b|--dry-run",
+          "tip": "缺少 -n：不加就是真删"
+        },
+        {
+          "p": "-d\\b",
+          "tip": "缺少 -d（目录也要一起看）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "git\\s+clean\\s+-[a-z]*f",
+          "tip": "题目要求先干跑：-f 会真的删文件",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.diff-stat-range",
+      "track": "git",
+      "title": "看当前分支相对主干的改动统计",
+      "goal": "只看改动统计（增删行数、涉及文件），比较范围是当前分支与 main 的分叉点之后，忽略 main 后来的新提交",
+      "hint": "两点比较（main..HEAD）会把 main 上的新提交也算进来；三点（main...HEAD）只算你这边的新改动",
+      "sample": "git diff --stat main...HEAD",
+      "require": [
+        {
+          "p": "git\\s+diff",
+          "tip": "应使用 git diff"
+        },
+        {
+          "p": "--stat",
+          "tip": "要统计而不是看全量 diff，应加 --stat"
+        },
+        {
+          "p": "main\\.\\.\\.",
+          "tip": "应使用三点比较 main...HEAD（两点会把 main 的新提交也带上）"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "git.log-pickaxe",
+      "track": "git",
+      "title": "这段代码是哪次提交引入的",
+      "goal": "找出内容里增删过 retryCount 的提交，只列标题，方便顺着历史往回查",
+      "hint": "-S 是\"内容增删\"搜索（pickaxe），-G 是按 diff 里的行匹配；比翻 -p 输出快得多",
+      "sample": "git log -SretryCount --oneline",
+      "require": [
+        {
+          "p": "git\\s+log",
+          "tip": "应使用 git log"
+        },
+        {
+          "p": "-S",
+          "tip": "应使用 -S 做内容增删搜索"
+        },
+        {
+          "p": "retryCount",
+          "tip": "搜索词应为 retryCount"
+        },
+        {
+          "p": "--oneline",
+          "tip": "只要标题，应加 --oneline"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.blame-ignore-revs",
+      "track": "git",
+      "title": "让全仓格式化那次提交不进 blame",
+      "goal": "把 .git-blame-ignore-revs 配成 blame 的忽略清单（本仓库级别），这样一个纯格式化提交不会占满每一行的责任人",
+      "hint": "blame.ignoreRevsFile 配置比\"每次手敲 --ignore-revs-file\"省事；不要在仓库里重写历史来达到这个目的",
+      "sample": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
+      "require": [
+        {
+          "p": "git\\s+config",
+          "tip": "应使用 git config 写配置"
+        },
+        {
+          "p": "blame\\.ignoreRevsFile",
+          "tip": "要配的键是 blame.ignoreRevsFile"
+        },
+        {
+          "p": "\\.git-blame-ignore-revs",
+          "tip": "清单文件名应为 .git-blame-ignore-revs"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "filter-branch|filter-repo|rebase\\s+-i",
+          "tip": "不要为了 blame 好看去重写历史",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "git.bisect-run-script",
+      "track": "git",
+      "title": "二分定位不再靠手动切：让 git bisect run 自己找出坏提交",
+      "goal": "用一个脚本把二分自动化：start → 标 bad → 标 good（带标签）→ 用脚本跑每一轮 → 出结果后 reset",
+      "hint": "git bisect run 用脚本退出码判定：0 是 good、非 0 是 bad；脚本里别依赖交互，也别把无关的输出当成失败；收尾要 reset 回到原分支",
+      "sample": "git bisect start && git bisect bad HEAD && git bisect good v1.4.0 && git bisect run ./test.sh && git bisect reset",
+      "require": [
+        {
+          "p": "git bisect start",
+          "tip": "先开一次二分"
+        },
+        {
+          "p": "git bisect bad",
+          "tip": "要标出一个坏提交"
+        },
+        {
+          "p": "git bisect good v1.4.0",
+          "tip": "要标出已知好的那个提交/标签"
+        },
+        {
+          "p": "git bisect run",
+          "tip": "用 run 自动跑每一轮，而不是手动逐个 checkout"
+        },
+        {
+          "p": "./test.sh",
+          "tip": "要指定那个用退出码回答\"好/坏\"的脚本"
+        },
+        {
+          "p": "git bisect reset",
+          "tip": "收尾必须 reset，否则工作区停在分离头指针上"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "git.bundle-offline-transfer",
+      "track": "git",
+      "title": "离线搬一个仓库：打成 bundle 再校验再克隆",
+      "goal": "把仓库（含所有分支与标签）打成一个 bundle 文件，校验它没坏，再从 bundle 克隆出来确认可用",
+      "hint": "bundle 是\"带引用的打包\"：--all 带全部分支；克隆出来的仓库要有远端，否则推不回上游",
+      "sample": "git bundle create repo.bundle --all && git bundle verify repo.bundle && git clone repo.bundle repo-copy",
+      "require": [
+        {
+          "p": "git bundle create",
+          "tip": "用 git bundle create 打包"
+        },
+        {
+          "p": "repo.bundle",
+          "tip": "要给出 bundle 文件名"
+        },
+        {
+          "p": "--all",
+          "tip": "要带上全部分支与标签"
+        },
+        {
+          "p": "git bundle verify",
+          "tip": "搬运前要校验 bundle 完整性"
+        },
+        {
+          "p": "git clone",
+          "tip": "要真的从 bundle 克隆一次验证可用"
+        },
+        {
+          "p": "repo-copy",
+          "tip": "要指定克隆出来的目录"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

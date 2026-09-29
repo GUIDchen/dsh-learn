@@ -1,0 +1,71 @@
+name: release-mac
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: build / sign / notarize
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 测试
+        run: node --test
+
+      - name: 导入签名证书
+        env:
+          CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          if [ -z "$CERT_P12_BASE64" ]; then
+            echo "缺少 secret MACOS_CERT_P12_BASE64（导出 Developer ID 证书为 p12 再 base64）"
+            exit 1
+          fi
+          echo "$CERT_P12_BASE64" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions build.keychain
+          security find-identity -v -p codesigning
+          rm -f /tmp/cert.p12
+
+      - name: 配置公证凭据
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_P8" ]; then
+            echo "缺少 secret ASC_KEY_P8（App Store Connect API Key 的私钥内容）"
+            exit 1
+          fi
+          printf '%s' "$ASC_KEY_P8" > /tmp/AuthKey.p8
+          xcrun notarytool store-credentials dsh-learn-ci \
+            --key /tmp/AuthKey.p8 --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID"
+          rm -f /tmp/AuthKey.p8
+
+      - name: 构建 + 签名 + 公证 + 打包
+        run: bash scripts/release-mac.sh --profile dsh-learn-ci
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-learn-macos
+          path: |
+            dist/*.zip
+            dist/*.sha256
+
+      - name: 创建 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.sha256

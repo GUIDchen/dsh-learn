@@ -1,0 +1,235 @@
+{
+  "id": "mlops-advanced",
+  "name": "MLOps 进阶（数据回滚、模型注册、流水线重跑、实验对比）",
+  "track": "mlops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "mlops.dvc-checkout",
+      "track": "mlops",
+      "title": "把数据集切回上一个版本（复现历史实验）",
+      "goal": "用 DVC 把 data/ 回滚到上一个提交对应的数据版本，并确认当前状态",
+      "hint": "dvc checkout 按 .dvc 指针恢复数据；dvc status 确认工作区与指针是否一致",
+      "sample": "git checkout HEAD~1 -- data.dvc && dvc checkout data.dvc && dvc status",
+      "require": [
+        {
+          "p": "git\\s+checkout",
+          "tip": "缺少 git checkout 切回旧的 .dvc 指针"
+        },
+        {
+          "p": "data\\.dvc|\\.dvc",
+          "tip": "应操作 .dvc 指针文件"
+        },
+        {
+          "p": "dvc\\s+checkout",
+          "tip": "缺少 dvc checkout 恢复数据"
+        },
+        {
+          "p": "dvc\\s+status",
+          "tip": "缺少 dvc status 确认状态"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf\\s+data|git\\s+checkout\\s+--\\s+\\.",
+          "tip": "回滚数据不要靠删目录或整仓回退",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "mlops.model-registry",
+      "track": "mlops",
+      "title": "把模型注册到 MLflow 并标记阶段",
+      "goal": "把本次 run 的模型注册成 app-model，并把版本 3 提升到 Staging",
+      "hint": "注册用 mlflow models 或 register_model；阶段用 transition（Staging/Production 是约定）",
+      "sample": "mlflow models register -m runs:/<run_id>/model -n app-model && mlflow models transition --name app-model --version 3 --stage Staging",
+      "require": [
+        {
+          "p": "mlflow",
+          "tip": "应使用 mlflow CLI"
+        },
+        {
+          "p": "register|--model-uri|-m\\s+runs:",
+          "tip": "缺少注册动作（指定模型 URI 并注册）"
+        },
+        {
+          "p": "app-model",
+          "tip": "模型名应为 app-model"
+        },
+        {
+          "p": "transition|--stage",
+          "tip": "缺少阶段流转（transition/--stage）"
+        },
+        {
+          "p": "Staging|Production",
+          "tip": "目标阶段应为 Staging 或 Production"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "delete_version|--delete",
+          "tip": "实验管理里不要删版本（要留痕）",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "mlops.airflow-rerun-task",
+      "track": "mlops",
+      "title": "只重跑流水线里失败的那一个任务",
+      "goal": "把 train_dag 在 2026-09-20 那次运行里失败的 train_task 单独重跑",
+      "hint": "airflow tasks run -f/-A 可以补跑单个任务；整条 DAG 重跑代价大得多",
+      "sample": "airflow tasks run train_dag train_task 2026-09-20 --ignore-all-dependencies",
+      "require": [
+        {
+          "p": "airflow\\s+tasks\\s+run\\s+train_dag\\s+train_task",
+          "tip": "缺少 airflow tasks run train_dag train_task"
+        },
+        {
+          "p": "2026-09-20",
+          "tip": "缺少逻辑日期"
+        },
+        {
+          "p": "--ignore-all-dependencies|-A\\b|-f\\b",
+          "tip": "缺少忽略依赖的参数（否则不会真的单独跑）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "airflow\\s+dags\\s+trigger.*--reset-dagruns",
+          "tip": "全量重置会把历史运行记录清掉",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "mlops.mlflow-search",
+      "track": "mlops",
+      "title": "按指标筛出最好的几次实验",
+      "goal": "用 mlflow 按实验名 train 搜索运行：要求指标 accuracy 大于 0.9，按该指标倒序，最多 5 条",
+      "hint": "search 支持 metrics.xxx 过滤与排序；order_by 决定谁在最前",
+      "sample": "mlflow runs search --experiment-name train --filter 'metrics.accuracy > 0.9' --order-by 'metrics.accuracy DESC' --max-results 5",
+      "require": [
+        {
+          "p": "mlflow",
+          "tip": "应使用 mlflow CLI"
+        },
+        {
+          "p": "search|list",
+          "tip": "缺少搜索/列出动作"
+        },
+        {
+          "p": "experiment",
+          "tip": "应指定实验"
+        },
+        {
+          "p": "metrics\\.accuracy",
+          "tip": "缺少 metrics.accuracy 过滤条件"
+        },
+        {
+          "p": "DESC|--order-by",
+          "tip": "缺少排序（按 accuracy 倒序）"
+        },
+        {
+          "p": "--max-results|-m\\s+5|--limit",
+          "tip": "缺少结果条数限制"
+        }
+      ],
+      "forbid": [],
+      "level": "hard"
+    },
+    {
+      "id": "mlops.dvc-repro",
+      "track": "mlops",
+      "title": "只重跑受影响的流水线阶段",
+      "goal": "用 DVC 复现整个流水线（dvc.yaml 定义），并显示各阶段状态",
+      "hint": "dvc repro 会自动判断哪些阶段需要重跑（基于依赖哈希）；dvc status 先看谁该跑",
+      "sample": "dvc status && dvc repro",
+      "require": [
+        {
+          "p": "dvc\\s+status",
+          "tip": "缺少 dvc status 先看哪些阶段会跑"
+        },
+        {
+          "p": "dvc\\s+repro",
+          "tip": "缺少 dvc repro 复现流水线"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "dvc\\s+repro\\s+--force|dvc\\s+repro\\s+-f",
+          "tip": "不要强制全量重跑，先看依赖变化（那正是 DVC 的价值）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "mlops.mlflow-artifact-download",
+      "track": "mlops",
+      "title": "把某次实验的模型文件取到本地",
+      "goal": "从运行 <run_id> 里把 model 目录下的产物下载到本地 downloaded/ 目录",
+      "hint": "mlflow artifacts download 支持按 run id + 子路径下载；比在 UI 里点更快也更容易脚本化",
+      "sample": "mlflow artifacts download --run-id <run_id> --artifact-path model --dst-path downloaded/",
+      "require": [
+        {
+          "p": "mlflow\\s+artifacts\\s+download",
+          "tip": "应使用 mlflow artifacts download"
+        },
+        {
+          "p": "--run-id",
+          "tip": "缺少 --run-id"
+        },
+        {
+          "p": "--artifact-path",
+          "tip": "缺少 --artifact-path 指定子路径"
+        },
+        {
+          "p": "--dst-path|downloaded/",
+          "tip": "缺少下载目标目录"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf\\s+mlruns|mlflow.*delete",
+          "tip": "下载产物不要删实验记录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "mlops.wandb-offline",
+      "track": "mlops",
+      "title": "内网环境离线跑实验跟踪",
+      "goal": "用 wandb 离线模式起一次实验（不联网同步），项目名设为 offline-demo",
+      "hint": "WANDB_MODE=offline 让记录本地落盘，之后用 wandb sync 补传；内网/断网环境必备",
+      "sample": "WANDB_MODE=offline python3 train.py --project offline-demo",
+      "require": [
+        {
+          "p": "WANDB_MODE=offline|wandb\\.init\\(.*mode=[\\x27\\x22]offline",
+          "tip": "缺少离线模式设置"
+        },
+        {
+          "p": "offline-demo|--project",
+          "tip": "应指定项目名 offline-demo"
+        },
+        {
+          "p": "python3?\\s+train\\.py|wandb\\.init",
+          "tip": "应真的启动一次训练或初始化实验"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "WANDB_API_KEY=|wandb\\.login",
+          "tip": "离线场景不要写密钥或登录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

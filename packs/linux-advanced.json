@@ -1,0 +1,583 @@
+{
+  "id": "linux-advanced",
+  "name": "Linux 进阶（BSD 与 GNU 差异）",
+  "track": "linux",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "linux.stat-size",
+      "track": "linux",
+      "title": "取文件字节大小（BSD 与 GNU 参数完全不同）",
+      "goal": "输出 a.txt 的字节数",
+      "hint": "BSD stat 用 -f 加格式串 %z，GNU stat 用 -c 加格式串 %s，两边的选项互不认识",
+      "variants": {
+        "darwin": {
+          "sample": "stat -f '%z' a.txt",
+          "require": [
+            {
+              "p": "stat\\s+-f",
+              "tip": "macOS 的 BSD stat 用 -f 指定格式串"
+            },
+            {
+              "p": "%z",
+              "tip": "字节数在 BSD stat 里是 %z"
+            },
+            {
+              "p": "a\\.txt",
+              "tip": "应指定目标文件 a.txt"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "stat\\s+-c",
+              "tip": "macOS 的 stat 不支持 -c（那是 GNU 写法），会报 illegal option -- c"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "stat -c '%s' a.txt",
+          "require": [
+            {
+              "p": "stat\\s+-c",
+              "tip": "GNU stat 用 -c 指定格式串"
+            },
+            {
+              "p": "%s",
+              "tip": "字节数在 GNU stat 里是 %s"
+            },
+            {
+              "p": "a\\.txt",
+              "tip": "应指定目标文件 a.txt"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "stat\\s+-f",
+              "tip": "GNU stat 的 -f 是文件系统信息，不是格式串"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"(Get-Item a.txt).Length\"",
+          "require": [
+            {
+              "p": "Get-Item",
+              "tip": "用 Get-Item 拿到文件对象"
+            },
+            {
+              "p": "\\.Length",
+              "tip": "字节大小在 Length 属性上"
+            },
+            {
+              "p": "a\\.txt",
+              "tip": "要指定文件 a.txt"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "stat",
+          "tip": "应使用 stat 命令"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "linux.grep-pcre",
+      "track": "linux",
+      "title": "提取文本里的数字（BSD grep 没有 -P）",
+      "goal": "从 a.txt 中只打印出所有连续数字",
+      "hint": "GNU grep 支持 -P 走 PCRE，macOS 的 BSD grep 不认 -P，要用 -E 扩展正则",
+      "variants": {
+        "darwin": {
+          "sample": "grep -Eo '[0-9]+' a.txt",
+          "require": [
+            {
+              "p": "grep\\s+-[a-zA-Z]*E",
+              "tip": "macOS 上应使用 grep -E 扩展正则"
+            },
+            {
+              "p": "-o|--only-matching",
+              "tip": "缺少 -o 只输出匹配到的部分"
+            },
+            {
+              "p": "[0-9]|\\[\\[:digit:\\]\\]",
+              "tip": "数字类应写成 [0-9] 或 [[:digit:]]"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "grep\\s+-(?:[a-zA-Z]*P|P)",
+              "tip": "macOS 的 BSD grep 不支持 -P，会报 invalid option -- P"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "grep -Po '[0-9]+' a.txt",
+          "require": [
+            {
+              "p": "grep\\s+-[a-zA-Z]*P",
+              "tip": "GNU grep 可以用 -P 走 PCRE"
+            },
+            {
+              "p": "-o|--only-matching",
+              "tip": "缺少 -o 只输出匹配到的部分"
+            },
+            {
+              "p": "[0-9]|\\\\d",
+              "tip": "数字类应写成 [0-9] 或 \\\\d"
+            }
+          ],
+          "forbid": []
+        },
+        "win32": {
+          "sample": "powershell -c \"Select-String -Path a.txt -Pattern '\\\\d+' -AllMatches | ForEach-Object { \\$_.Matches.Value }\"",
+          "require": [
+            {
+              "p": "Select-String",
+              "tip": "用 Select-String 搜文本（PowerShell 里相当于 grep）"
+            },
+            {
+              "p": "-AllMatches",
+              "tip": "加 -AllMatches 才会给出同一行里的所有匹配"
+            },
+            {
+              "p": "Matches\\.Value",
+              "tip": "要取匹配到的内容本身，而不是整行"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "grep",
+          "tip": "应使用 grep 命令"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "linux.find-count",
+      "track": "linux",
+      "title": "统计目录下 .log 文件的数量",
+      "goal": "数出当前目录（含子目录）下所有 .log 文件的个数",
+      "hint": "find 找文件，交给 wc -l 数行数；注意文件名模式要用单引号包住，避免被 shell 展开",
+      "sample": "find . -name '*.log' | wc -l",
+      "require": [
+        {
+          "p": "find\\s+\\.",
+          "tip": "find 的起点应是当前目录 ."
+        },
+        {
+          "p": "-name",
+          "tip": "缺少 -name 指定文件名模式"
+        },
+        {
+          "p": "\\*\\.log",
+          "tip": "模式应写成 '*.log'（加引号防 shell 展开）"
+        },
+        {
+          "p": "wc\\s+-l",
+          "tip": "应交给 wc -l 统计行数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s",
+          "tip": "本题只统计数量，不要删除任何文件",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "linux.du-sorted",
+      "track": "linux",
+      "title": "找出当前目录下最大的三个条目",
+      "goal": "按人类可读的容量倒序列出当前目录下最大的三项",
+      "hint": "du -sh 给出可读容量，sort 倒序，再取前三行",
+      "sample": "du -sh * | sort -rh | head -3",
+      "require": [
+        {
+          "p": "du\\s+-[a-zA-Z]*s",
+          "tip": "缺少 -s 只汇总每个参数的总量"
+        },
+        {
+          "p": "du\\s+-[a-zA-Z]*h|--human-readable",
+          "tip": "缺少 -h 人类可读容量"
+        },
+        {
+          "p": "sort\\s+-[a-zA-Z]*r|sort\\s+--reverse",
+          "tip": "缺少 -r 倒序，否则取到的是最小的几个"
+        },
+        {
+          "p": "head\\s+-3|head\\s+-n\\s*3",
+          "tip": "应取前三行"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "linux.du-depth",
+      "track": "linux",
+      "title": "只看一级子目录的占用（GNU 与 BSD 参数不同）",
+      "goal": "按容量倒序列出当前目录下每个一级子目录的占用",
+      "hint": "GNU du 用 --max-depth=1，macOS 的 BSD du 只认 -d 1；写法互换在 macOS 上会直接报 unrecognized option",
+      "variants": {
+        "darwin": {
+          "sample": "du -h -d 1 . | sort -rh | head -5",
+          "require": [
+            {
+              "p": "du\\s+[^|]*-h",
+              "tip": "缺少 -h 人类可读容量"
+            },
+            {
+              "p": "-d\\s*1",
+              "tip": "BSD du 用 -d 1 限制深度"
+            },
+            {
+              "p": "sort\\s+-[a-zA-Z]*r",
+              "tip": "缺少 -r 倒序，否则取到的是最小的几个"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "--max-depth",
+              "tip": "macOS 的 BSD du 不认 --max-depth，实测报 unrecognized option"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "du -h --max-depth=1 . | sort -rh | head -5",
+          "require": [
+            {
+              "p": "du\\s+[^|]*-h",
+              "tip": "缺少 -h 人类可读容量"
+            },
+            {
+              "p": "--max-depth",
+              "tip": "GNU du 用 --max-depth 限制深度"
+            },
+            {
+              "p": "sort\\s+-[a-zA-Z]*r",
+              "tip": "缺少 -r 倒序，否则取到的是最小的几个"
+            }
+          ],
+          "forbid": []
+        },
+        "win32": {
+          "sample": "powershell -c \"Get-ChildItem -Directory | ForEach-Object { '{0} {1:N1} MB' -f \\$_.Name, ((Get-ChildItem \\$_.FullName -Recurse -File | Measure-Object Length -Sum).Sum/1MB) } | Sort-Object -Descending\"",
+          "require": [
+            {
+              "p": "Get-ChildItem -Directory",
+              "tip": "只看一级子目录"
+            },
+            {
+              "p": "Measure-Object Length -Sum",
+              "tip": "用 Measure-Object 求和（PowerShell 里没有 du）"
+            },
+            {
+              "p": "Sort-Object -Descending",
+              "tip": "按大小倒序"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "\\bdu\\b",
+          "tip": "应使用 du 统计磁盘占用"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "linux.largest-files",
+      "track": "linux",
+      "title": "列出最大的 5 个文件（BSD find 没有 -printf）",
+      "goal": "按字节数倒序列出当前目录下最大的 5 个文件",
+      "hint": "GNU find 有 -printf 直接打印大小；macOS 的 BSD find 没有 -printf（实测报 unknown primary），要配合 stat -f 取字节数",
+      "variants": {
+        "darwin": {
+          "sample": "find . -type f -exec stat -f '%z %N' {} + | sort -rn | head -5",
+          "require": [
+            {
+              "p": "find\\s+\\.",
+              "tip": "find 的起点应是当前目录 ."
+            },
+            {
+              "p": "-type\\s+f",
+              "tip": "只要普通文件，应加 -type f"
+            },
+            {
+              "p": "stat\\s+-f",
+              "tip": "BSD 上用 stat -f 取字节大小"
+            },
+            {
+              "p": "%z",
+              "tip": "字节数在 BSD stat 里是 %z"
+            },
+            {
+              "p": "sort\\s+-[a-zA-Z]*r",
+              "tip": "缺少 -r 倒序，取到的会是最小的几个"
+            },
+            {
+              "p": "head\\s+-5|head\\s+-n\\s*5",
+              "tip": "应取前 5 行"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "-printf",
+              "tip": "macOS 的 BSD find 不支持 -printf，实测报 unknown primary or operator"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "find . -type f -printf '%s %p\\n' | sort -rn | head -5",
+          "require": [
+            {
+              "p": "find\\s+\\.",
+              "tip": "find 的起点应是当前目录 ."
+            },
+            {
+              "p": "-type\\s+f",
+              "tip": "只要普通文件，应加 -type f"
+            },
+            {
+              "p": "-printf",
+              "tip": "GNU find 用 -printf 直接打印大小与路径"
+            },
+            {
+              "p": "%s",
+              "tip": "字节数在 GNU find 的格式串里是 %s"
+            },
+            {
+              "p": "sort\\s+-[a-zA-Z]*r",
+              "tip": "缺少 -r 倒序，取到的会是最小的几个"
+            },
+            {
+              "p": "head\\s+-5|head\\s+-n\\s*5",
+              "tip": "应取前 5 行"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "stat\\s+-f\\s",
+              "tip": "GNU stat 的 -f 是文件系统信息，取字节数要用 -c %s"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"Get-ChildItem -Recurse -File | Sort-Object Length -Descending | Select-Object -First 5 Name,Length\"",
+          "require": [
+            {
+              "p": "Get-ChildItem -Recurse -File",
+              "tip": "递归列出文件"
+            },
+            {
+              "p": "Sort-Object Length -Descending",
+              "tip": "按长度倒序"
+            },
+            {
+              "p": "Select-Object -First 5",
+              "tip": "只要最大的 5 个"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "find",
+          "tip": "应使用 find 遍历文件"
+        }
+      ],
+      "forbid": [],
+      "level": "hard"
+    },
+    {
+      "id": "linux.awk-top-url",
+      "track": "linux",
+      "title": "从访问日志里数出最热的 5 个 URL",
+      "goal": "统计 access.log 里的请求路径出现次数，取前 5 名",
+      "hint": "nginx 日志里 URL 通常是第 7 列；awk 取列后交给 sort | uniq -c | sort -rn",
+      "sample": "awk '{print $7}' access.log | sort | uniq -c | sort -rn | head -5",
+      "require": [
+        {
+          "p": "awk\\s+'?\\{print\\s+\\$7\\}",
+          "tip": "缺少 awk 取第 7 列（请求路径）"
+        },
+        {
+          "p": "access\\.log",
+          "tip": "应读取 access.log"
+        },
+        {
+          "p": "uniq\\s+-c",
+          "tip": "缺少 uniq -c 计数"
+        },
+        {
+          "p": "sort\\s+-rn|sort\\s+-nr",
+          "tip": "缺少按次数倒序"
+        },
+        {
+          "p": "head\\s+-5|head\\s+-n\\s*5",
+          "tip": "应只取前 5 名"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s|>\\s*access\\.log",
+          "tip": "统计只读：别删或覆盖日志文件",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "linux.inode-usage",
+      "track": "linux",
+      "title": "磁盘还有空间却写不进文件：看 inode",
+      "goal": "用 df 查看各挂载点的 inode 使用率（人类可读）",
+      "hint": "小文件太多会把 inode 用光，此时 df -h 还有空间但写不进——排查要多看 -i 这一栏",
+      "sample": "df -ih",
+      "require": [
+        {
+          "p": "df\\s+-[a-z]*i",
+          "tip": "缺少 df -i（看 inode）"
+        },
+        {
+          "p": "h\\b|--human-readable",
+          "tip": "缺少 -h 人类可读"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf",
+          "tip": "清理 inode 要单独评估，别在排查阶段删文件",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "linux.diff-dirs",
+      "track": "linux",
+      "title": "对比两台机器上的同一份配置目录差异",
+      "goal": "递归对比 /etc/nginx 与 /tmp/nginx-bak 两个目录，只列出有差异的文件名",
+      "hint": "-r 递归、-q 只报差异不打印内容，是\"找不同\"的最快组合",
+      "sample": "diff -rq /etc/nginx /tmp/nginx-bak",
+      "require": [
+        {
+          "p": "diff\\s+-r",
+          "tip": "缺少 diff -r（递归）"
+        },
+        {
+          "p": "-q|--brief",
+          "tip": "缺少 -q（只报哪些文件不同）"
+        },
+        {
+          "p": "/etc/nginx",
+          "tip": "应对比 /etc/nginx"
+        },
+        {
+          "p": "nginx-bak",
+          "tip": "应对比备份目录 nginx-bak"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "linux.sort-by-column",
+      "track": "linux",
+      "title": "按第 2 列数值排序（不是按字典序）",
+      "goal": "把 report.txt 按第 2 列数值升序排序，输出前 10 行",
+      "hint": "-k2 指定列、-n 数值排序；不加 -n 时 10 会排在 9 前面（字典序）",
+      "sample": "sort -k2 -n report.txt | head -10",
+      "require": [
+        {
+          "p": "sort\\s+-k\\s*2|-k2",
+          "tip": "缺少 -k2（按第 2 列）"
+        },
+        {
+          "p": "-n\\b|--numeric-sort",
+          "tip": "缺少 -n，否则按字典序排（10 < 9）"
+        },
+        {
+          "p": "report\\.txt",
+          "tip": "应处理 report.txt"
+        },
+        {
+          "p": "head\\s+-10|head\\s+-n\\s*10",
+          "tip": "应只取前 10 行"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "linux.tr-squeeze",
+      "track": "linux",
+      "title": "把连续空格压成一个（给后续 cut 用）",
+      "goal": "把 data.txt 里的连续空格压缩成单个空格后写出 normalized.txt",
+      "hint": "tr -s \" \" 把重复字符压成一个，是处理\"列对不齐\"的常用前置步骤",
+      "sample": "tr -s ' ' < data.txt > normalized.txt",
+      "require": [
+        {
+          "p": "tr\\s+-s\\s+'\\s*'|\"\\s*\"",
+          "tip": "缺少 tr -s（压缩重复字符）"
+        },
+        {
+          "p": "data\\.txt",
+          "tip": "应读取 data.txt"
+        },
+        {
+          "p": "normalized\\.txt",
+          "tip": "应写出 normalized.txt"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "tr\\s+-d",
+          "tip": "本题是压缩连续空格，不是删除空格（那就把列粘一起了）"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "linux.split-log",
+      "track": "linux",
+      "title": "把超大日志切成每 10 万行一个文件",
+      "goal": "把 app.log 按每 10 万行切分成 part-aa、part-ab … 这样的文件",
+      "hint": "split -l 按行切；前缀加在原文件后面，方便按顺序合并回来",
+      "sample": "split -l 100000 app.log part-",
+      "require": [
+        {
+          "p": "split\\s+-l\\s+100000|split\\s+-l\\s+100000",
+          "tip": "缺少 split -l 100000"
+        },
+        {
+          "p": "app\\.log",
+          "tip": "应切分 app.log"
+        },
+        {
+          "p": "part-",
+          "tip": "输出前缀应为 part-"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+app\\.log|split.*>\\s*app\\.log",
+          "tip": "切分不要破坏原文件",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

@@ -1,0 +1,1026 @@
+{
+  "note": "静态「用了但没声明」的基线：只允许存量，新增一律失败（差分口径见 scripts/lint-unresolved.mjs）",
+  "updatedAt": "2026-09-28T23:46:35.532Z",
+  "entries": [
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "Enter"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "a"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "form"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "href"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "input"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "keydown"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "keyup"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "placeholder"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "search"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "type"
+    },
+    {
+      "file": "scripts/boss-harvest-keywords.mjs",
+      "name": "value"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "a"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "area"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "city"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "company"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "degree"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "experience"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "h1"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "href"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "info"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "keyword"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "li"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "name"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "sec"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "section"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "span"
+    },
+    {
+      "file": "scripts/boss-harvest.mjs",
+      "name": "text"
+    },
+    {
+      "file": "scripts/check-shell.mjs",
+      "name": "env"
+    },
+    {
+      "file": "scripts/check-shell.mjs",
+      "name": "node"
+    },
+    {
+      "file": "scripts/coverage.mjs",
+      "name": "env"
+    },
+    {
+      "file": "scripts/coverage.mjs",
+      "name": "node"
+    },
+    {
+      "file": "scripts/e2e-web.mjs",
+      "name": "$"
+    },
+    {
+      "file": "scripts/lint-unresolved.mjs",
+      "name": "g"
+    },
+    {
+      "file": "scripts/load-target.mjs",
+      "name": "env"
+    },
+    {
+      "file": "scripts/load-target.mjs",
+      "name": "node"
+    },
+    {
+      "file": "scripts/progress-doc.mjs",
+      "name": "$"
+    },
+    {
+      "file": "scripts/progress-doc.mjs",
+      "name": "d"
+    },
+    {
+      "file": "scripts/with-timeout.mjs",
+      "name": "env"
+    },
+    {
+      "file": "scripts/with-timeout.mjs",
+      "name": "node"
+    },
+    {
+      "file": "src/cli.mjs",
+      "name": "env"
+    },
+    {
+      "file": "src/cli.mjs",
+      "name": "node"
+    },
+    {
+      "file": "src/cli/commands/analyze.mjs",
+      "name": "summarize"
+    },
+    {
+      "file": "src/cli/commands/describe.mjs",
+      "name": "Cookie"
+    },
+    {
+      "file": "src/cli/commands/describe.mjs",
+      "name": "chunk"
+    },
+    {
+      "file": "src/cli/commands/flow.mjs",
+      "name": "Cookie"
+    },
+    {
+      "file": "src/cli/commands/flow.mjs",
+      "name": "renderStudyPlan"
+    },
+    {
+      "file": "src/cli/commands/projects.mjs",
+      "name": "CliError"
+    },
+    {
+      "file": "src/cli/commands/survey.mjs",
+      "name": "S"
+    },
+    {
+      "file": "src/cli/commands/survey.mjs",
+      "name": "s"
+    },
+    {
+      "file": "src/cli/commands/survey.mjs",
+      "name": "style"
+    },
+    {
+      "file": "src/cli/commands/understand.mjs",
+      "name": "chunk"
+    },
+    {
+      "file": "src/cli/context.mjs",
+      "name": "constructor"
+    },
+    {
+      "file": "src/core/backup.mjs",
+      "name": "backups"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "API"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "DIAGNOSES"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "Docker"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "MUST_STAY_BLOCKED"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "SHELL_META"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "SYSTEM_USES"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "apply"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "bash"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "c"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "cargo"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "cli"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "context"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "curl"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "current"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "data"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "deadline"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "deploy"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "docker"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "echo"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "exceeded"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "f"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "ffmpeg"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "force"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "g"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "gcc"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "git"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "go"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "gpp"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "group"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "hi"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "image"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "info"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "kubectl"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "ls"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "macOS"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "main"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "nginx"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "node"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "origin"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "pod"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "probe"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "productVersion"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "prune"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "ps"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "push"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "python"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "python3"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "redis"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "rf"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "rm"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "s"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "server"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "sh"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "sw_vers"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "system"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "t"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "tcpdump"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "uname"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "v"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "ver"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "version"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "volume"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "volumes"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "web"
+    },
+    {
+      "file": "src/core/exec.mjs",
+      "name": "wrk"
+    },
+    {
+      "file": "src/core/flow.mjs",
+      "name": "g"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "article"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "blockquote"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "dd"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "div"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "dt"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "gi"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "h"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "li"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "ol"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "p"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "pre"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "section"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "table"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "tr"
+    },
+    {
+      "file": "src/core/ingest.mjs",
+      "name": "ul"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "Bearer"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "HTTP"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "POST"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "application"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "company"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "completions"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "content"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "education"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "json"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "model"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "points"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "rules"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "salary"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "stack"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "string"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "system"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "title"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "type"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "understandText"
+    },
+    {
+      "file": "src/core/model.mjs",
+      "name": "user"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "A"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "Za"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "base64"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "gif"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "jpeg"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "jpg"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "png"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "webp"
+    },
+    {
+      "file": "src/core/ocr.mjs",
+      "name": "z0"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "Ansible"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "C"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "CD"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "COMMAND_FILES"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "Go"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "Makefile"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "Python"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "Rust"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "Shell"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "Terraform"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "ansible"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "c"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "cloneCandidates"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "cpp"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "database"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "direct"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "dl"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "embedded"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "empty"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "git"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "github"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "go"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "lang"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "make"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "mirror"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "ml"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "node"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "ops"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "path"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "push"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "python"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "raw"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "remote"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "rust"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "service"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "shell"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "systemd"
+    },
+    {
+      "file": "src/core/repo-learn.mjs",
+      "name": "terraform"
+    },
+    {
+      "file": "src/core/runners.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/runners.mjs",
+      "name": "POST"
+    },
+    {
+      "file": "src/core/runners.mjs",
+      "name": "agent"
+    },
+    {
+      "file": "src/core/runners.mjs",
+      "name": "application"
+    },
+    {
+      "file": "src/core/runners.mjs",
+      "name": "content"
+    },
+    {
+      "file": "src/core/runners.mjs",
+      "name": "json"
+    },
+    {
+      "file": "src/core/runners.mjs",
+      "name": "type"
+    },
+    {
+      "file": "src/core/search.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/search.mjs",
+      "name": "S"
+    },
+    {
+      "file": "src/core/search.mjs",
+      "name": "a"
+    },
+    {
+      "file": "src/core/search.mjs",
+      "name": "g"
+    },
+    {
+      "file": "src/core/search.mjs",
+      "name": "result__a"
+    },
+    {
+      "file": "src/core/search.mjs",
+      "name": "s"
+    },
+    {
+      "file": "src/core/site-learn.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/site-learn.mjs",
+      "name": "S"
+    },
+    {
+      "file": "src/core/site-learn.mjs",
+      "name": "code"
+    },
+    {
+      "file": "src/core/site-learn.mjs",
+      "name": "s"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "$1"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "AI"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "CANN"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "CCE"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "CD"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "CI"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "CLI"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "GPU"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "JD"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "OOM"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "TKE"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "ai"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "b"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "c"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "docker"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "embedded"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "grafana"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "i"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "k8s"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "kubernetes"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "nginx"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "prometheus"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "rank"
+    },
+    {
+      "file": "src/core/stack.mjs",
+      "name": "terraform"
+    },
+    {
+      "file": "src/core/trust.mjs",
+      "name": "o600"
+    },
+    {
+      "file": "src/core/understand.mjs",
+      "name": "$"
+    },
+    {
+      "file": "src/core/understand.mjs",
+      "name": "s"
+    },
+    {
+      "file": "src/web/api.mjs",
+      "name": "research"
+    },
+    {
+      "file": "src/web/compress.mjs",
+      "name": "application"
+    },
+    {
+      "file": "src/web/routes/research.mjs",
+      "name": "research"
+    },
+    {
+      "file": "src/web/static.mjs",
+      "name": "a"
+    },
+    {
+      "file": "src/web/static.mjs",
+      "name": "z0"
+    },
+    {
+      "file": "web/jobs.mjs",
+      "name": "g"
+    }
+  ]
+}

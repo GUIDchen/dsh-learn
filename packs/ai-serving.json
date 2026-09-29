@@ -1,0 +1,254 @@
+{
+  "id": "ai-serving",
+  "name": "AI 服务化与分布式（vLLM / OpenAI 协议 / 压测 / torchrun / 多卡互联）",
+  "track": "mlops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "ai.vllm-serve",
+      "track": "mlops",
+      "title": "起一个 OpenAI 兼容的推理服务（并限制显存占用）",
+      "goal": "用 vllm 的 entrypoints 启动 api_server，指定模型、显存占比与最大上下文长度",
+      "hint": "--gpu-memory-utilization 决定预分配多少显存（0.9 常见）；--max-model-len 太大反而起不来",
+      "sample": "python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-7B-Instruct --gpu-memory-utilization 0.9 --max-model-len 8192",
+      "require": [
+        {
+          "p": "vllm\\.entrypoints",
+          "tip": "要用 vllm 的 entrypoints 起服务"
+        },
+        {
+          "p": "--model",
+          "tip": "要指定模型"
+        },
+        {
+          "p": "--gpu-memory-utilization",
+          "tip": "要限制显存占比，否则可能把卡吃满"
+        },
+        {
+          "p": "--max-model-len",
+          "tip": "要设上下文长度，避免 KV cache 超显存"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf|kill\\s+-9",
+          "tip": "起服务不需要强杀或删文件",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.openai-probe",
+      "track": "mlops",
+      "title": "用 curl 探推理服务（先 /v1/models 再最小请求）",
+      "goal": "先 curl /v1/models 确认服务与模型名，再发一条最小的 chat/completions 请求验证协议通",
+      "hint": "OpenAI 兼容接口要 -H 'Content-Type: application/json'；chat 请求必须带 model 与 messages",
+      "sample": "curl -s http://127.0.0.1:8000/v1/models && curl -s http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"Qwen/Qwen2.5-7B-Instruct\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}'",
+      "require": [
+        {
+          "p": "curl\\b",
+          "tip": "用 curl 探接口"
+        },
+        {
+          "p": "/v1/models",
+          "tip": "先确认服务与模型"
+        },
+        {
+          "p": "/v1/chat/completions",
+          "tip": "再发一条最小请求验证协议"
+        },
+        {
+          "p": "Content-Type",
+          "tip": "要带 JSON 头"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf|docker\\s+rm",
+          "tip": "探接口不动环境",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.infer-latency",
+      "track": "mlops",
+      "title": "压推理服务：看延迟分位而不是平均值",
+      "goal": "用 hey（或 wrk/ab）对推理接口压 30 秒 4 并发，关注 P99 与失败数",
+      "hint": "平均值会掩盖长尾；POST 请求用 -m POST -d @payload.json，并盯 -z 时长与 -c 并发",
+      "sample": "hey -z 30s -c 4 -m POST -H 'Content-Type: application/json' -d @payload.json http://127.0.0.1:8000/v1/chat/completions",
+      "require": [
+        {
+          "p": "hey|wrk|ab\\b",
+          "tip": "用压测工具（hey/wrk/ab）"
+        },
+        {
+          "p": "-c\\s+\\d+|--concurrency",
+          "tip": "要指定并发数"
+        },
+        {
+          "p": "-z\\s+\\d|--duration|-t\\s+\\d",
+          "tip": "要限定压测时长"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-c\\s+(1[0-9]{2,}|[2-9][0-9]{2,})",
+          "tip": "并发别一上来就开几百，先小并发摸清基线",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.serve-probes",
+      "track": "mlops",
+      "title": "看推理 Pod 的探针与 GPU 资源请求",
+      "goal": "describe 推理 Pod，确认 readiness/liveness 探针、nvidia.com/gpu 请求与容器端口",
+      "hint": "探针路径要指服务真实端点（如 /health 或 /v1/models）；startupProbe 对大模型冷启动很重要",
+      "sample": "kubectl describe pod -l app=vllm | grep -E -A 3 'Readiness|liveness|Limits|Requests|Port'",
+      "require": [
+        {
+          "p": "kubectl\\s+describe\\s+pod",
+          "tip": "要 describe Pod"
+        },
+        {
+          "p": "Readiness|liveness|Probe",
+          "tip": "要看到探针配置"
+        },
+        {
+          "p": "nvidia\\.com/gpu|Limits|Requests",
+          "tip": "要确认 GPU 资源请求"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kubectl\\s+(delete|scale|rollout\\s+restart)",
+          "tip": "先看配置，不要动工作负载",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.gpu-topo",
+      "track": "mlops",
+      "title": "看多卡互联拓扑（NVLink 还是 PCIe）",
+      "goal": "用 nvidia-smi topo -m 打印卡间互联矩阵，判断通信瓶颈大致在哪",
+      "hint": "矩阵里 NV# 是 NVLink、PIX/PXB 是 PCIe 交换；跨 NUMA 的 SYS 最慢，多卡训练要避免",
+      "sample": "nvidia-smi topo -m",
+      "require": [
+        {
+          "p": "nvidia-smi\\s+topo",
+          "tip": "要用 nvidia-smi topo 看拓扑"
+        },
+        {
+          "p": "-m",
+          "tip": "缺少 -m 矩阵输出"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "ai.torchrun-launch",
+      "track": "mlops",
+      "title": "用 torchrun 起多进程训练",
+      "goal": "用 torchrun 指定每机进程数（每卡一进程）启动训练脚本",
+      "hint": "--nproc_per_node 要和可见卡数一致；多机再加 --nnodes 与 --rdzv_endpoint",
+      "sample": "torchrun --nproc_per_node=4 --nnodes=1 train.py --config config.yaml",
+      "require": [
+        {
+          "p": "torchrun\\b",
+          "tip": "要用 torchrun 启动（不要手写 mp.spawn）"
+        },
+        {
+          "p": "--nproc_per_node",
+          "tip": "要指定每机进程数"
+        },
+        {
+          "p": "\\.py|\\.sh",
+          "tip": "要指向训练入口"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "CUDA_VISIBLE_DEVICES=\\s*(?![0-9])",
+          "tip": "别把可见卡设成空（会导致进程数对不上）",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.rank-logs",
+      "track": "mlops",
+      "title": "核对各 rank 的日志（谁在等谁）",
+      "goal": "从各 rank 的日志里核对 world_size 与本进程 rank，确认不是卡在初始化",
+      "hint": "日志里 rank0 在等其他 rank 时，通常是某个 rank OOM 或 NCCL 建链失败；先 grep 关键词再按 rank 对齐时间",
+      "sample": "grep -hE \"rank|world_size|init_process_group\" train-rank*.log | sort -t= -k2 | head -20",
+      "require": [
+        {
+          "p": "grep\\b",
+          "tip": "要 grep 日志"
+        },
+        {
+          "p": "rank",
+          "tip": "要针对 rank"
+        },
+        {
+          "p": "world_size|init_process_group|NCCL",
+          "tip": "要看进程组/通信初始化相关行"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf|>\\s*.*\\.log",
+          "tip": "排查不要清日志",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ai.quantized-serve",
+      "track": "mlops",
+      "title": "量化推理服务的加载参数（4bit / AWQ）",
+      "goal": "起一个量化模型服务：给出量化方式与加载参数，并说明显存收益与精度取舍",
+      "hint": "AWQ/GPTQ 用 --quantization awq；bitsandbytes 的 load_in_4bit 走 transformers 侧；量化后要复测精度",
+      "sample": "python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-7B-Instruct-AWQ --quantization awq --gpu-memory-utilization 0.85 --max-model-len 4096 && nvidia-smi --query-gpu=memory.used --format=csv",
+      "require": [
+        {
+          "p": "vllm\\.entrypoints",
+          "tip": "走 vllm 起服务"
+        },
+        {
+          "p": "--quantization|load_in_4bit|awq|gptq",
+          "tip": "要说明量化方式"
+        },
+        {
+          "p": "--model",
+          "tip": "要指定量化模型"
+        },
+        {
+          "p": "--gpu-memory-utilization|--max-model-len",
+          "tip": "要给出显存/上下文约束"
+        },
+        {
+          "p": "nvidia-smi|memory\\.used",
+          "tip": "要实测显存占用（量化就是为了省它）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf|kill\\s+-9",
+          "tip": "起服务不需要强杀或删文件",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

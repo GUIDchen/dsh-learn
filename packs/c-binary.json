@@ -1,0 +1,333 @@
+{
+  "id": "c-binary",
+  "name": "C 二进制与调试（段表 / 符号 / 依赖 / core dump）",
+  "track": "c",
+  "version": "0.1.0",
+  "tasks": [
+    {
+      "id": "c.nm-symbols",
+      "track": "c",
+      "title": "看可执行文件里有哪些符号（先去符号表里找人）",
+      "goal": "查看 app 的符号表，符号名要做反混淆（demangle），只看前 20 行",
+      "hint": "nm 看符号；C++ 名字要 -C 反混淆；前几行就够，别把几万行刷满屏",
+      "sample": "nm -C app | head -20",
+      "require": [
+        {
+          "p": "^\\s*nm\\b",
+          "tip": "应该用 nm 看符号表"
+        },
+        {
+          "p": "-C\\b",
+          "tip": "缺少 -C：C++ 符号会被 mangled 成一串 _Z…"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "要指明看哪个文件（app）"
+        },
+        {
+          "p": "\\|\\s*head\\b",
+          "tip": "用管道接 head 限行，避免刷屏"
+        },
+        {
+          "p": "head\\s+-n?\\s*\\d+|head\\s+-\\s*\\d+",
+          "tip": "head 要给出具体行数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "nm\\s+-a\\s+/",
+          "tip": "别去 nm 系统目录里的文件：这道题只看 app"
+        }
+      ],
+      "verify": {
+        "cmd": "nm --version",
+        "expect": "nm|GNU|LLVM",
+        "note": "前置检查：本机是否有 nm"
+      },
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ]
+    },
+    {
+      "id": "c.deps-shared-libs",
+      "track": "c",
+      "title": "看 app 依赖哪些动态库（链接报错前先看它）",
+      "goal": "列出 app 依赖的动态库：macOS 用 otool，Linux 用 ldd",
+      "hint": "macOS 是 otool -L；Linux 是 ldd。两边命令不一样，先确认自己在哪个平台",
+      "sample": "otool -L app",
+      "require": [
+        {
+          "p": "otool\\s+-L|ldd\\b",
+          "tip": "macOS 用 otool -L，Linux 用 ldd"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "要指明看哪个文件（app）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "\\blldb\\b|\\bgdb\\b",
+          "tip": "这道题只是看依赖，不用进调试器"
+        }
+      ],
+      "verify": {
+        "cmd": "uname -s",
+        "expect": "Darwin|Linux",
+        "note": "前置检查：本机是什么系统"
+      },
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "otool -L app",
+          "require": [
+            {
+              "p": "otool\\s+-L",
+              "tip": "macOS 用 otool -L"
+            },
+            {
+              "p": "\\bapp\\b",
+              "tip": "要指明看哪个文件（app）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "ldd app",
+          "require": [
+            {
+              "p": "^\\s*ldd\\b",
+              "tip": "Linux 用 ldd"
+            },
+            {
+              "p": "\\bapp\\b",
+              "tip": "要指明看哪个文件（app）"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c.section-sizes",
+      "track": "c",
+      "title": "看各段占多大（text/data/bss 谁在长胖）",
+      "goal": "打印 app 各段的大小：macOS 用 size -m，Linux 用 size -A",
+      "hint": "size 看段大小；macOS 要 -m 才逐段列，Linux 用 -A",
+      "sample": "size -m app",
+      "require": [
+        {
+          "p": "^\\s*size\\b",
+          "tip": "应该用 size 看段大小"
+        },
+        {
+          "p": "-m\\b|-A\\b",
+          "tip": "macOS 用 -m，Linux 用 -A（不加只会给一行汇总）"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "要指明看哪个文件（app）"
+        }
+      ],
+      "verify": {
+        "cmd": "size --version",
+        "expect": "size|GNU|LLVM",
+        "note": "前置检查：本机是否有 size"
+      },
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "size -m app",
+          "require": [
+            {
+              "p": "-m\\b",
+              "tip": "macOS 用 size -m"
+            },
+            {
+              "p": "\\bapp\\b",
+              "tip": "要指明看哪个文件（app）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "size -A app",
+          "require": [
+            {
+              "p": "-A\\b",
+              "tip": "Linux 用 size -A"
+            },
+            {
+              "p": "\\bapp\\b",
+              "tip": "要指明看哪个文件（app）"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c.section-header",
+      "track": "c",
+      "title": "看段表头（谁被加载、在哪个地址）",
+      "goal": "打印 app 的段信息：Linux 用 readelf -S，macOS 用 otool -l",
+      "hint": "Linux 用 readelf -S 看 section headers；macOS 对应的是 otool -l（load commands）",
+      "sample": "readelf -S app",
+      "require": [
+        {
+          "p": "readelf\\s+-S|otool\\s+-l",
+          "tip": "Linux 用 readelf -S，macOS 用 otool -l"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "要指明看哪个文件（app）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "readelf\\s+-h\\b",
+          "tip": "这道题要段表（-S），不是文件头（-h）"
+        }
+      ],
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "otool -l app",
+          "require": [
+            {
+              "p": "otool\\s+-l",
+              "tip": "macOS 用 otool -l"
+            },
+            {
+              "p": "\\bapp\\b",
+              "tip": "要指明看哪个文件（app）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "readelf -S app",
+          "require": [
+            {
+              "p": "readelf\\s+-S",
+              "tip": "Linux 用 readelf -S"
+            },
+            {
+              "p": "\\bapp\\b",
+              "tip": "要指明看哪个文件（app）"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c.core-dump-stack",
+      "track": "c",
+      "title": "拿 core dump 看崩溃在哪一行",
+      "goal": "用调试器载入 core 文件（core）与程序 app：macOS 用 lldb -c，Linux 用 gdb",
+      "hint": "macOS 是 lldb -c core ./app；Linux 是 gdb ./app core。core 文件要先确认存在",
+      "sample": "lldb -c core ./app",
+      "require": [
+        {
+          "p": "lldb\\s+-c|gdb\\b",
+          "tip": "macOS 用 lldb -c，Linux 用 gdb"
+        },
+        {
+          "p": "\\bcore\\b",
+          "tip": "要载入 core 文件"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "要指明是哪个程序（app）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-f?\\s*core|>\\s*core",
+          "tip": "core 文件是证据，别删也别覆盖"
+        }
+      ],
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ],
+      "variants": {
+        "darwin": {
+          "sample": "lldb -c core ./app",
+          "require": [
+            {
+              "p": "lldb\\s+-c\\s+core",
+              "tip": "macOS 用 lldb -c core"
+            },
+            {
+              "p": "app",
+              "tip": "要指明是哪个程序（app）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "gdb ./app core",
+          "require": [
+            {
+              "p": "^\\s*gdb\\b",
+              "tip": "Linux 用 gdb"
+            },
+            {
+              "p": "\\bcore\\b",
+              "tip": "要载入 core 文件"
+            },
+            {
+              "p": "\\bapp\\b",
+              "tip": "要指明是哪个程序（app）"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c.strings-version",
+      "track": "c",
+      "title": "从二进制里翻出版本号（没有源码时怎么确认跑的是哪版）",
+      "goal": "在 app 里找带 version 的可读字符串，只看前 10 行、忽略大小写",
+      "hint": "strings 抽可读字符串，再 grep -i version；别把整份 strings 输出刷屏",
+      "sample": "strings app | grep -i version | head -10",
+      "require": [
+        {
+          "p": "^\\s*strings\\b",
+          "tip": "应该用 strings 抽可读字符串"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "要指明看哪个文件（app）"
+        },
+        {
+          "p": "grep\\s+-[a-z]*i",
+          "tip": "grep 要忽略大小写（-i）：Version / VERSION 都可能"
+        },
+        {
+          "p": "grep[^|]*version",
+          "tip": "要过滤 version 这个关键词"
+        },
+        {
+          "p": "\\|\\s*head\\b",
+          "tip": "用管道接 head 限行"
+        }
+      ],
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ]
+    }
+  ]
+}

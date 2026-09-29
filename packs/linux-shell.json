@@ -1,0 +1,301 @@
+{
+  "id": "linux-shell",
+  "name": "Linux 日常运维（打包、批量、同步）",
+  "track": "linux",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "linux.tar-exclude",
+      "track": "linux",
+      "title": "打包项目目录但排除日志与依赖",
+      "goal": "把当前目录打成 app.tar.gz，排除 node_modules 与所有 .log 文件",
+      "hint": "tar 的 --exclude 要写在被归档目录之前，模式里可以用通配符",
+      "sample": "tar --exclude='node_modules' --exclude='*.log' -czf app.tar.gz .",
+      "require": [
+        {
+          "p": "tar\\s",
+          "tip": "应使用 tar"
+        },
+        {
+          "p": "-c|-cz|-zcf|--create",
+          "tip": "缺少创建归档的参数（-c）"
+        },
+        {
+          "p": "-z|--gzip",
+          "tip": "目标是 .tar.gz，需要 gzip 压缩（-z）"
+        },
+        {
+          "p": "app\\.tar\\.gz",
+          "tip": "输出文件名应为 app.tar.gz（-f 后紧跟归档名）"
+        },
+        {
+          "p": "--exclude",
+          "tip": "缺少 --exclude 排除规则"
+        },
+        {
+          "p": "node_modules",
+          "tip": "应排除 node_modules"
+        },
+        {
+          "p": "\\.log|\\*\\.log",
+          "tip": "应排除 .log 文件"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf",
+          "tip": "打包不会删除任何文件，命令里不该出现 rm -rf",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "linux.find-exec-batch",
+      "track": "linux",
+      "title": "批量修改一批文件的权限",
+      "goal": "把当前目录（含子目录）下所有 .sh 文件加上可执行权限，尽量少启动进程",
+      "hint": "find -exec ... {} + 会把多个文件合并成一次调用，比 \\; 高效得多",
+      "sample": "find . -name '*.sh' -exec chmod +x {} +",
+      "require": [
+        {
+          "p": "find\\s+\\.",
+          "tip": "find 的起点应是当前目录 ."
+        },
+        {
+          "p": "-name",
+          "tip": "缺少 -name 匹配文件名"
+        },
+        {
+          "p": "\\*\\.sh",
+          "tip": "模式应写成 '*.sh'"
+        },
+        {
+          "p": "-exec",
+          "tip": "缺少 -exec 对每个结果执行命令"
+        },
+        {
+          "p": "chmod",
+          "tip": "应使用 chmod 改权限"
+        },
+        {
+          "p": "\\{\\}\\s*\\+|\\{\\}\\s*\\\\;",
+          "tip": "占位符 {} 后面要跟 + （批量）或 \\; （逐个）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "chmod\\s+777",
+          "tip": "777 让所有人可写，脚本只需要可执行：用 +x 或 755"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "linux.xargs-parallel",
+      "track": "linux",
+      "title": "并行压缩一批日志文件",
+      "goal": "把当前目录下所有 .log 文件用 gzip 压缩，并且最多同时跑 4 个进程",
+      "hint": "xargs -P 控制并发，-n 控制每批参数个数；-0 配合 find -print0 才不会被空格文件名坑到",
+      "sample": "find . -name '*.log' -print0 | xargs -0 -n 1 -P 4 gzip",
+      "require": [
+        {
+          "p": "find\\s+\\.",
+          "tip": "应从 find 开始找文件"
+        },
+        {
+          "p": "--name|-name",
+          "tip": "缺少 -name 匹配 .log"
+        },
+        {
+          "p": "\\*\\.log",
+          "tip": "模式应写成 '*.log'"
+        },
+        {
+          "p": "xargs",
+          "tip": "应把文件列表交给 xargs"
+        },
+        {
+          "p": "-P\\s*4|--max-procs[= ]4",
+          "tip": "缺少并发上限 -P 4"
+        },
+        {
+          "p": "-print0|-0",
+          "tip": "建议用 find -print0 配合 xargs -0，避免文件名含空格时出错"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s",
+          "tip": "本题只压缩不删除",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "linux.rsync-incremental",
+      "track": "linux",
+      "title": "把本地目录增量同步到远端",
+      "goal": "把 ./site/ 同步到远端主机的 /var/www/site/，只传变化的部分，并显示进度",
+      "hint": "结尾的斜杠决定同步的是「目录内容」还是「目录本身」，这是 rsync 最经典的坑",
+      "sample": "rsync -avz --progress ./site/ deploy@web1:/var/www/site/",
+      "require": [
+        {
+          "p": "rsync",
+          "tip": "应使用 rsync"
+        },
+        {
+          "p": "-a|--archive",
+          "tip": "缺少 -a 归档模式（保留权限、时间、软链）"
+        },
+        {
+          "p": "-v|--verbose",
+          "tip": "建议加 -v 看到同步明细"
+        },
+        {
+          "p": "-z|--compress",
+          "tip": "跨网络传输建议加 -z 压缩"
+        },
+        {
+          "p": "--progress|-P",
+          "tip": "缺少 --progress 看不到进度"
+        },
+        {
+          "p": "\\./site/|site/",
+          "tip": "源目录应写成 ./site/"
+        },
+        {
+          "p": ":",
+          "tip": "目标要写成 用户@主机:路径 形式"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--delete",
+          "tip": "本题只要增量同步；--delete 会删掉目标端的额外文件，要单独确认",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "linux.ssh-key-permission",
+      "track": "linux",
+      "title": "修正私钥文件权限（SSH 拒绝使用过宽的密钥）",
+      "goal": "把私钥 ~/.ssh/id_ed25519 设成只有自己可读可写，符合 ssh 的要求",
+      "hint": "ssh 对私钥权限很敏感：600 是标准答案，目录 ~/.ssh 通常是 700",
+      "sample": "chmod 600 ~/.ssh/id_ed25519 && chmod 700 ~/.ssh",
+      "require": [
+        {
+          "p": "chmod",
+          "tip": "应使用 chmod"
+        },
+        {
+          "p": "600|u=rw,go=",
+          "tip": "私钥应为 600（只有属主可读写）"
+        },
+        {
+          "p": "id_ed25519|id_rsa|\\.ssh/",
+          "tip": "应指向具体的私钥文件"
+        },
+        {
+          "p": "700",
+          "tip": "建议同时把 ~/.ssh 目录设为 700"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "chmod\\s+777|chmod\\s+\\+x\\s+~?/\\.ssh",
+          "tip": "把 ~/.ssh 放开权限等于泄露密钥"
+        },
+        {
+          "p": "rm\\s",
+          "tip": "权限不对要改，不是删",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "linux.sed-delete-lines",
+      "track": "linux",
+      "title": "原地删掉配置里的调试行（BSD 与 GNU 写法不同）",
+      "goal": "把 app.conf 中所有以 debug 开头的行从原文件里删掉",
+      "hint": "sed 的 /模式/d 是删除匹配行；原地写回在 macOS 与 Linux 上参数形式不同",
+      "variants": {
+        "darwin": {
+          "sample": "sed -i '' '/^debug/d' app.conf",
+          "require": [
+            {
+              "p": "sed\\s+-i\\s+''",
+              "tip": "macOS 的 BSD sed 必须写成 sed -i ''"
+            },
+            {
+              "p": "/\\^?debug/d",
+              "tip": "删除表达式应为 /^debug/d"
+            },
+            {
+              "p": "app\\.conf",
+              "tip": "应指定文件 app.conf"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "sed\\s+-i\\s+/",
+              "tip": "macOS 上 -i 后面不接后缀会报 invalid command code"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "sed -i '/^debug/d' app.conf",
+          "require": [
+            {
+              "p": "sed\\s+-i",
+              "tip": "应使用 sed -i 原地修改"
+            },
+            {
+              "p": "/\\^?debug/d",
+              "tip": "删除表达式应为 /^debug/d"
+            },
+            {
+              "p": "app\\.conf",
+              "tip": "应指定文件 app.conf"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "sed\\s+-i\\s+''",
+              "tip": "GNU sed 不接受空后缀"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "powershell -c \"(Get-Content app.conf) -notmatch '^debug' | Set-Content app.conf\"",
+          "require": [
+            {
+              "p": "Get-Content",
+              "tip": "先读配置"
+            },
+            {
+              "p": "-notmatch",
+              "tip": "用 -notmatch 过滤掉要删的行"
+            },
+            {
+              "p": "Set-Content app\\.conf",
+              "tip": "过滤结果写回 app.conf"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "sed",
+          "tip": "应使用 sed"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    }
+  ]
+}

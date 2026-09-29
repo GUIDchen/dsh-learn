@@ -1,0 +1,209 @@
+{
+  "id": "database-core",
+  "name": "数据库与中间件日常（MySQL / Redis / ES / Kafka）",
+  "track": "database",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "db.mysql-dump-gzip",
+      "track": "database",
+      "title": "备份一个库并顺手压缩",
+      "goal": "把 app 库备份到 backup.sql.gz（边导出边压缩），用户 root",
+      "hint": "mysqldump 输出到 stdout，管道给 gzip 才不会先写出一个巨大的明文文件",
+      "sample": "mysqldump -u root -p app | gzip > backup.sql.gz",
+      "require": [
+        {
+          "p": "mysqldump",
+          "tip": "应使用 mysqldump"
+        },
+        {
+          "p": "-u\\s+root",
+          "tip": "缺少 -u root 指定用户"
+        },
+        {
+          "p": "\\bapp\\b",
+          "tip": "应指定要备份的库 app"
+        },
+        {
+          "p": "gzip",
+          "tip": "缺少 gzip：备份文件会很大"
+        },
+        {
+          "p": "backup\\.sql\\.gz",
+          "tip": "输出文件应为 backup.sql.gz"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-",
+          "tip": "备份不该删除任何文件",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    },
+    {
+      "id": "db.mysql-slow-log",
+      "track": "database",
+      "title": "确认慢查询日志开了没（不改任何配置）",
+      "goal": "用一条命令连上 MySQL 查看慢查询日志相关的系统变量",
+      "hint": "mysql -e 可以直接执行一条 SQL 并打印结果，适合做巡检",
+      "sample": "mysql -u root -p -e \"SHOW VARIABLES LIKE 'slow_query_log%'\"",
+      "require": [
+        {
+          "p": "mysql\\s+-u\\s+root",
+          "tip": "应使用 mysql -u root 连接"
+        },
+        {
+          "p": "-e\\s+",
+          "tip": "缺少 -e 直接执行 SQL"
+        },
+        {
+          "p": "slow_query_log",
+          "tip": "要查的是 slow_query_log 相关变量"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "set\\s+global|update\\s+",
+          "tip": "巡检题只读：不要顺手改全局参数",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.redis-scan",
+      "track": "database",
+      "title": "扫描一部分 key（不要在线上用 KEYS *）",
+      "goal": "用非阻塞的方式列出 user: 开头的键，只看前 20 行",
+      "hint": "redis-cli --scan 是基于 SCAN 的增量遍历；KEYS * 在大实例上会阻塞整个 Redis",
+      "sample": "redis-cli --scan --pattern 'user:*' | head -20",
+      "require": [
+        {
+          "p": "redis-cli",
+          "tip": "应使用 redis-cli"
+        },
+        {
+          "p": "--scan",
+          "tip": "缺少 --scan（用 SCAN 增量遍历，不要 KEYS *）"
+        },
+        {
+          "p": "--pattern",
+          "tip": "缺少 --pattern 指定匹配模式"
+        },
+        {
+          "p": "user:\\*",
+          "tip": "模式应为 'user:*'"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "keys\\s+\\*",
+          "tip": "KEYS * 在生产上会阻塞 Redis，是经典事故来源",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.redis-ttl",
+      "track": "database",
+      "title": "给会话键设置过期时间",
+      "goal": "把 session:123 这个键的过期时间设成 3600 秒，然后读出剩余 TTL",
+      "hint": "expire 设置过期；ttl 查看剩余秒数（-1 表示没设置过期）",
+      "sample": "redis-cli expire session:123 3600 && redis-cli ttl session:123",
+      "require": [
+        {
+          "p": "redis-cli\\s+expire\\s+session:123\\s+3600",
+          "tip": "缺少 redis-cli expire session:123 3600"
+        },
+        {
+          "p": "redis-cli\\s+ttl\\s+session:123",
+          "tip": "设置完应读一次 ttl 确认"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "\\bflush",
+          "tip": "本题只操作单个键，不要清库",
+          "severity": "block"
+        }
+      ],
+      "verify": {
+        "cmd": "redis-cli --version",
+        "expect": "redis-cli",
+        "note": "前置检查：本机是否有 redis-cli"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "db.es-indices",
+      "track": "database",
+      "title": "看 ES 里有哪些索引、各自多大",
+      "goal": "用 curl 查 Elasticsearch 的索引概览（人类可读表格式）",
+      "hint": "_cat/indices 是 ES 的「看盘」接口；v 参数让结果带表头",
+      "sample": "curl -s 'http://localhost:9200/_cat/indices?v'",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "_cat/indices",
+          "tip": "缺少 _cat/indices 接口"
+        },
+        {
+          "p": "\\?v|&v",
+          "tip": "缺少 v 参数，输出没有表头不好读"
+        },
+        {
+          "p": "9200",
+          "tip": "ES 默认端口是 9200"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-X\\s*DELETE|_delete_by_query",
+          "tip": "这是只读巡检，不要删索引或数据",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.mysql-explain",
+      "track": "database",
+      "title": "慢查询先看执行计划（有没有走索引）",
+      "goal": "用 mysql 执行 EXPLAIN，查看 select * from orders where user_id=42 的执行计划",
+      "hint": "EXPLAIN 的 key 列空着就是没走索引；type=ALL 是全表扫描",
+      "sample": "mysql -u root -p -e \"EXPLAIN SELECT * FROM orders WHERE user_id=42\" app",
+      "require": [
+        {
+          "p": "mysql\\s+-u\\s+root",
+          "tip": "应使用 mysql -u root"
+        },
+        {
+          "p": "-e\\s+",
+          "tip": "缺少 -e 直接执行 SQL"
+        },
+        {
+          "p": "EXPLAIN",
+          "tip": "缺少 EXPLAIN"
+        },
+        {
+          "p": "SELECT",
+          "tip": "应包含被分析的查询"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "DROP|DELETE|UPDATE|TRUNCATE",
+          "tip": "分析执行计划不要改数据",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

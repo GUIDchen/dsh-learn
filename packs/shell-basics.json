@@ -1,0 +1,476 @@
+{
+  "id": "shell-basics",
+  "name": "Shell 脚本基本功（含 macOS bash 3.2 与 Linux bash 5.x 差异）",
+  "track": "shell",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "shell.strict-mode",
+      "track": "shell",
+      "title": "给脚本加上严格模式",
+      "goal": "脚本开头就要求：命令失败即退出、引用未定义变量即报错、管道里任一环节失败也算失败",
+      "hint": "set -e 只管命令失败；-u 管未定义变量；-o pipefail 管管道；三件套通常一起写",
+      "sample": "set -euo pipefail",
+      "require": [
+        {
+          "p": "set\\s+-[a-z]*e|set\\s+-o\\s+errexit",
+          "tip": "缺少 -e（命令失败即退出）"
+        },
+        {
+          "p": "set\\s+-[a-z]*u|set\\s+-o\\s+nounset",
+          "tip": "缺少 -u（引用未定义变量报错）"
+        },
+        {
+          "p": "pipefail",
+          "tip": "缺少 -o pipefail（管道中任一命令失败即失败）"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "shell.lowercase-var",
+      "track": "shell",
+      "title": "把变量值转成小写（macOS 自带 bash 是 3.2）",
+      "goal": "把变量 name 的值全部转成小写并输出",
+      "hint": "bash 4 起有大小写转换扩展，但 macOS 自带的是 bash 3.2，用它会被判定为 bad substitution",
+      "variants": {
+        "darwin": {
+          "sample": "printf '%s\n' \"$name\" | tr '[:upper:]' '[:lower:]'",
+          "require": [
+            {
+              "p": "tr\\s+.*upper.*lower|tr\\s+'A-Z'\\s+'a-z'",
+              "tip": "macOS 的 bash 3.2 没有大小写扩展，用 tr 转换"
+            },
+            {
+              "p": "name",
+              "tip": "应处理变量 name"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "\\$\\{[a-zA-Z_]+,,",
+              "tip": "bash 3.2 不支持变量的双逗号小写扩展，会报 bad substitution"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "printf '%s\n' \"${name,,}\"",
+          "require": [
+            {
+              "p": "\\$\\{[a-zA-Z_]+,,",
+              "tip": "bash 4+ 可以直接用双逗号把变量转成小写"
+            },
+            {
+              "p": "name",
+              "tip": "应处理变量 name"
+            }
+          ],
+          "forbid": []
+        }
+      },
+      "require": [
+        {
+          "p": "name",
+          "tip": "应处理变量 name"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "bash --version",
+        "expect": "bash",
+        "note": "前置检查：本机 bash 版本（macOS 自带 3.2）"
+      },
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ]
+    },
+    {
+      "id": "shell.assoc-array",
+      "track": "shell",
+      "title": "统计每个单词出现次数（macOS 与 Linux 方案不同）",
+      "goal": "读取 access.log，统计第一列每个取值出现了多少次",
+      "hint": "关联数组是 bash 4 的特性；macOS 自带 bash 3.2 没有 declare -A，用 awk 更稳",
+      "variants": {
+        "darwin": {
+          "sample": "awk '{count[$1]++} END {for (k in count) print k, count[k]}' access.log",
+          "require": [
+            {
+              "p": "awk",
+              "tip": "macOS 上建议用 awk 统计"
+            },
+            {
+              "p": "\\+\\+|count\\[|\\$1",
+              "tip": "应体现出按第一列计数"
+            },
+            {
+              "p": "access\\.log",
+              "tip": "应读取 access.log"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "declare\\s+-A",
+              "tip": "macOS 的 bash 3.2 不支持关联数组（declare -A 会报无效选项）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "declare -A count; while read -r key rest; do count[$key]=$((count[$key]+1)); done < access.log; for k in \"${!count[@]}\"; do echo \"$k ${count[$k]}\"; done",
+          "require": [
+            {
+              "p": "declare\\s+-A",
+              "tip": "bash 4+ 用 declare -A 声明关联数组"
+            },
+            {
+              "p": "count\\[|\\$\\{!count\\[",
+              "tip": "应使用关联数组计数并遍历"
+            },
+            {
+              "p": "access\\.log",
+              "tip": "应读取 access.log"
+            }
+          ],
+          "forbid": []
+        }
+      },
+      "require": [
+        {
+          "p": "access\\.log",
+          "tip": "应读取 access.log"
+        }
+      ],
+      "forbid": [],
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ]
+    },
+    {
+      "id": "shell.read-lines",
+      "track": "shell",
+      "title": "把文件的每一行读进数组（macOS 与 Linux 写法不同）",
+      "goal": "把 hosts.txt 的每一行读进数组 lines，保留空格不做分词",
+      "hint": "mapfile 是 bash 4 的内建命令；在 macOS 的 bash 3.2 上要用 while read 循环",
+      "variants": {
+        "darwin": {
+          "sample": "lines=(); while IFS= read -r line; do lines+=(\"$line\"); done < hosts.txt",
+          "require": [
+            {
+              "p": "while\\s+IFS=\\s+read|while\\s+read",
+              "tip": "macOS 上用 while read 逐行读"
+            },
+            {
+              "p": "IFS=",
+              "tip": "缺少 IFS= 会丢掉行首行尾空格"
+            },
+            {
+              "p": "-r",
+              "tip": "缺少 -r，反斜杠会被吞掉"
+            },
+            {
+              "p": "lines",
+              "tip": "应把内容放进数组 lines"
+            },
+            {
+              "p": "hosts\\.txt",
+              "tip": "应读取 hosts.txt"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "mapfile|readarray",
+              "tip": "macOS 自带 bash 3.2 没有 mapfile/readarray"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "mapfile -t lines < hosts.txt",
+          "require": [
+            {
+              "p": "mapfile|readarray",
+              "tip": "bash 4+ 直接用 mapfile 更简洁"
+            },
+            {
+              "p": "-t",
+              "tip": "缺少 -t，行尾换行符会被保留"
+            },
+            {
+              "p": "lines",
+              "tip": "目标数组应为 lines"
+            },
+            {
+              "p": "hosts\\.txt",
+              "tip": "应读取 hosts.txt"
+            }
+          ],
+          "forbid": []
+        }
+      },
+      "require": [
+        {
+          "p": "hosts\\.txt",
+          "tip": "应读取 hosts.txt"
+        }
+      ],
+      "forbid": [],
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ]
+    },
+    {
+      "id": "shell.trap-cleanup",
+      "track": "shell",
+      "title": "脚本退出时自动清理临时文件",
+      "goal": "在脚本里创建临时文件，并保证无论正常结束还是中途报错，退出时都会把它删掉",
+      "hint": "trap 可以挂在 EXIT 上，无论怎么退出都会执行",
+      "sample": "tmp=$(mktemp) && trap 'rm -f \"$tmp\"' EXIT",
+      "require": [
+        {
+          "p": "mktemp",
+          "tip": "应用 mktemp 生成临时文件，别写死路径"
+        },
+        {
+          "p": "trap",
+          "tip": "缺少 trap 注册清理动作"
+        },
+        {
+          "p": "EXIT",
+          "tip": "应挂在 EXIT 上，保证任何退出路径都会清理"
+        },
+        {
+          "p": "rm\\s+-f",
+          "tip": "清理动作里用 rm -f（文件可能没生成）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf\\s+/",
+          "tip": "清理范围要精确到临时文件，不要删根目录",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "shell.args-guard",
+      "track": "shell",
+      "title": "参数不足时给出用法并退出",
+      "goal": "脚本需要恰好一个文件参数；不满足时把用法打到标准错误，并以非零码退出",
+      "hint": "参数个数是 $#，脚本名是 $0；用法信息应该走 stderr 而不是 stdout",
+      "sample": "if [ $# -lt 1 ]; then echo \"用法: $0 <file>\" >&2; exit 1; fi",
+      "require": [
+        {
+          "p": "\\$#",
+          "tip": "应用 $# 判断参数个数"
+        },
+        {
+          "p": "用法|[Uu]sage",
+          "tip": "应打印用法说明"
+        },
+        {
+          "p": "2>|>&2|\\$0",
+          "tip": "用法与提示应输出到标准错误（>&2），并可用 $0 显示脚本名"
+        },
+        {
+          "p": "exit\\s+1|exit\\s+\\$?",
+          "tip": "不满足条件应以非零码退出"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "shell.heredoc-quoted",
+      "track": "shell",
+      "title": "用 here-doc 写配置文件，并避免变量被提前展开",
+      "goal": "把一段包含 $HOME 字面量的模板写进 app.conf，要求写入后文件里保留 $HOME 原样",
+      "hint": "here-doc 的分隔符加引号（写成 <<'EOF'）会关闭变量展开",
+      "sample": "cat > app.conf <<'EOF'\npath=$HOME/app\nEOF",
+      "require": [
+        {
+          "p": "cat\\s*>\\s*app\\.conf|tee\\s+app\\.conf",
+          "tip": "应把内容写入 app.conf"
+        },
+        {
+          "p": "<<\\s*'?[A-Z]+'?|<<-",
+          "tip": "缺少 here-doc（<<EOF）写法"
+        },
+        {
+          "p": "<<\\s*'|\"EOF\"",
+          "tip": "分隔符要加引号（<<'EOF'），否则 $HOME 会被提前展开"
+        },
+        {
+          "p": "app\\.conf",
+          "tip": "目标文件应为 app.conf"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "shell.err-trap",
+      "track": "shell",
+      "title": "让脚本在出错时自己说清楚死在哪一行",
+      "goal": "脚本开头打开严格模式，并安装 ERR 陷阱：出错时打印行号与退出码",
+      "hint": "trap ERR 配合 set -E 才能继承到函数里；$LINENO 在陷阱里指向出错行",
+      "sample": "set -Eeuo pipefail\ntrap 'echo \"出错：第 $LINENO 行，退出码 $?\" >&2' ERR",
+      "require": [
+        {
+          "p": "set\\s+-E|-o\\s+errtrace",
+          "tip": "缺少 set -E：函数里的错误不会触发陷阱"
+        },
+        {
+          "p": "trap\\s+",
+          "tip": "缺少 trap ERR"
+        },
+        {
+          "p": "ERR",
+          "tip": "陷阱要挂在 ERR 上"
+        },
+        {
+          "p": "LINENO|FUNCNAME",
+          "tip": "提示里应带上出错位置（LINENO/FUNCNAME）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "set\\s+\\+e",
+          "tip": "排查脚本时关掉 -e 会让后续错误静默继续"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "shell.read-while-null",
+      "track": "shell",
+      "title": "逐行读文件：保留空格、处理最后一行没有换行",
+      "goal": "用 while read 逐行读 files.txt（保留每行前后空格），统计行数",
+      "hint": "IFS= 保留空格，-r 不解释反斜杠；|| [ -n \"$line\" ] 处理结尾没有换行的情况",
+      "sample": "count=0\nwhile IFS= read -r line || [ -n \"$line\" ]; do count=$((count + 1)); done < files.txt\necho \"$count\"",
+      "require": [
+        {
+          "p": "IFS=\\s*read\\s+-r|read\\s+-r\\s+line",
+          "tip": "缺少 IFS= read -r（否则空格与反斜杠会被吃掉）"
+        },
+        {
+          "p": "while\\s+.*read",
+          "tip": "应使用 while read 逐行处理"
+        },
+        {
+          "p": "files\\.txt",
+          "tip": "应读取 files.txt"
+        },
+        {
+          "p": "\\[\\s+-n\\s+\"?\\$line|\\|\\|\\s*\\[",
+          "tip": "缺少对最后一行没有换行的处理"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "shell.dry-run-flag",
+      "track": "shell",
+      "title": "给脚本加 --dry-run：先打印要执行的命令",
+      "goal": "脚本支持 --dry-run：开启时只打印要执行的命令，不真的执行",
+      "hint": "把命令放进变量、用 RUN 开关决定是 echo 还是执行，是最省事的 dry-run 实现",
+      "sample": "RUN=1\n[ \"$1\" = \"--dry-run\" ] && RUN=0\ncmd='rm -rf build'\nif [ \"$RUN\" = 1 ]; then eval \"$cmd\"; else echo \"[dry-run] $cmd\"; fi",
+      "require": [
+        {
+          "p": "--dry-run",
+          "tip": "应识别 --dry-run 参数"
+        },
+        {
+          "p": "eval|\\$cmd|${cmd}",
+          "tip": "应把待执行命令放进变量里统一处理"
+        },
+        {
+          "p": "echo",
+          "tip": "干跑时应打印而不是执行"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-rf\\s+/",
+          "tip": "示例里不要出现危险的删除目标",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "shell.parallel-collect-status",
+      "track": "shell",
+      "title": "并发跑多个任务，并收集每个的退出码",
+      "goal": "把 jobs.txt 里每行当作一个任务并发执行，等全部结束后失败数不为 0 就返回非零",
+      "hint": "xargs -P 并发、每个任务把退出码写到文件；最后用 grep -c 非零统计失败数",
+      "sample": "cat jobs.txt | xargs -P 4 -I{} sh -c '{} || echo fail >> failed.txt'\ngrep -c fail failed.txt || true",
+      "require": [
+        {
+          "p": "xargs\\s+-P",
+          "tip": "应使用 xargs -P 控制并发数"
+        },
+        {
+          "p": "jobs\\.txt",
+          "tip": "任务清单应为 jobs.txt"
+        },
+        {
+          "p": "failed|\\b||\\s+echo",
+          "tip": "缺少失败记录（把非零退出记下来）"
+        },
+        {
+          "p": "grep\\s+-c|wc\\s+-l",
+          "tip": "缺少统计失败数量的步骤"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "xargs\\s+-P\\s*0",
+          "tip": "-P 0 会起不确定数量的进程，压垮机器"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "shell.retry-backoff",
+      "track": "shell",
+      "title": "网络抖动就失败？给命令加有限次重试与退避",
+      "goal": "写一段最多重试 5 次、间隔逐次翻倍的脚本，全部失败时以非零码退出并把最后一次输出留住",
+      "hint": "until/for + sleep 是最省事的形式；最后一次失败要保留输出便于排查，且脚本整体要以非零码结束（否则 CI 会当成功）",
+      "sample": "n=0; until curl -fsS https://example.com/health -o /tmp/health.out; do n=$((n + 1)); [ \"$n\" -ge 5 ] && exit 1; sleep $((2 ** n)); done",
+      "require": [
+        {
+          "p": "until|while",
+          "tip": "用循环做重试，别重复粘贴同一条命令"
+        },
+        {
+          "p": "curl -fsS",
+          "tip": "要真的去请求（-f 让 HTTP 错误也返回非零）"
+        },
+        {
+          "p": "n=\\$\\(\\(n \\+ 1\\)\\)",
+          "tip": "要有重试计数器"
+        },
+        {
+          "p": "-ge 5",
+          "tip": "要设重试上限，不能无限重试"
+        },
+        {
+          "p": "sleep\\s+\\$\\(\\(",
+          "tip": "要用退避等待（逐次变长），别死循环猛打"
+        },
+        {
+          "p": "exit 1",
+          "tip": "用尽重试后要以非零码退出"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "id": "yolo-core",
+  "name": "YOLO 目标检测（训练、验证、推理、导出）",
+  "track": "yolo",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "yolo.train",
+      "track": "yolo",
+      "title": "起一次 YOLO 训练",
+      "goal": "用 yolov8n.pt 预训练权重，在 coco128.yaml 上训练 100 轮，输入尺寸 640",
+      "hint": "命令式写法是 yolo detect train，键值对直接跟在后面",
+      "sample": "yolo detect train data=coco128.yaml model=yolov8n.pt epochs=100 imgsz=640",
+      "require": [
+        {
+          "p": "yolo\\s+detect\\s+train|yolo\\s+train",
+          "tip": "应使用 yolo detect train"
+        },
+        {
+          "p": "data=coco128\\.yaml",
+          "tip": "缺少 data=coco128.yaml"
+        },
+        {
+          "p": "model=yolov8n\\.pt",
+          "tip": "缺少 model=yolov8n.pt 预训练权重"
+        },
+        {
+          "p": "epochs=100",
+          "tip": "缺少 epochs=100"
+        },
+        {
+          "p": "imgsz=640",
+          "tip": "缺少 imgsz=640"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--weights\\s",
+          "tip": "YOLO CLI 用 model= 键值对，不是 --weights"
+        }
+      ],
+      "verify": {
+        "cmd": "python3 --version",
+        "expect": "Python 3",
+        "note": "前置检查：YOLO CLI 装在某个 python 环境里"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "yolo.predict",
+      "track": "yolo",
+      "title": "用训练好的权重推理一张图",
+      "goal": "用 runs/detect/train/weights/best.pt 推理 test.jpg，置信度阈值 0.25",
+      "hint": "推理是 yolo detect predict；conf 控制阈值",
+      "sample": "yolo detect predict model=runs/detect/train/weights/best.pt source=test.jpg conf=0.25",
+      "require": [
+        {
+          "p": "yolo\\s+(detect\\s+)?predict",
+          "tip": "应使用 yolo detect predict"
+        },
+        {
+          "p": "model=runs/detect/train/weights/best\\.pt",
+          "tip": "应指定训练产出的 best.pt"
+        },
+        {
+          "p": "source=test\\.jpg",
+          "tip": "缺少 source=test.jpg"
+        },
+        {
+          "p": "conf=0\\.25",
+          "tip": "缺少 conf=0.25 置信度阈值"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.val",
+      "track": "yolo",
+      "title": "在验证集上评估指标",
+      "goal": "用 best.pt 在 data.yaml 上跑验证集评估",
+      "hint": "val 是评估，split=val 明确用验证集而不是测试集",
+      "sample": "yolo detect val model=best.pt data=data.yaml split=val",
+      "require": [
+        {
+          "p": "yolo\\s+(detect\\s+)?val",
+          "tip": "应使用 yolo detect val"
+        },
+        {
+          "p": "model=best\\.pt",
+          "tip": "缺少 model=best.pt"
+        },
+        {
+          "p": "data=data\\.yaml",
+          "tip": "缺少 data=data.yaml"
+        },
+        {
+          "p": "split=val",
+          "tip": "缺少 split=val，默认可能跑到别的划分上"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "val=true|train=true",
+          "tip": "评估用独立的 val 子命令，不要靠布尔开关"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.export-onnx",
+      "track": "yolo",
+      "title": "导出 ONNX 给部署用",
+      "goal": "把 best.pt 导出成 ONNX，opset 12",
+      "hint": "yolo export format=onnx opset=12",
+      "sample": "yolo export model=best.pt format=onnx opset=12",
+      "require": [
+        {
+          "p": "yolo\\s+(detect\\s+)?export",
+          "tip": "应使用 yolo export"
+        },
+        {
+          "p": "model=best\\.pt",
+          "tip": "缺少 model=best.pt"
+        },
+        {
+          "p": "format=onnx",
+          "tip": "缺少 format=onnx"
+        },
+        {
+          "p": "opset=12",
+          "tip": "缺少 opset=12"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "format=pt",
+          "tip": "导出目标是 ONNX，不是再存一份 pt"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.dataset-yaml",
+      "track": "yolo",
+      "title": "检查数据集 yaml 与类别数是否对得上",
+      "goal": "一行 Python 读出 data.yaml 里的类别数、类别名和训练集路径",
+      "hint": "yaml.safe_load 读文件；nc/names/train 是 Ultralytics 认的三个关键字段",
+      "sample": "python3 -c \"import yaml; d=yaml.safe_load(open('data.yaml')); print(d['nc'], d['names'], d['train'])\"",
+      "require": [
+        {
+          "p": "data\\.yaml",
+          "tip": "应读取 data.yaml"
+        },
+        {
+          "p": "safe_load|yaml\\.load",
+          "tip": "应使用 yaml 解析而不是手工切字符串"
+        },
+        {
+          "p": "nc|names",
+          "tip": "应检查类别数/类别名"
+        },
+        {
+          "p": "train|val",
+          "tip": "应检查数据划分路径"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.resume-baseline-guard",
+      "track": "yolo",
+      "title": "续训不能凭感觉：先量一遍基线 mAP 再接着训",
+      "goal": "从上次的权重续训之前，先用同一份验证集量一遍当前 mAP，续训完成后再量一次，用同一个 imgsz 与 batch 保证可比",
+      "hint": "续训前先 val 一次，才知道续训到底有没有变好；两次 val 必须用同样的 imgsz/batch/数据配置，否则数字不可比",
+      "sample": "yolo val model=runs/detect/train/weights/last.pt data=data.yaml imgsz=640 batch=8 && yolo train model=runs/detect/train/weights/last.pt data=data.yaml resume=True imgsz=640 batch=8 && yolo val model=runs/detect/train/weights/best.pt data=data.yaml imgsz=640 batch=8",
+      "require": [
+        {
+          "p": "yolo val",
+          "tip": "续训前要先量基线"
+        },
+        {
+          "p": "last.pt",
+          "tip": "续训要从 last.pt 接上（best.pt 是另一条路线）"
+        },
+        {
+          "p": "data=data.yaml",
+          "tip": "要指定数据配置"
+        },
+        {
+          "p": "imgsz=640",
+          "tip": "两次验证的输入尺寸必须一致才可比"
+        },
+        {
+          "p": "batch=8",
+          "tip": "batch 也要一致"
+        },
+        {
+          "p": "resume=True",
+          "tip": "要真的续训，而不是从头重跑"
+        },
+        {
+          "p": "best.pt",
+          "tip": "续训后量的是 best.pt，看它有没有变好"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

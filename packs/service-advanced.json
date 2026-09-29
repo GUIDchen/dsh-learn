@@ -1,0 +1,207 @@
+{
+  "id": "service-advanced",
+  "name": "服务进阶（日志、开机自启、单元校验）",
+  "track": "service",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "service.journalctl-unit",
+      "track": "service",
+      "title": "只看某个服务最近 50 行日志（并跟随）",
+      "goal": "用 journalctl 跟随 nginx.service 的日志，只先看最近 50 行",
+      "hint": "-u 指定 unit，-n 控制行数，-f 跟随输出（排查线上问题时很常用）",
+      "sample": "journalctl -u nginx.service -n 50 -f",
+      "require": [
+        {
+          "p": "journalctl",
+          "tip": "应使用 journalctl"
+        },
+        {
+          "p": "-u\\s+nginx(\\.service)?",
+          "tip": "缺少 -u nginx.service 指定服务"
+        },
+        {
+          "p": "-n\\s+50|--lines[= ]50",
+          "tip": "缺少 -n 50 限制行数"
+        },
+        {
+          "p": "-f\\b|--follow",
+          "tip": "缺少 -f 跟随输出"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s|systemctl\\s+stop",
+          "tip": "看日志不要顺手停服务",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "service.enabled-check",
+      "track": "service",
+      "title": "确认服务开了开机自启（并且现在确实是运行中）",
+      "goal": "查看 nginx 是否 enable（开机自启），以及它当前是否 active",
+      "hint": "is-enabled 与 is-active 都只查询状态，不会改配置",
+      "sample": "systemctl is-enabled nginx && systemctl is-active nginx",
+      "require": [
+        {
+          "p": "systemctl\\s+is-enabled\\s+nginx",
+          "tip": "缺少 systemctl is-enabled nginx"
+        },
+        {
+          "p": "systemctl\\s+is-active\\s+nginx",
+          "tip": "缺少 systemctl is-active nginx"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "systemctl\\s+(enable|disable|mask)",
+          "tip": "本题只查询状态；改自启配置是另一件事",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "service.systemd-analyze-verify",
+      "track": "service",
+      "title": "改完 unit 文件先校验语法",
+      "goal": "用 systemd-analyze 校验 app.service 这个单元文件；同时看一次启动耗时排名（前 10 项）",
+      "hint": "verify 抓语法错误，blame 看谁拖慢了启动——上线前各查一次",
+      "sample": "systemd-analyze verify app.service && systemd-analyze blame | head -10",
+      "require": [
+        {
+          "p": "systemd-analyze\\s+verify",
+          "tip": "缺少 systemd-analyze verify 校验单元文件"
+        },
+        {
+          "p": "app\\.service",
+          "tip": "应校验 app.service"
+        },
+        {
+          "p": "systemd-analyze\\s+blame",
+          "tip": "缺少 systemd-analyze blame 看启动耗时"
+        },
+        {
+          "p": "head\\s+-10|head\\s+-n\\s*10",
+          "tip": "应只取前 10 项"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "systemctl\\s+daemon-reexec",
+          "tip": "校验语法不需要重启 init",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "service.unit-cat",
+      "track": "service",
+      "title": "看服务实际生效的单元文件（含 override）",
+      "goal": "打印 nginx.service 的完整单元文件内容（包括被覆盖后的最终版本）",
+      "hint": "systemctl cat 会把主单元 + drop-in 覆盖拼在一起显示；改配置前必看",
+      "sample": "systemctl cat nginx.service",
+      "require": [
+        {
+          "p": "systemctl\\s+cat",
+          "tip": "应使用 systemctl cat"
+        },
+        {
+          "p": "nginx(\\.service)?",
+          "tip": "应指定 nginx 服务"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "service.unit-show-props",
+      "track": "service",
+      "title": "只取一个属性：服务崩了会不会自动重启",
+      "goal": "查看 nginx 的 Restart 与 RestartSec 两个属性值",
+      "hint": "show -p 只输出指定属性，适合写进巡检脚本；比 cat 更适合机器解析",
+      "sample": "systemctl show nginx -p Restart -p RestartSec",
+      "require": [
+        {
+          "p": "systemctl\\s+show",
+          "tip": "应使用 systemctl show"
+        },
+        {
+          "p": "nginx",
+          "tip": "应指定 nginx 服务"
+        },
+        {
+          "p": "-p\\s+Restart|-p\\s+RestartSec",
+          "tip": "缺少 -p 指定属性"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sed\\s+-i|>>?\\s*/etc/systemd",
+          "tip": "巡检只读：改单元文件要单独走变更",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "service.launchctl-list",
+      "track": "service",
+      "title": "macOS 上查服务：launchctl 而不是 systemctl",
+      "goal": "列出当前用户已加载的服务，并查看其中一项的详细配置（macOS）",
+      "hint": "launchctl list 列服务；launchctl print 看详情；macOS 没有 systemctl",
+      "variants": {
+        "darwin": {
+          "sample": "launchctl list | head -20 && launchctl print gui/$(id -u)/com.example.agent",
+          "require": [
+            {
+              "p": "launchctl\\s+list",
+              "tip": "macOS 用 launchctl list 列服务"
+            },
+            {
+              "p": "launchctl\\s+print",
+              "tip": "缺少 launchctl print 看详情"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^\\s*systemctl\\s",
+              "tip": "macOS 没有 systemctl（Linux 才用）"
+            }
+          ]
+        },
+        "linux": {
+          "sample": "systemctl list-units --type=service --all | head -20",
+          "require": [
+            {
+              "p": "systemctl\\s+list-units",
+              "tip": "Linux 用 systemctl list-units 列服务"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "^\\s*launchctl\\s",
+              "tip": "Linux 没有 launchctl（macOS 才用）"
+            }
+          ]
+        }
+      },
+      "require": [
+        {
+          "p": "launchctl|systemctl",
+          "tip": "应使用平台对应的服务管理命令"
+        }
+      ],
+      "forbid": [],
+      "level": "medium",
+      "platforms": [
+        "darwin",
+        "linux"
+      ]
+    }
+  ]
+}

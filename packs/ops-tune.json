@@ -1,0 +1,131 @@
+{
+  "id": "ops-tune",
+  "name": "系统调优与会话（句柄、内核参数、长任务）",
+  "track": "ops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "ops.ulimit-check",
+      "track": "ops",
+      "title": "服务报「too many open files」之前先看限制",
+      "goal": "打印当前 shell 的软/硬句柄上限，并查看进程 1 的实际上限",
+      "hint": "ulimit -Sn / -Hn 是当前会话；/proc/<pid>/limits 才是进程真正生效的值",
+      "sample": "ulimit -Sn && ulimit -Hn && cat /proc/1/limits | grep -i 'open files'",
+      "require": [
+        {
+          "p": "ulimit\\s+-S",
+          "tip": "缺少 ulimit -S 看软限制"
+        },
+        {
+          "p": "ulimit\\s+-H",
+          "tip": "缺少 ulimit -H 看硬限制"
+        },
+        {
+          "p": "/proc/.*/limits|/proc/1/limits",
+          "tip": "缺少 /proc/<pid>/limits 看进程实际限制"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "ulimit\\s+-n\\s+unlimited",
+          "tip": "调大限制要按服务配置（systemd LimitNOFILE）改，不要在会话里硬撑",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ops.sysctl-read",
+      "track": "ops",
+      "title": "只读查看几个关键内核参数",
+      "goal": "一次性打印 SWAP 倾向、文件句柄上限与 IP 转发开关三个参数",
+      "hint": "sysctl 支持一次给多个键，输出可以直接贴进变更单",
+      "sample": "sysctl vm.swappiness fs.file-max net.ipv4.ip_forward",
+      "require": [
+        {
+          "p": "sysctl",
+          "tip": "应使用 sysctl"
+        },
+        {
+          "p": "vm\\.swappiness",
+          "tip": "缺少 vm.swappiness"
+        },
+        {
+          "p": "fs\\.file-max",
+          "tip": "缺少 fs.file-max"
+        },
+        {
+          "p": "net\\.ipv4\\.ip_forward",
+          "tip": "缺少 net.ipv4.ip_forward"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sysctl\\s+-w|sysctl\\s+\\S+=",
+          "tip": "只读查看：改参数要单独走变更",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ops.handle-count",
+      "track": "ops",
+      "title": "数一数某个进程开了多少句柄",
+      "goal": "统计进程 1 当前打开的文件句柄数量",
+      "hint": "ls /proc/<pid>/fd | wc -l 最直接；lsof -p 也行但更慢",
+      "sample": "ls /proc/1/fd | wc -l",
+      "require": [
+        {
+          "p": "/proc/1/fd|/proc/\\$\\(?pid",
+          "tip": "应读取 /proc/<pid>/fd"
+        },
+        {
+          "p": "wc\\s+-l",
+          "tip": "缺少 wc -l 统计数量"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s|kill\\s",
+          "tip": "统计句柄不涉及删除或杀进程",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ops.tmux-longtask",
+      "track": "ops",
+      "title": "跑长任务别把 SSH 断开当成「任务结束」",
+      "goal": "新建一个名为 train 的 tmux 会话并在里面跑 train.sh，然后按会话名重新连上",
+      "hint": "tmux new -s 起会话；tmux attach -t 重新接回；这样断线不会杀掉任务",
+      "sample": "tmux new -d -s train './train.sh' && tmux attach -t train",
+      "require": [
+        {
+          "p": "tmux\\s+new",
+          "tip": "应使用 tmux new 起会话"
+        },
+        {
+          "p": "-s\\s+train",
+          "tip": "会话名应为 train"
+        },
+        {
+          "p": "train\\.sh",
+          "tip": "应在会话里运行 train.sh"
+        },
+        {
+          "p": "tmux\\s+attach\\s+-t\\s+train|tmux\\s+a\\s+-t\\s+train",
+          "tip": "缺少按会话名重新连上"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "nohup\\s+.*&\\s*$",
+          "tip": "后台跑长任务用 tmux/systemd 更可控，nohup 无法回看输出"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

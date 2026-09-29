@@ -1,0 +1,431 @@
+{
+  "id": "ops-monitor",
+  "name": "监控与自动化（Prometheus / ELK / Ansible）",
+  "track": "ops",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "ops.prom-query",
+      "track": "ops",
+      "title": "直接从 Prometheus 查一个指标",
+      "goal": "用 curl 查询 up 这个指标，并把 JSON 结果格式化后看前几行",
+      "hint": "Prometheus 的查询接口是 /api/v1/query?query=...；json.tool 让输出可读",
+      "sample": "curl -s 'http://localhost:9090/api/v1/query?query=up' | python3 -m json.tool | head -20",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "/api/v1/query",
+          "tip": "缺少 Prometheus 查询接口 /api/v1/query"
+        },
+        {
+          "p": "query=up",
+          "tip": "缺少 query=up"
+        },
+        {
+          "p": "json\\.tool",
+          "tip": "缺少 python3 -m json.tool，原始 JSON 不好读"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "/api/v1/admin",
+          "tip": "查询指标不要碰 admin 接口",
+          "severity": "block"
+        }
+      ],
+      "verify": {
+        "cmd": "uname -s",
+        "expect": "Darwin|Linux",
+        "note": "前置检查：先确认平台，再决定用哪套运维命令"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "ops.prom-exporter",
+      "track": "ops",
+      "title": "起一个 node_exporter 暴露主机指标",
+      "goal": "启动 node_exporter，监听 9100 端口",
+      "hint": "node_exporter 默认就是 9100；显式写出来更好排查端口冲突",
+      "sample": "node_exporter --web.listen-address=:9100",
+      "require": [
+        {
+          "p": "node_exporter",
+          "tip": "应使用 node_exporter"
+        },
+        {
+          "p": "--web\\.listen-address=:9100|--web\\.listen-address\\s+:9100",
+          "tip": "缺少 --web.listen-address=:9100"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "nohup",
+          "tip": "生产上应该用 systemd 或容器托管，不要 nohup 起服务"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ops.promtool-check",
+      "track": "ops",
+      "title": "告警规则写完先校验再上线",
+      "goal": "用 promtool 校验 alerts.yml 里的告警规则语法",
+      "hint": "promtool check rules 是 Prometheus 官方自带的校验命令",
+      "sample": "promtool check rules alerts.yml",
+      "require": [
+        {
+          "p": "promtool\\s+check\\s+rules",
+          "tip": "应使用 promtool check rules"
+        },
+        {
+          "p": "alerts\\.yml",
+          "tip": "应指定规则文件 alerts.yml"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "ops.elk-5xx",
+      "track": "ops",
+      "title": "在日志平台里捞最近的 5xx",
+      "goal": "用 curl 从 nginx- 开头的索引里检索 status:5xx，只看 5 条文档",
+      "hint": "_search?q= 是简单查询语法；size=5 控制返回条数",
+      "sample": "curl -s 'http://localhost:9200/nginx-*/_search?q=status:5xx&size=5'",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "nginx-\\*",
+          "tip": "缺少索引通配 nginx-*"
+        },
+        {
+          "p": "_search",
+          "tip": "缺少 _search 接口"
+        },
+        {
+          "p": "status:5",
+          "tip": "缺少检索条件 status:5xx"
+        },
+        {
+          "p": "size=5",
+          "tip": "缺少 size=5 限制条数"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "ops.ansible-check",
+      "track": "ops",
+      "title": "下发配置前先 dry-run 看差异",
+      "goal": "用 ansible-playbook 对 hosts.ini 跑 site.yml：只做检查、打印差异，不真的改",
+      "hint": "--check 是演练，--diff 打出文件差异；两者一起用才看得出会改什么",
+      "sample": "ansible-playbook -i hosts.ini site.yml --check --diff",
+      "require": [
+        {
+          "p": "ansible-playbook",
+          "tip": "应使用 ansible-playbook"
+        },
+        {
+          "p": "-i\\s+hosts\\.ini",
+          "tip": "缺少 -i hosts.ini 指定清单"
+        },
+        {
+          "p": "--check",
+          "tip": "缺少 --check（演练模式）"
+        },
+        {
+          "p": "--diff",
+          "tip": "缺少 --diff，看不到具体会改哪几行"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "ops.promtool-config",
+      "track": "ops",
+      "title": "改完 Prometheus 配置先校验再重启",
+      "goal": "用 promtool 校验 prometheus.yml 的配置语法",
+      "hint": "promtool check config 会校验抓取配置与规则引用，比重启后看日志快得多",
+      "sample": "promtool check config prometheus.yml",
+      "require": [
+        {
+          "p": "promtool\\s+check\\s+config",
+          "tip": "应使用 promtool check config"
+        },
+        {
+          "p": "prometheus\\.yml",
+          "tip": "应指定 prometheus.yml"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "systemctl\\s+(restart|reload)\\s+prometheus",
+          "tip": "先校验再重启：本题只做校验",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ops.ansible-ping",
+      "track": "ops",
+      "title": "批量下发前先确认能连上所有主机",
+      "goal": "用 ansible 对 hosts.ini 里的所有主机做一次 ping 模块连通性检查",
+      "hint": "ansible all -m ping 是最快的连通性体检；连不上时错误信息比 ssh 更直白",
+      "sample": "ansible all -i hosts.ini -m ping",
+      "require": [
+        {
+          "p": "ansible\\s+all",
+          "tip": "应使用 ansible all 对所有主机执行"
+        },
+        {
+          "p": "-i\\s+hosts\\.ini",
+          "tip": "缺少 -i hosts.ini"
+        },
+        {
+          "p": "-m\\s+ping|--module-name\\s+ping",
+          "tip": "缺少 -m ping 模块"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "-m\\s+(shell|command|raw)",
+          "tip": "连通性检查用 ping 模块，不要用 shell/command",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ops.systemd-timers",
+      "track": "ops",
+      "title": "看服务器上有哪些定时任务（systemd timer）",
+      "goal": "列出所有 systemd 定时器及其下次触发时间",
+      "hint": "timers 比 cron 更好排查：systemd-analyze 与 journalctl -u 都能跟到具体一次执行",
+      "sample": "systemctl list-timers --all",
+      "require": [
+        {
+          "p": "systemctl\\s+list-timers",
+          "tip": "应使用 systemctl list-timers"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "ops.prom-targets",
+      "track": "ops",
+      "title": "看抓取目标谁在掉线",
+      "goal": "用 curl 查询 Prometheus 的抓取目标列表，并格式化成 JSON 可读输出",
+      "hint": "/api/v1/targets 列出所有 scrape target 与 health；排查\"指标为什么没有\"第一条就看它",
+      "sample": "curl -s 'http://localhost:9090/api/v1/targets' | python3 -m json.tool | head -30",
+      "require": [
+        {
+          "p": "curl",
+          "tip": "应使用 curl"
+        },
+        {
+          "p": "/api/v1/targets",
+          "tip": "缺少 /api/v1/targets 接口"
+        },
+        {
+          "p": "json\\.tool",
+          "tip": "缺少 python3 -m json.tool 美化输出"
+        },
+        {
+          "p": "head\\s+-30|head\\s+-n\\s*30",
+          "tip": "应限制输出行数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "/api/v1/admin|-X\\s+(POST|DELETE)",
+          "tip": "只读查询，不要调用管理接口",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "ops.promtool-rules",
+      "track": "ops",
+      "title": "上线前校验告警规则文件",
+      "goal": "用 promtool 检查 alerts.yml 里的告警规则语法与 PromQL 是否正确",
+      "hint": "promtool check rules 专门查规则文件；check config 查的是采集配置，两者别混",
+      "sample": "promtool check rules alerts.yml",
+      "require": [
+        {
+          "p": "promtool\\s+check",
+          "tip": "应使用 promtool check"
+        },
+        {
+          "p": "rules",
+          "tip": "要查的是 rules（告警规则），不是 config"
+        },
+        {
+          "p": "alerts\\.yml",
+          "tip": "文件应为 alerts.yml"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "ops.checksum-file",
+      "track": "ops",
+      "title": "给发布产物生成校验文件（BSD 与 GNU 命令不同）",
+      "goal": "为 dist/app.tar.gz 生成 SHA-256 校验文件 dist/app.tar.gz.sha256，内容形如「哈希  文件名」",
+      "hint": "Linux 用 sha256sum；macOS 自带的是 shasum（GNU 的 sha256sum 要点 coreutils 才有）",
+      "sample": "sha256sum dist/app.tar.gz > dist/app.tar.gz.sha256",
+      "variants": {
+        "linux": {
+          "title": "给发布产物生成校验文件（GNU）",
+          "hint": "GNU coreutils 的 sha256sum 默认就是「哈希  文件名」格式，直接重定向即可",
+          "sample": "sha256sum dist/app.tar.gz > dist/app.tar.gz.sha256",
+          "require": [
+            {
+              "p": "sha256sum",
+              "tip": "Linux 上应使用 sha256sum"
+            },
+            {
+              "p": "dist/app\\.tar\\.gz",
+              "tip": "校验对象应为 dist/app.tar.gz"
+            },
+            {
+              "p": "\\.sha256",
+              "tip": "校验文件应命名为 .sha256 后缀"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "md5|sha1sum",
+              "tip": "发布校验不要用 md5/sha1",
+              "severity": "warn"
+            }
+          ]
+        },
+        "darwin": {
+          "title": "给发布产物生成校验文件（BSD）",
+          "hint": "macOS 没有 sha256sum，用 shasum -a 256；-a 指定算法",
+          "sample": "shasum -a 256 dist/app.tar.gz > dist/app.tar.gz.sha256",
+          "require": [
+            {
+              "p": "shasum\\s+-a\\s+256",
+              "tip": "macOS 上应使用 shasum -a 256"
+            },
+            {
+              "p": "dist/app\\.tar\\.gz",
+              "tip": "校验对象应为 dist/app.tar.gz"
+            },
+            {
+              "p": "\\.sha256",
+              "tip": "校验文件应命名为 .sha256 后缀"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "md5|sha1sum",
+              "tip": "发布校验不要用 md5/sha1",
+              "severity": "warn"
+            }
+          ]
+        },
+        "win32": {
+          "sample": "(Get-FileHash dist\\app.tar.gz -Algorithm SHA256).Hash + '  dist/app.tar.gz' | Out-File dist/app.tar.gz.sha256 -Encoding ascii",
+          "require": [
+            {
+              "p": "Get-FileHash",
+              "tip": "Windows 用 Get-FileHash 算校验和（没有 sha256sum/shasum）"
+            },
+            {
+              "p": "-Algorithm\\s+SHA256",
+              "tip": "要显式指定 -Algorithm SHA256（默认是 SHA256，但写出来才不含糊）"
+            },
+            {
+              "p": "app\\.tar\\.gz",
+              "tip": "要针对 dist/app.tar.gz 这个文件"
+            },
+            {
+              "p": "\\.sha256",
+              "tip": "结果要写进 .sha256 文件"
+            },
+            {
+              "p": "Out-File|>|Set-Content",
+              "tip": "要把结果写进文件（sha256sum 那种\"哈希+两空格+文件名\"的格式靠字符串拼）"
+            }
+          ],
+          "forbid": [
+            {
+              "p": "MD5|SHA1\\b",
+              "tip": "MD5/SHA1 已经不该再用于校验与签名"
+            },
+            {
+              "p": "certutil",
+              "tip": "certutil -hashfile 只打印哈希，拼不出\"哈希+文件名\"的校验文件"
+            }
+          ]
+        }
+      },
+      "level": "medium",
+      "require": [
+        {
+          "p": "sha256|sha256sum|shasum",
+          "tip": "应使用 SHA-256 校验工具（GNU 的 sha256sum 或 BSD 的 shasum -a 256）"
+        },
+        {
+          "p": "dist/app\\.tar\\.gz",
+          "tip": "校验对象应为 dist/app.tar.gz"
+        },
+        {
+          "p": "\\.sha256",
+          "tip": "校验文件应命名为 .sha256 后缀"
+        }
+      ]
+    },
+    {
+      "id": "ops.promtool-test-rules",
+      "track": "ops",
+      "title": "告警规则也要有单测：promtool test rules",
+      "goal": "为一个规则文件写一组单测并跑起来：测试文件里声明规则文件、求值间隔与期望值，失败时打印调试信息",
+      "hint": "promtool test rules 用 YAML 描述时序数据与期望告警；evaluation_interval 要与规则里的 for 对齐，否则会\"差一点点\"；--debug 会打印每一轮求值",
+      "sample": "promtool test rules alerts.test.yml && promtool check rules alerts.rules.yml --lint",
+      "require": [
+        {
+          "p": "promtool test rules",
+          "tip": "用 promtool test rules 跑规则单测"
+        },
+        {
+          "p": "alerts.test.yml",
+          "tip": "要指定测试文件"
+        },
+        {
+          "p": "promtool check rules",
+          "tip": "同时校验规则文件本身"
+        },
+        {
+          "p": "alerts.rules.yml",
+          "tip": "要指定规则文件"
+        },
+        {
+          "p": "--lint",
+          "tip": "用 lint 抓出写法问题"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "systemctls+(restart|reload)s+prometheus",
+          "severity": "block",
+          "tip": "别用重启 Prometheus 来\"验证\"规则：先单测，重载要走正式流程"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

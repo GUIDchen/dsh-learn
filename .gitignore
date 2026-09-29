@@ -1,0 +1,12 @@
+dist/
+node_modules/
+*.log
+.DS_Store
+
+# 运行时临时文件（原子写/归档会留这些）
+*.tmp
+*.tmp-*
+*.compacting-*
+
+# 证据截图体积大（63 张约 18MB）但被完成报告引用，先保留；将来可迁 LFS
+# docs/evidence/

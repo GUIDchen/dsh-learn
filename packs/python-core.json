@@ -1,0 +1,281 @@
+{
+  "id": "python-core",
+  "name": "Python 工程日常（环境、依赖、调试）",
+  "track": "python",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "python.venv",
+      "track": "python",
+      "title": "建虚拟环境并激活，不污染系统 Python",
+      "goal": "在当前目录创建 .venv 虚拟环境并激活它",
+      "hint": "venv 是标准库自带的：python3 -m venv 目录名，激活在 macOS/Linux 上是 source",
+      "sample": "python3 -m venv .venv && source .venv/bin/activate",
+      "require": [
+        {
+          "p": "python3?\\s+-m\\s+venv",
+          "tip": "应使用 python3 -m venv 创建环境"
+        },
+        {
+          "p": "\\.venv",
+          "tip": "环境目录用 .venv（约定俗成，工具会自动识别）"
+        },
+        {
+          "p": "source\\s+\\.venv/bin/activate|\\.[ ]+\\.venv/bin/activate",
+          "tip": "创建后要激活：source .venv/bin/activate"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "conda\\s+create",
+          "tip": "本题要求用标准库 venv，不要引入 conda"
+        },
+        {
+          "p": "sudo\\s+pip",
+          "tip": "用 sudo pip 装包会污染系统环境",
+          "severity": "block"
+        }
+      ],
+      "verify": {
+        "cmd": "python3 --version",
+        "expect": "Python 3",
+        "note": "前置检查：本机是否有 python3（没有会提示安装）"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "python.pip-freeze",
+      "track": "python",
+      "title": "把当前依赖锁成 requirements.txt 再复现",
+      "goal": "把当前环境的依赖导出到 requirements.txt，并用它把依赖装回来",
+      "hint": "pip freeze 导出精确版本；安装用 pip install -r",
+      "sample": "pip freeze > requirements.txt && pip install -r requirements.txt",
+      "require": [
+        {
+          "p": "pip\\s+freeze",
+          "tip": "导出依赖用 pip freeze"
+        },
+        {
+          "p": "requirements\\.txt",
+          "tip": "文件名应为 requirements.txt"
+        },
+        {
+          "p": "pip\\s+install\\s+-r",
+          "tip": "安装要用 pip install -r 走锁文件"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "pip\\s+install\\s+--upgrade\\s+pip\\s*>\\s*requirements",
+          "tip": "不要把 pip 自身的升级混进依赖清单"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "python.json-tool",
+      "track": "python",
+      "title": "不装任何库就把 JSON 校验并格式化",
+      "goal": "校验 data.json 是不是合法 JSON，并把格式化结果写到 data.pretty.json",
+      "hint": "python3 -m json.tool 是标准库自带的，坏 JSON 会直接报错退出",
+      "sample": "python3 -m json.tool data.json > data.pretty.json",
+      "require": [
+        {
+          "p": "python3?\\s+-m\\s+json\\.tool",
+          "tip": "应使用 python3 -m json.tool"
+        },
+        {
+          "p": "data\\.json",
+          "tip": "输入文件应为 data.json"
+        },
+        {
+          "p": "data\\.pretty\\.json",
+          "tip": "格式化结果写到 data.pretty.json"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "pip\\s+install",
+          "tip": "json.tool 是标准库，不需要装任何包"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "python.pytest-tb",
+      "track": "python",
+      "title": "只跑到第一个失败就停，并给最短回溯",
+      "goal": "运行 pytest：遇到第一个失败立刻停止，输出简短回溯，不要啰嗦的完整日志",
+      "hint": "-x 是第一个失败就停，--tb=short 是短回溯，-q 减少噪音",
+      "sample": "python3 -m pytest -x -q --tb=short",
+      "require": [
+        {
+          "p": "-m\\s+pytest",
+          "tip": "应通过 python3 -m pytest 运行，保证用的是当前环境的 pytest"
+        },
+        {
+          "p": "\\s-x\\b",
+          "tip": "缺少 -x：第一个失败就停"
+        },
+        {
+          "p": "--tb=(short|line)|--tb\\s+short",
+          "tip": "缺少 --tb=short 之类的短回溯"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "python3?\\s+test_",
+          "tip": "直接 python 跑测试文件会绕过 pytest 的收集与回溯"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "python.cprofile",
+      "track": "python",
+      "title": "找出最耗时的函数",
+      "goal": "用标准库的 cProfile 跑 app.py，按累计耗时排序，只看前 20 行",
+      "hint": "-s cumtime 按累计时间排序；组合 head 才看得清",
+      "sample": "python3 -m cProfile -s cumtime app.py | head -20",
+      "require": [
+        {
+          "p": "python3?\\s+-m\\s+cProfile",
+          "tip": "应使用 python3 -m cProfile"
+        },
+        {
+          "p": "-s\\s+cumtime|cumulative",
+          "tip": "缺少 -s cumtime 排序，默认顺序看不出热点"
+        },
+        {
+          "p": "head\\s+-20|head\\s+-n\\s*20",
+          "tip": "应只取前 20 行"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "python.pytest-xdist-parallel",
+      "track": "python",
+      "title": "测试太慢：先把用例并行跑起来",
+      "goal": "用 pytest 并行跑测试，进程数交给 pytest 按机器核数自己定",
+      "hint": "-n auto 需要 pytest-xdist 插件；并行之后用例之间不能共享状态——写死端口的 fixture、固定名字的临时文件都会互相踩",
+      "sample": "pytest -n auto -q",
+      "require": [
+        {
+          "p": "pytest",
+          "tip": "应使用 pytest"
+        },
+        {
+          "p": "-n\\s+auto",
+          "tip": "应让 pytest 按核数并行（-n auto）"
+        },
+        {
+          "p": "-q",
+          "tip": "并行结果默认很吵，用 -q 收敛输出"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "python.import-time-check",
+      "track": "python",
+      "title": "启动慢？先看导入花了多少时间",
+      "goal": "打印导入 pandas 时每个模块的耗时，找出拖慢启动的那一个",
+      "hint": "python -X importtime 会按累计耗时打印整棵导入树；导入慢一般是某个包在 import 时就干了重活（读配置、建连接、编译正则）",
+      "sample": "python -X importtime -c \"import pandas\" 2>&1 | sort -t\"|\" -k2 -n | tail -10",
+      "require": [
+        {
+          "p": "python\\s+-X\\s+importtime",
+          "tip": "应打开 importtime（python -X importtime）"
+        },
+        {
+          "p": "import\\s+pandas",
+          "tip": "应指定要测的导入"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "pip\\s+install\\s+py-spy|time\\s+python",
+          "tip": "要的是导入树明细，不是总的墙钟时间",
+          "severity": "warn"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "python.mypy-strict-module",
+      "track": "python",
+      "title": "渐进式类型化：先对一个小模块开严格模式",
+      "goal": "用 mypy 的严格模式检查 src/parser 这一个包，而不是整个仓库",
+      "hint": "老项目一次性全开 --strict 会被淹没；先挑边界清晰的小模块，把错误清干净，再逐步扩大范围",
+      "sample": "mypy --strict src/parser",
+      "require": [
+        {
+          "p": "mypy\\s+--strict",
+          "tip": "应使用 mypy --strict"
+        },
+        {
+          "p": "src/parser",
+          "tip": "范围应限定在 src/parser"
+        }
+      ],
+      "level": "easy",
+      "verify": {
+        "cmd": "python3 --version",
+        "expect": "Python",
+        "note": "环境前置：mypy 需要 python3 环境"
+      }
+    },
+    {
+      "id": "python.pyright-report",
+      "track": "python",
+      "title": "类型检查换个工具交叉验证（pyright 输出 JSON）",
+      "goal": "用 pyright 检查 src/parser 并输出 JSON 报告，便于在 CI 里统计错误数",
+      "hint": "mypy 与 pyright 的推断各有盲区，关键模块两个都跑一遍能发现\"工具差异\"背后真正的类型问题；--outputjson 方便脚本消费",
+      "sample": "pyright --outputjson src/parser",
+      "require": [
+        {
+          "p": "pyright",
+          "tip": "应使用 pyright"
+        },
+        {
+          "p": "--outputjson",
+          "tip": "应输出 JSON（便于统计）"
+        },
+        {
+          "p": "src/parser",
+          "tip": "范围应限定在 src/parser"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "python.pytest-cov-failunder",
+      "track": "python",
+      "title": "覆盖率不达标就让 CI 红（带缺失行号）",
+      "goal": "跑 pytest 并统计 src 的覆盖率，终端里列出没被覆盖的行号，覆盖率低于 80% 时让命令失败",
+      "hint": "--cov-report=term-missing 直接给出缺哪几行；--cov-fail-under=80 把门槛交给工具，别靠人看",
+      "sample": "pytest --cov=src --cov-report=term-missing --cov-fail-under=80 -q",
+      "require": [
+        {
+          "p": "pytest",
+          "tip": "应使用 pytest"
+        },
+        {
+          "p": "--cov=src",
+          "tip": "应统计 src 的覆盖率"
+        },
+        {
+          "p": "term-missing",
+          "tip": "要看缺失行（term-missing）"
+        },
+        {
+          "p": "--cov-fail-under=80",
+          "tip": "应设置覆盖率门槛（80）"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

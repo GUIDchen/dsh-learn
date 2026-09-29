@@ -1,0 +1,275 @@
+{
+  "id": "yolo-advanced",
+  "name": "YOLO 进阶（续训、多卡、类别均衡、批量推理、导出加速）",
+  "track": "yolo",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "yolo.resume-training",
+      "track": "yolo",
+      "title": "训练中断了，从 last.pt 接着练",
+      "goal": "用 yolo detect train 从 runs/detect/train/weights/last.pt 续训，再练 50 轮",
+      "hint": "resume 会接管优化器与轮次；配合 model=last.pt 指定断点",
+      "sample": "yolo detect train model=runs/detect/train/weights/last.pt resume=True epochs=50",
+      "require": [
+        {
+          "p": "yolo\\s+(detect\\s+)?train",
+          "tip": "应使用 yolo detect train"
+        },
+        {
+          "p": "model=runs/detect/train/weights/last\\.pt",
+          "tip": "应指定 last.pt 断点"
+        },
+        {
+          "p": "resume=True|resume=true",
+          "tip": "缺少 resume=True"
+        },
+        {
+          "p": "epochs=50",
+          "tip": "缺少 epochs=50"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "model=yolov8n\\.pt.*resume",
+          "tip": "续训要接断点权重，不是重新用预训练权重起炉灶"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.multi-gpu",
+      "track": "yolo",
+      "title": "两卡一起训（并把批次摊到每张卡）",
+      "goal": "用 YOLO 在 0、1 两张卡上训练，全局批大小 64（每张卡各 32）",
+      "hint": "device=0,1 指定多卡；batch 是全局批大小，显存不足时先调它",
+      "sample": "yolo detect train data=data.yaml model=yolov8n.pt device=0,1 batch=64 epochs=100",
+      "require": [
+        {
+          "p": "device=0,1|device=\\\\[0,\\s*1\\\\]",
+          "tip": "缺少 device=0,1 指定两张卡"
+        },
+        {
+          "p": "batch=64",
+          "tip": "缺少 batch=64 全局批大小"
+        },
+        {
+          "p": "data=data\\.yaml",
+          "tip": "缺少 data=data.yaml"
+        },
+        {
+          "p": "epochs=",
+          "tip": "缺少训练轮数"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "device=cpu",
+          "tip": "本题就是在多卡上训，不是退回 CPU"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.class-balance",
+      "track": "yolo",
+      "title": "类别不均衡：先看分布，再决定过采样还是调权重",
+      "goal": "用一行 Python 统计标签目录里各类别的数量（labels 下的 .txt 第一列就是类别 id）",
+      "hint": "统计出来才知道哪个类只有几十个样本；均衡策略（过采样/损失权重）都建立在这个分布上",
+      "sample": "python3 -c \"import glob, collections; c = collections.Counter(l.split()[0] for f in glob.glob('labels/*.txt') for l in open(f) if l.strip()); print(sorted(c.items(), key=lambda kv: -kv[1]))\"",
+      "require": [
+        {
+          "p": "labels/\\*\\.txt|glob",
+          "tip": "应遍历 labels 目录下的标注文件"
+        },
+        {
+          "p": "Counter|collections",
+          "tip": "应用 collections.Counter 统计类别"
+        },
+        {
+          "p": "split\\(\\)|readlines",
+          "tip": "应读取标注文件内容"
+        },
+        {
+          "p": "sorted|sort",
+          "tip": "应排序输出（按数量多少看分布）"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.batch-inference",
+      "track": "yolo",
+      "title": "批量推理一个目录并把结果存成 txt",
+      "goal": "用 best.pt 推理 images/ 目录，置信度 0.3，保存预测文本结果（save_txt=True）",
+      "hint": "source 指向目录即批量；save_txt 产出便于下游脚本读取",
+      "sample": "yolo detect predict model=best.pt source=images/ conf=0.3 save_txt=True",
+      "require": [
+        {
+          "p": "source=images/",
+          "tip": "缺少 source=images/ 目录批量推理"
+        },
+        {
+          "p": "conf=0\\.3",
+          "tip": "缺少 conf=0.3"
+        },
+        {
+          "p": "save_txt=True|save_txt=true",
+          "tip": "缺少 save_txt=True 保存文本结果"
+        },
+        {
+          "p": "model=best\\.pt",
+          "tip": "应指定 best.pt"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "save_conf=False",
+          "tip": "批量推理要保留置信度信息便于复核"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.export-tensorrt",
+      "track": "yolo",
+      "title": "导出 TensorRT engine（部署加速）",
+      "goal": "把 best.pt 导出为 engine，FP16 精度，输入尺寸 640",
+      "hint": "format=engine 是 TensorRT；half=True 开 FP16（需要 GPU 支持）",
+      "sample": "yolo export model=best.pt format=engine half=True imgsz=640",
+      "require": [
+        {
+          "p": "yolo\\s+(detect\\s+)?export",
+          "tip": "应使用 yolo export"
+        },
+        {
+          "p": "model=best\\.pt",
+          "tip": "缺少 model=best.pt"
+        },
+        {
+          "p": "format=engine",
+          "tip": "缺少 format=engine"
+        },
+        {
+          "p": "half=True|half=true",
+          "tip": "缺少 half=True（FP16）"
+        },
+        {
+          "p": "imgsz=640",
+          "tip": "缺少 imgsz=640"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "format=onnx",
+          "tip": "本题导出的是 TensorRT engine，ONNX 是另一条路径"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.hyperparameter-tune",
+      "track": "yolo",
+      "title": "小规模超参搜索（先小后大）",
+      "goal": "用 YOLO 做一次超参搜索：迭代 20 次、每轮训练 10 轮",
+      "hint": "tune 的 iterations 与 epochs 都别给大：先看趋势，再决定要不要放大",
+      "sample": "yolo detect train data=data.yaml model=yolov8n.pt epochs=10 iterations=20",
+      "require": [
+        {
+          "p": "yolo\\s+(detect\\s+)?train",
+          "tip": "应使用 yolo detect train"
+        },
+        {
+          "p": "iterations=20|iterations=\\d+",
+          "tip": "缺少 iterations 指定搜索轮次"
+        },
+        {
+          "p": "epochs=10|epochs=\\d+",
+          "tip": "缺少每个组合的训练轮数"
+        },
+        {
+          "p": "data=data\\.yaml",
+          "tip": "缺少 data=data.yaml"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "epochs=3\\d{2,}|iterations=\\d{3,}",
+          "tip": "超参搜索先小规模，别一上来几百轮"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.slice-inference",
+      "track": "yolo",
+      "title": "大图切块推理（小目标检测）",
+      "goal": "用 best.pt 对大图做切块推理：切块尺寸 640、重叠 0.2、置信度 0.25",
+      "hint": "SAHI 风格的分片推理能把小目标找出来；overlap 太低会在切缝处漏检",
+      "sample": "python3 -c \"from sahi import AutoDetectionModel; from sahi.predict import get_sliced_prediction as p; m=AutoDetectionModel.from_pretrained(model_type='yolov8', model_path='best.pt', confidence_threshold=0.25); r=p('big.jpg', m, slice_height=640, slice_width=640, overlap_height_ratio=0.2, overlap_width_ratio=0.2); r.export_visuals(export_dir='out')\"",
+      "require": [
+        {
+          "p": "slice_height|slice_width",
+          "tip": "缺少切块尺寸参数"
+        },
+        {
+          "p": "overlap",
+          "tip": "缺少重叠比例（否则切缝处会漏检）"
+        },
+        {
+          "p": "640",
+          "tip": "切块尺寸应为 640"
+        },
+        {
+          "p": "0\\.2|0,2",
+          "tip": "重叠比例应为 0.2"
+        },
+        {
+          "p": "best\\.pt",
+          "tip": "应使用训练好的 best.pt"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "conf.*0\\.[6-9]",
+          "tip": "小目标场景阈值别设太高，会大面积漏检"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "yolo.tracker-config",
+      "track": "yolo",
+      "title": "接上跟踪器（同一目标跨帧保持 ID）",
+      "goal": "用 best.pt 对视频跑跟踪：使用 bytetrack 配置、置信度 0.4，输出到 runs/",
+      "hint": "tracker=bytetrack.yaml 启用跟踪；视频跟踪看的是 ID 稳定性而不是单帧指标",
+      "sample": "yolo detect track model=best.pt source=clip.mp4 tracker=bytetrack.yaml conf=0.4 project=runs",
+      "require": [
+        {
+          "p": "yolo\\s+(detect\\s+)?track",
+          "tip": "应使用 yolo detect track"
+        },
+        {
+          "p": "tracker=bytetrack|tracker=\\S+",
+          "tip": "缺少 tracker= 指定跟踪配置"
+        },
+        {
+          "p": "source=clip\\.mp4",
+          "tip": "缺少 source=clip.mp4"
+        },
+        {
+          "p": "conf=0\\.4",
+          "tip": "缺少 conf=0.4"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "model=yolov8n\\.pt.*track.*--pretrained",
+          "tip": "跟踪要用自己训好的权重"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

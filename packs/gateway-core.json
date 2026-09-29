@@ -1,0 +1,205 @@
+{
+  "id": "gateway-core",
+  "name": "Web 网关日常（Nginx：配置校验 / 平滑重载 / upstream / 状态页 / 限流）",
+  "track": "service",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "web.nginx-version",
+      "track": "service",
+      "title": "先看 Nginx 版本与编译进了哪些模块",
+      "goal": "用 nginx -V 打印版本与编译参数（看到 --with-http_ssl_module / --with-http_stub_status_module 这类模块开关）",
+      "hint": "-v 只打印版本；-V 连编译参数一起打，排查\"模块没编进去\"的第一步",
+      "sample": "nginx -V",
+      "require": [
+        {
+          "p": "nginx\\s+-V",
+          "tip": "要用大写 -V 才能看到编译参数"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "web.nginx-configtest",
+      "track": "service",
+      "title": "改完配置先校验再重载",
+      "goal": "用 nginx -t 校验配置语法（指定 -c 时连配置文件一起校验）",
+      "hint": "nginx -t 会打印 syntax is ok / test is successful；配置有错时它会指出行号，别跳过这步直接重载",
+      "sample": "nginx -t",
+      "require": [
+        {
+          "p": "nginx\\b",
+          "tip": "应使用 nginx"
+        },
+        {
+          "p": "-t\\b",
+          "tip": "要用 -t 做配置校验"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "\\bsystemctl\\s+(restart|stop)|nginx\\s+-s\\s+(stop|quit)",
+          "tip": "校验阶段不要重启或停止服务",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "web.nginx-reload",
+      "track": "service",
+      "title": "平滑重载（不丢连接）",
+      "goal": "用 nginx -s reload 让新配置生效，worker 平滑替换、老连接处理完再退",
+      "hint": "-s reload 会给 master 发 HUP；kill -9 或 stop 会直接掐断在途请求",
+      "sample": "nginx -s reload",
+      "require": [
+        {
+          "p": "nginx\\b",
+          "tip": "应使用 nginx"
+        },
+        {
+          "p": "-s\\s+reload",
+          "tip": "要用 -s reload 平滑重载"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "kill\\s+-9|nginx\\s+-s\\s+stop|-s\\s+quit",
+          "tip": "平滑重载不要用强杀或 stop",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "web.nginx-upstream",
+      "track": "service",
+      "title": "看清 upstream 里挂了哪些后端",
+      "goal": "从配置里找出 upstream 段（含 server 行与负载均衡策略），确认后端列表与权重",
+      "hint": "upstream 段里 server 后面可跟 weight / max_fails / fail_timeout；least_conn、ip_hash 会影响分发",
+      "sample": "grep -A 8 \"upstream\" /etc/nginx/nginx.conf",
+      "require": [
+        {
+          "p": "grep\\b",
+          "tip": "先看配置内容（或 nginx -T 打印全量配置）"
+        },
+        {
+          "p": "upstream",
+          "tip": "要定位到 upstream 段"
+        },
+        {
+          "p": "-A\\s+\\d+|nginx\\s+-T",
+          "tip": "要带上下文或打印全量配置，否则只看到一行"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sed\\s+-i|>\\s*/etc/nginx",
+          "tip": "排查阶段不要原地改配置",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "web.nginx-access-log",
+      "track": "service",
+      "title": "从访问日志里数 5xx 与最慢的接口",
+      "goal": "用 awk 从 access.log 统计状态码分布，或按请求耗时排出最慢的几条",
+      "hint": "默认 combined 格式里 $9 是状态码、$7 是 URL；慢请求要先在 log_format 里加上 $request_time",
+      "sample": "awk '{print $9}' /var/log/nginx/access.log | sort | uniq -c | sort -rn | head -10",
+      "require": [
+        {
+          "p": "awk\\b",
+          "tip": "用 awk 拆字段"
+        },
+        {
+          "p": "access\\.log|log",
+          "tip": "要指定日志文件"
+        },
+        {
+          "p": "sort|uniq",
+          "tip": "要统计分布（sort/uniq）"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "rm\\s+-|>\\s*/var/log",
+          "tip": "只读统计，不要动日志文件",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "web.nginx-status",
+      "track": "service",
+      "title": "状态页看连接数（active / reading / writing / waiting）",
+      "goal": "用 curl 取 stub_status 输出，判断是连接堆积还是 worker 不够",
+      "hint": "waiting 高说明 keepalive 空闲连接多；reading/writing 高才是真在忙——配合 worker_connections 算容量",
+      "sample": "curl -s http://127.0.0.1/nginx_status",
+      "require": [
+        {
+          "p": "curl\\b",
+          "tip": "用 curl 取状态页"
+        },
+        {
+          "p": "nginx_status|stub_status|status",
+          "tip": "要打到状态页地址"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "POST|PUT|DELETE",
+          "tip": "状态页只读",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "web.nginx-ratelimit",
+      "track": "service",
+      "title": "限流配置检查（zone / burst / nodelay）",
+      "goal": "找出 limit_req_zone 定义与 limit_req 用法，确认限流维度（IP / 接口）、速率与突发处理",
+      "hint": "limit_req_zone 定义 $binary_remote_addr 与 rate（如 10r/s）；limit_req burst=20 nodelay 才有突发缓冲，否则直接 503",
+      "sample": "grep -n -E \"limit_req_zone|limit_req\" /etc/nginx/nginx.conf && grep -A 3 \"limit_req_zone\" /etc/nginx/nginx.conf | grep -E \"burst|nodelay\"",
+      "require": [
+        {
+          "p": "grep\\b",
+          "tip": "先从配置里找限流相关行"
+        },
+        {
+          "p": "limit_req_zone",
+          "tip": "要看到 zone 定义（限流维度与速率）"
+        },
+        {
+          "p": "limit_req\\b",
+          "tip": "要看到使用处"
+        },
+        {
+          "p": "burst|nodelay",
+          "tip": "要确认突发参数，否则高峰期直接 503"
+        },
+        {
+          "p": "-n|-A|nginx\\s+-T",
+          "tip": "要带行号或上下文，便于定位"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sed\\s+-i|>\\s*/etc/nginx",
+          "tip": "先检查，不要原地改配置",
+          "severity": "block"
+        },
+        {
+          "p": "\\bsystemctl\\s+(restart|stop)",
+          "tip": "检查阶段不要重启服务",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

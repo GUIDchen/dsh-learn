@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "exportedAt": "2026-09-27T00:47:00.791Z",
+  "records": [
+    {
+      "at": "2026-09-27T00:47:00.642Z",
+      "client": "machine-a",
+      "taskId": "docker.run-web",
+      "score": 100,
+      "verdict": "通过",
+      "platform": "darwin",
+      "answer": "docker run -d -p 8080:80 --name web nginx:1.25"
+    }
+  ],
+  "notes": {
+    "docker.run-web": {
+      "text": "-d 后台运行；-p 主机:容器",
+      "updatedAt": "2026-09-27T00:47:00.693Z"
+    }
+  },
+  "goals": {
+    "dailyTasks": 3,
+    "dailyMinutes": 20,
+    "updatedAt": "2026-09-27T00:47:00.741Z"
+  }
+}

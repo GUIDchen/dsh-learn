@@ -1,0 +1,626 @@
+[
+  {
+    "id": "learn-check",
+    "name": "学习与判分（提交命令 → 判定 → 记录）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "check: tasks.check,"
+    },
+    "api": {
+      "file": "src/web/routes/learn.mjs",
+      "marker": "pathname === '/api/check'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "async function submitAnswer"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func check("
+    },
+    "test": "test/content.test.mjs",
+    "evidence": "docs/evidence/web-mastery-0.162.0.png"
+  },
+  {
+    "id": "knowledge-describe",
+    "name": "描述与提取（知识点 + 技术栈）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "describe: describeCommand.describe"
+    },
+    "api": {
+      "file": "src/web/routes/research.mjs",
+      "marker": "pathname === '/api/describe'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runFlowDescribe"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func describe("
+    },
+    "test": "test/stack.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "survey",
+    "name": "多岗位调研（热度 / 通用技能 / 缺口）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "survey: surveyCommand.survey"
+    },
+    "api": {
+      "file": "src/web/routes/research.mjs",
+      "marker": "pathname === '/api/survey'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runFlowSurvey"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func survey(texts:"
+    },
+    "test": "test/survey.test.mjs",
+    "evidence": "docs/samples/boss-survey-all.md"
+  },
+  {
+    "id": "survey-by-category",
+    "name": "分方向调研（矩阵 + 共性/专有）",
+    "cli": {
+      "file": "src/cli/commands/survey.mjs",
+      "marker": "surveyByCategory"
+    },
+    "api": {
+      "file": "src/web/routes/research.mjs",
+      "marker": "const groups = Array.isArray(body.groups)"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runFlowGroupSurvey"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func surveyGroups"
+    },
+    "test": "test/survey.test.mjs",
+    "evidence": "docs/samples/boss-by-direction.md"
+  },
+  {
+    "id": "project-ingest",
+    "name": "项目/仓库：收来源（截图 / 文字 / 链接 / 仓库）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "project: projects.project"
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "const action = body.action || 'add'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "action: 'init'"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func ingestText"
+    },
+    "test": "test/project.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "project-import-tree",
+    "name": "按目录批量导入（每个子目录一个项目）",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "importTree("
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "action === 'import'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runProjectImport"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func importTree"
+    },
+    "test": "test/project-import.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "project-filter",
+    "name": "项目页筛选 / 排序 / 来源检索",
+    "cli": {
+      "absent": true,
+      "file": "src/cli/commands/projects.mjs",
+      "check": "",
+      "why": "筛选/排序/来源检索是界面能力；命令行用 project list / project show 看全量，没有等价开关"
+    },
+    "api": {
+      "absent": true,
+      "file": "",
+      "check": "",
+      "why": "筛选在界面本地做（项目列表一次取回），接口不单独提供筛选参数"
+    },
+    "web": {
+      "file": "web/index.html",
+      "marker": "id=\"ppFilter\""
+    },
+    "native": {
+      "file": "app/macos/NativeUI.swift",
+      "marker": "visibleProjects"
+    },
+    "test": "test/page.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "source-text",
+    "name": "来源原文查看（原封不动）",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "readSourceText("
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "url.searchParams.get('source')"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function showSourceText"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func sourceText"
+    },
+    "test": "test/project-import.test.mjs",
+    "evidence": "docs/evidence/web-project-sources-0.140.0.png"
+  },
+  {
+    "id": "project-drill",
+    "name": "按项目生成开练清单",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "projectDrillPlan("
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "action === 'drill'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function loadDrillPlan"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func drillPlan"
+    },
+    "test": "test/project-import.test.mjs",
+    "evidence": "docs/evidence/web-project-drill-0.143.0.png"
+  },
+  {
+    "id": "project-jdplan",
+    "name": "岗位描述 → 练习清单（计划草案）",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "buildJdPlan("
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "action === 'jdplan'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runJdPlan"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func jdPlan"
+    },
+    "test": "test/jdplan.test.mjs",
+    "evidence": "docs/evidence/web-jd-plan-0.149.0.png"
+  },
+  {
+    "id": "corpus-search",
+    "name": "语料全文检索（跨项目 / 行号）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "corpus: corpusCommand.corpus"
+    },
+    "api": {
+      "file": "src/web/api.mjs",
+      "marker": "pathname === '/api/corpus'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runCorpusSearch"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func corpusSearch"
+    },
+    "test": "test/corpus.test.mjs",
+    "evidence": "docs/evidence/web-corpus-search-0.150.0.png"
+  },
+  {
+    "id": "project-backfill",
+    "name": "旧数据回填原文",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "backfillAll("
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "action === 'backfill'"
+    },
+    "web": {
+      "file": "web/index.html",
+      "marker": "id=\"ppBackfillBtn\""
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func backfillText"
+    },
+    "test": "test/project-import.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "project-rename",
+    "name": "项目重命名 / 移除 / 删除",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "renameProject("
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "action === 'rename'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function renameProjectPrompt"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func renameProject"
+    },
+    "test": "test/page.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "jobs",
+    "name": "简历投递记录（增改删查 + JD 分析）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "jobs: jobsCommand.jobs"
+    },
+    "api": {
+      "file": "src/web/api.mjs",
+      "marker": "pathname === '/api/jobs'"
+    },
+    "web": {
+      "file": "web/jobs.mjs",
+      "marker": "async function loadJobs"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func jobs(status:"
+    },
+    "test": "test/jobs.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "jobs-follow",
+    "name": "投递跟进（状态时间线 + 待跟进）",
+    "cli": {
+      "file": "src/cli/commands/jobs.mjs",
+      "marker": "jobFollowUps("
+    },
+    "api": {
+      "file": "src/web/routes/jobs.mjs",
+      "marker": "jobFollowUps(jobs"
+    },
+    "web": {
+      "file": "web/jobs.mjs",
+      "marker": "function renderJobFollowUps"
+    },
+    "native": {
+      "file": "app/macos/NativeUI.swift",
+      "marker": "jobsFollow"
+    },
+    "test": "test/jobs-followup.test.mjs",
+    "evidence": "docs/evidence/web-jobs-followup-0.151.0.png"
+  },
+  {
+    "id": "flow-collect",
+    "name": "招聘信息搜集（搜索 + 粘 JD）",
+    "cli": {
+      "file": "src/cli/commands/flow.mjs",
+      "marker": "collect"
+    },
+    "api": {
+      "file": "src/web/routes/flow.mjs",
+      "marker": "action === 'collect'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runFlowCollect"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func flowCollect"
+    },
+    "test": "test/flow.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "flow-recommend",
+    "name": "按匹配度推荐岗位",
+    "cli": {
+      "file": "src/cli/commands/flow.mjs",
+      "marker": "recommend"
+    },
+    "api": {
+      "file": "src/web/routes/flow.mjs",
+      "marker": "action === 'recommend'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runFlowRecommend"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func flowRecommend"
+    },
+    "test": "test/flow.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "flow-resume",
+    "name": "按学习进度生成简历要点",
+    "cli": {
+      "file": "src/cli/commands/flow.mjs",
+      "marker": "resume"
+    },
+    "api": {
+      "file": "src/web/routes/flow.mjs",
+      "marker": "action === 'resume'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function runFlowResume"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func flowResume"
+    },
+    "test": "test/flow.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "search-research",
+    "name": "搜索并解析（搜到 → 抓回 → 抽知识点）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "search: researchCommand.search"
+    },
+    "api": {
+      "file": "src/web/routes/research.mjs",
+      "marker": "pathname === '/api/search'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "async function runSearch"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func search("
+    },
+    "test": "test/search.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "ocr-understand",
+    "name": "识图解析（截图 → 知识点 / 草案）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "understand: understandCommand.understand"
+    },
+    "api": {
+      "file": "src/web/routes/research.mjs",
+      "marker": "pathname === '/api/ocr'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "$('ocrCap')"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func understand"
+    },
+    "test": "test/understand.test.mjs",
+    "evidence": "docs/evidence/jd-screenshot.png"
+  },
+  {
+    "id": "runners",
+    "name": "远程/容器执行（runner）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "runners: verify.runners"
+    },
+    "api": {
+      "file": "src/web/routes/learn.mjs",
+      "marker": "pathname === '/api/runners'"
+    },
+    "web": {
+      "absent": true,
+      "file": "web/index.html",
+      "check": "runnersBtn",
+      "why": "远程/容器执行要 runner 端点与凭据，网页版不做，避免浏览器里下发远端命令"
+    },
+    "native": {
+      "absent": true,
+      "file": "app/macos/Engine.swift",
+      "check": "func runners",
+      "why": "原生端不做远程/容器执行（要 runner 凭据与端点，桌面端只覆盖学习闭环）"
+    },
+    "test": "test/runners.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "project-refresh",
+    "name": "刷新项目知识点（补题包后让老项目用上）",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "sub === 'refresh'"
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "action === 'refresh'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "ppRefreshPointsBtn"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func refreshProjectPoints"
+    },
+    "test": "test/refresh-points.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "data-doctor",
+    "name": "数据体检（元数据/索引/原文/记录自洽 + 一键修复）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "doctor: doctorCommand.doctor"
+    },
+    "api": {
+      "file": "src/web/api.mjs",
+      "marker": "pathname === '/api/doctor'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "async function runDoctor"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func doctor()"
+    },
+    "test": "test/doctor.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "check-run",
+    "name": "执行型判定（只读白名单内真跑一遍答案）",
+    "cli": {
+      "file": "src/cli/commands/tasks.mjs",
+      "marker": "assessAnswer"
+    },
+    "api": {
+      "file": "src/web/routes/learn.mjs",
+      "marker": "assessAnswer(task, body.answer"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "function renderExecution"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "run: Bool"
+    },
+    "test": "test/exec-answer.test.mjs",
+    "evidence": "docs/evidence/web-check-run-0.161.0.png"
+  },
+  {
+    "id": "mastery",
+    "name": "知识点掌握度（最弱先补 + 今天先练哪几道）",
+    "cli": {
+      "file": "src/cli.mjs",
+      "marker": "mastery: masteryCommand.mastery"
+    },
+    "api": {
+      "file": "src/web/api.mjs",
+      "marker": "pathname === '/api/mastery'"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "async function loadMastery"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func mastery("
+    },
+    "test": "test/mastery.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "feedback-locate",
+    "name": "判定反馈定位（缺的要素该补在哪一行）",
+    "cli": {
+      "file": "src/cli/commands/tasks.mjs",
+      "marker": "locateMissing(task, answer, platform)"
+    },
+    "api": {
+      "file": "src/web/routes/learn.mjs",
+      "marker": "feedback: result.missing"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "renderExecution"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "run: Bool"
+    },
+    "test": "test/feedback.test.mjs",
+    "evidence": ""
+  },
+  {
+    "id": "pack-scaffold",
+    "name": "题包脚手架与深度校验（口径 + 参考答案自测）",
+    "cli": {
+      "file": "src/cli/commands/packs.mjs",
+      "marker": "sub === 'new'"
+    },
+    "api": {
+      "file": "src/web/api.mjs",
+      "marker": "action === 'validate-all'"
+    },
+    "web": {
+      "file": "web/pack.mjs",
+      "marker": "export function initPackPanel"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func packValidateAll("
+    },
+    "test": "test/packfile.test.mjs",
+    "evidence": "docs/evidence/web-pack-0.164.0.png"
+  },
+  {
+    "id": "project-search",
+    "name": "项目筛选与检索（关键词 / 只看缺原文 / 排序）",
+    "cli": {
+      "file": "src/cli/commands/projects.mjs",
+      "marker": "projectSearchHit(row, query)"
+    },
+    "api": {
+      "file": "src/web/routes/project.mjs",
+      "marker": "url.searchParams.get('missingText')"
+    },
+    "web": {
+      "file": "web/app.mjs",
+      "marker": "async function loadProjectList"
+    },
+    "native": {
+      "file": "app/macos/Engine.swift",
+      "marker": "func projects(query: String = \"\", missingText: Bool = false"
+    },
+    "test": "test/project-filter.test.mjs",
+    "evidence": "docs/evidence/web-project-search-0.165.0.png"
+  }
+]

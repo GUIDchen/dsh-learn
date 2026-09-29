@@ -1,0 +1,163 @@
+{
+  "id": "security-core",
+  "name": "安全与权限基线（最小权限、密钥、加固巡检）",
+  "track": "security",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "security.sudo-list",
+      "track": "security",
+      "title": "看自己到底被授予了哪些 sudo 权限",
+      "goal": "列出当前用户的 sudo 授权，看看有没有过宽的通配规则",
+      "hint": "sudo -l 会打印允许执行的命令；出现 ALL 或 NOPASSWD 就要警惕",
+      "sample": "sudo -l",
+      "require": [
+        {
+          "p": "sudo\\s+-l",
+          "tip": "应使用 sudo -l 列出授权"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sudo\\s+su\\b|sudo\\s+-i",
+          "tip": "本题只看授权，不要提权开 shell",
+          "severity": "block"
+        }
+      ],
+      "verify": {
+        "cmd": "uname -s",
+        "expect": "Darwin|Linux",
+        "note": "前置检查：先确认平台，权限审计命令不同"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "security.ssh-audit",
+      "track": "security",
+      "title": "只读方式审计 sshd 的实际生效配置",
+      "goal": "用 sshd 自己解析配置并过滤出禁用 root 登录与密码登录这两项",
+      "hint": "sshd -T 打印的是最终生效值（含 include），比读 /etc/ssh/sshd_config 靠谱",
+      "sample": "sudo sshd -T | grep -Ei 'permitrootlogin|passwordauthentication'",
+      "require": [
+        {
+          "p": "sshd\\s+-T",
+          "tip": "应使用 sshd -T 打印生效配置"
+        },
+        {
+          "p": "grep\\s+-Ei|grep\\s+-i\\s+-E",
+          "tip": "缺少大小写不敏感过滤"
+        },
+        {
+          "p": "permitrootlogin",
+          "tip": "缺少 permitrootlogin 检查"
+        },
+        {
+          "p": "passwordauthentication",
+          "tip": "缺少 passwordauthentication 检查"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "sed\\s+-i|>>?\\s*/etc/ssh/sshd_config",
+          "tip": "审计只读：改配置要单独走变更流程",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.container-privileged",
+      "track": "security",
+      "title": "揪出正在以特权模式运行的容器",
+      "goal": "用 docker inspect 打印每个容器名与是否 Privileged，一眼看出谁开了特权",
+      "hint": "docker inspect -f 用 Go 模板：{{.Name}} 与 {{.HostConfig.Privileged}}",
+      "sample": "docker inspect -f '{{.Name}} privileged={{.HostConfig.Privileged}}' $(docker ps -q)",
+      "require": [
+        {
+          "p": "docker\\s+inspect",
+          "tip": "应使用 docker inspect"
+        },
+        {
+          "p": "-f\\s+",
+          "tip": "缺少 -f 用模板输出"
+        },
+        {
+          "p": "HostConfig\\.Privileged",
+          "tip": "缺少 .HostConfig.Privileged 字段"
+        },
+        {
+          "p": "docker\\s+ps\\s+-q",
+          "tip": "缺少 docker ps -q 拿到运行中的容器"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+(rm|stop|kill)\\b",
+          "tip": "巡检不要顺手停容器",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.key-fingerprint",
+      "track": "security",
+      "title": "核对公钥指纹与私钥权限",
+      "goal": "打印 ~/.ssh/id_ed25519.pub 的指纹，并确认私钥权限是 600",
+      "hint": "ssh-keygen -lf 打印指纹；权限用 ls -l 检查（私钥 600，目录 700）",
+      "sample": "ssh-keygen -lf ~/.ssh/id_ed25519.pub && ls -l ~/.ssh/id_ed25519",
+      "require": [
+        {
+          "p": "ssh-keygen\\s+-lf",
+          "tip": "应使用 ssh-keygen -lf 打印指纹"
+        },
+        {
+          "p": "id_ed25519",
+          "tip": "应操作 id_ed25519 密钥"
+        },
+        {
+          "p": "ls\\s+-l",
+          "tip": "缺少 ls -l 检查私钥权限"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "cat\\s+~?/?\\.ssh/id_ed25519\\b",
+          "tip": "不要把私钥内容打印出来",
+          "severity": "block"
+        },
+        {
+          "p": "chmod\\s+777",
+          "tip": "777 权限过宽"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "security.open-ports",
+      "track": "security",
+      "title": "盘点对外监听的端口（只读）",
+      "goal": "列出本机所有监听端口与对应进程（不做名字解析）",
+      "hint": "Linux 用 ss -tulnp；-n 不做端口名解析，-p 显示进程",
+      "sample": "ss -tulnp",
+      "require": [
+        {
+          "p": "ss\\s+-tuln|ss\\s+-tlun",
+          "tip": "应使用 ss -tuln 列出监听端口"
+        },
+        {
+          "p": "p\\b",
+          "tip": "缺少 -p，看不到占用端口的进程"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "iptables\\s+-F|nft\\s+flush|ipfw\\s+flush",
+          "tip": "盘点只读：不要清空防火墙规则",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

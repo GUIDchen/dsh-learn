@@ -1,0 +1,17 @@
+示例电商（示例数据） 招聘 后端开发工程师（Go）
+
+岗位职责
+负责订单与支付核心服务的开发与优化
+负责 MySQL 慢查询治理、Redis 缓存设计与消息队列（Kafka）消费链路
+
+任职要求
+熟悉 Go 或 Java，3 年以上后端经验
+熟悉 MySQL 索引与事务，熟悉 Redis
+熟悉 Docker 与 Kubernetes 基本使用
+掌握 Linux 常用命令与排障
+
+加分项
+了解 ClickHouse 或 TiDB
+了解 Istio 与 gRPC
+
+工作地点：杭州　薪资：30-50K　今天发布

@@ -1,0 +1,217 @@
+{
+  "id": "database-pg",
+  "name": "PostgreSQL 日常与性能（连接 / 执行计划 / 索引 / 锁 / 备份 / 复制）",
+  "track": "database",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "db.pg-version",
+      "track": "database",
+      "title": "先确认版本与运行环境",
+      "goal": "用 psql 打印客户端版本（不连库也要能看到 psql 与 PostgreSQL 版本）",
+      "hint": "psql -V 只打印版本就退出；--version 等价。要连库信息再进交互里 \\conninfo",
+      "sample": "psql -V",
+      "require": [
+        {
+          "p": "psql\\s+(-V|--version)",
+          "tip": "应使用 psql -V（或 --version）"
+        }
+      ],
+      "forbid": [],
+      "level": "easy"
+    },
+    {
+      "id": "db.pg-connect",
+      "track": "database",
+      "title": "用 psql 连库并只跑一条查询",
+      "goal": "连到 app 库，用 -c 执行 SELECT 1 确认连通（不改数据、不进交互）",
+      "hint": "-h 指定主机、-U 指定用户、-d 指定库；-c 一次执行一条 SQL 就退出，适合脚本",
+      "sample": "psql -h localhost -U postgres -d app -c \"SELECT 1\"",
+      "require": [
+        {
+          "p": "psql\\b",
+          "tip": "应使用 psql"
+        },
+        {
+          "p": "-c\\s+",
+          "tip": "缺少 -c 直接执行 SQL"
+        },
+        {
+          "p": "SELECT",
+          "tip": "应包含被执行的查询"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "DROP|DELETE|UPDATE|TRUNCATE|INSERT",
+          "tip": "连通性检查不要写数据",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.pg-explain",
+      "track": "database",
+      "title": "慢查询先看执行计划（走没走索引）",
+      "goal": "用 psql 对 select * from orders where user_id=42 做 EXPLAIN ANALYZE，看实际行数与索引使用",
+      "hint": "EXPLAIN 预估、EXPLAIN ANALYZE 真跑；看 Seq Scan（全表扫）还是 Index Scan，以及 rows 预估差多少",
+      "sample": "psql -d app -c \"EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id=42\"",
+      "require": [
+        {
+          "p": "psql\\b",
+          "tip": "应使用 psql"
+        },
+        {
+          "p": "EXPLAIN",
+          "tip": "缺少 EXPLAIN"
+        },
+        {
+          "p": "SELECT",
+          "tip": "应包含被分析的查询"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "DROP|DELETE|UPDATE|TRUNCATE",
+          "tip": "分析执行计划不要改数据",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.pg-index-usage",
+      "track": "database",
+      "title": "找出一次都没用过的索引",
+      "goal": "查 pg_stat_user_indexes，列出 idx_scan = 0 的索引（白占写入成本的那种）",
+      "hint": "idx_scan 是索引被扫描次数；配合 pg_relation_size 看它占多少空间，再决定删不删",
+      "sample": "psql -d app -c \"SELECT relname, indexrelname, idx_scan FROM pg_stat_user_indexes WHERE idx_scan = 0 ORDER BY relname\"",
+      "require": [
+        {
+          "p": "psql\\b",
+          "tip": "应使用 psql"
+        },
+        {
+          "p": "pg_stat_user_indexes",
+          "tip": "要查 pg_stat_user_indexes"
+        },
+        {
+          "p": "idx_scan",
+          "tip": "要按 idx_scan 判断有没有被用过"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "DROP\\s+INDEX|DROP\\s+TABLE",
+          "tip": "先统计，不要顺手删索引",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.pg-stat-statements",
+      "track": "database",
+      "title": "按总耗时找最贵的 SQL",
+      "goal": "查 pg_stat_statements，按 total_exec_time 倒序列出前 10 条（先确认该扩展已装）",
+      "hint": "pg_stat_statements 是扩展，先在 postgresql.conf 的 shared_preload_libraries 里加载；total_exec_time 是累计耗时",
+      "sample": "psql -d app -c \"SELECT query, calls, total_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10\"",
+      "require": [
+        {
+          "p": "psql\\b",
+          "tip": "应使用 psql"
+        },
+        {
+          "p": "pg_stat_statements",
+          "tip": "要查 pg_stat_statements"
+        },
+        {
+          "p": "ORDER\\s+BY",
+          "tip": "要排序才能找出最贵的"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "DROP|DELETE|UPDATE|TRUNCATE",
+          "tip": "看统计不要改数据",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.pg-dump-format",
+      "track": "database",
+      "title": "逻辑备份：自定义格式 + 一致性",
+      "goal": "用 pg_dump 把 app 库导成自定义格式（-Fc），供 pg_restore 选择性恢复",
+      "hint": "-Fc 是自定义格式（能并行恢复、能只恢复某张表）；纯文本 -Fp 只能整体回放",
+      "sample": "pg_dump -Fc -f app.dump -d app",
+      "require": [
+        {
+          "p": "pg_dump\\b",
+          "tip": "应使用 pg_dump"
+        },
+        {
+          "p": "-Fc|--format=c",
+          "tip": "要用自定义格式 -Fc"
+        },
+        {
+          "p": "-f\\s+\\S+",
+          "tip": "要指定输出文件 -f"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "DROP|DELETE|TRUNCATE",
+          "tip": "备份不要动源库数据",
+          "severity": "block"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "db.pg-locks",
+      "track": "database",
+      "title": "谁在阻塞谁（锁等待链）",
+      "goal": "用 pg_locks 关联 pg_stat_activity，找出被阻塞的语句、阻塞者 pid 与等待时长",
+      "hint": "pg_locks 里有 granted=false 的就在等；用 pg_blocking_pids(pid) 找阻塞者最省事，再看 state 是否 idle in transaction",
+      "sample": "psql -d app -c \"SELECT a.pid, a.state, pg_blocking_pids(a.pid) AS blockers, now() - a.query_start AS waited, a.query FROM pg_stat_activity a WHERE cardinality(pg_blocking_pids(a.pid)) > 0 ORDER BY waited DESC LIMIT 20\"",
+      "require": [
+        {
+          "p": "psql\\b",
+          "tip": "应使用 psql"
+        },
+        {
+          "p": "pg_locks|pg_blocking_pids",
+          "tip": "要用 pg_locks 或 pg_blocking_pids 查锁"
+        },
+        {
+          "p": "pg_stat_activity",
+          "tip": "要关联 pg_stat_activity 才知道是哪条语句"
+        },
+        {
+          "p": "now\\(\\)\\s*-|waited|duration",
+          "tip": "要给出等待时长，才能判断严重程度"
+        },
+        {
+          "p": "ORDER\\s+BY|LIMIT",
+          "tip": "结果要排序或限量，否则一次刷屏"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "pg_terminate_backend|pg_cancel_backend",
+          "tip": "先定位，别一上来就杀会话",
+          "severity": "block"
+        },
+        {
+          "p": "DROP|DELETE|UPDATE|TRUNCATE",
+          "tip": "查锁不要改数据",
+          "severity": "block"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

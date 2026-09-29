@@ -1,0 +1,195 @@
+{
+  "id": "docker-core",
+  "name": "Docker 命令核心",
+  "track": "docker",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "docker.version-format",
+      "track": "docker",
+      "title": "只取 Docker 服务端版本号",
+      "goal": "用格式化输出只打印服务端版本，而不是整段 version 文本",
+      "hint": "docker version 支持 --format 与 Go 模板 {{.Server.Version}}",
+      "sample": "docker version --format '{{.Server.Version}}'",
+      "require": [
+        {
+          "p": "docker\\s+version",
+          "tip": "应使用 docker version"
+        },
+        {
+          "p": "--format",
+          "tip": "应使用 --format 只取需要的字段"
+        },
+        {
+          "p": "Server\\.Version",
+          "tip": "模板应取 .Server.Version"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "docker version --format {{.Server.Version}}",
+        "expect": "\\d+\\.\\d+",
+        "note": "需要 Docker 守护进程正在运行"
+      },
+      "level": "easy"
+    },
+    {
+      "id": "docker.context-diagnose",
+      "track": "docker",
+      "title": "排查 docker 连不上守护进程",
+      "goal": "守护进程可能没起来，先列出本机所有上下文并给出切换办法",
+      "hint": "macOS 上常同时存在 Docker Desktop、OrbStack、Podman 三套运行时，各有一个 context",
+      "sample": "docker context ls && docker context use desktop-linux",
+      "require": [
+        {
+          "p": "docker\\s+context\\s+ls",
+          "tip": "应先用 docker context ls 查看所有可用上下文"
+        },
+        {
+          "p": "context\\s+use|DOCKER_HOST|--context",
+          "tip": "定位后要说明如何切换到可用上下文（docker context use 或 --context）"
+        }
+      ],
+      "forbid": [],
+      "verify": {
+        "cmd": "docker context ls",
+        "expect": "NAME",
+        "note": "守护进程没启动也能执行，用来定位问题"
+      },
+      "level": "easy"
+    },
+    {
+      "id": "docker.compose-v2",
+      "track": "docker",
+      "title": "用 Compose v2 后台启动整套服务并重建镜像",
+      "goal": "一条命令拉起 compose 定义的服务：后台运行且强制重建镜像",
+      "hint": "Compose v2 是 docker compose（空格），不再是连字符写法",
+      "sample": "docker compose up -d --build",
+      "require": [
+        {
+          "p": "docker\\s+compose\\s+up",
+          "tip": "应使用 docker compose up"
+        },
+        {
+          "p": "-d|--detach",
+          "tip": "缺少 -d 让服务在后台运行"
+        },
+        {
+          "p": "--build",
+          "tip": "需要 --build 保证镜像被重建"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker-compose",
+          "tip": "docker-compose 是 v1 写法，v2 应为 docker compose"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.run-web",
+      "track": "docker",
+      "title": "后台启动 nginx 并映射端口",
+      "goal": "后台启动 nginx:1.25，宿主机 8080 映射到容器 80，容器名为 web",
+      "hint": "一条 run 命令里要同时体现后台、端口、名称、镜像四要素",
+      "sample": "docker run -d -p 8080:80 --name web nginx:1.25",
+      "require": [
+        {
+          "p": "docker\\s+run",
+          "tip": "应使用 docker run 创建并启动容器"
+        },
+        {
+          "p": "-d|--detach",
+          "tip": "缺少 -d 让容器在后台运行"
+        },
+        {
+          "p": "-p\\s*8080:80",
+          "tip": "端口映射应写成 -p 8080:80"
+        },
+        {
+          "p": "--name\\s+web",
+          "tip": "缺少 --name web 指定容器名"
+        },
+        {
+          "p": "nginx",
+          "tip": "缺少要启动的镜像名 nginx"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+start",
+          "tip": "容器还不存在，不能用 start 启动"
+        }
+      ],
+      "level": "medium",
+      "verify": {
+        "cmd": "docker version --format {{.Server.Version}}",
+        "expect": "\\d+\\.\\d+",
+        "note": "环境前置：需要 Docker 守护进程可用"
+      }
+    },
+    {
+      "id": "docker.logs-follow",
+      "track": "docker",
+      "title": "持续跟踪容器日志",
+      "goal": "实时跟随 web 容器的日志输出",
+      "hint": "跟随输出要用跟随参数，并指定容器名",
+      "sample": "docker logs -f web",
+      "require": [
+        {
+          "p": "docker\\s+logs",
+          "tip": "应使用 docker logs"
+        },
+        {
+          "p": "-f|--follow",
+          "tip": "缺少 -f 无法持续跟踪日志"
+        },
+        {
+          "p": "web",
+          "tip": "应指定容器名 web"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "docker\\s+attach",
+          "tip": "attach 会占用容器主进程，看日志应用 docker logs -f"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "docker.volume-persist",
+      "track": "docker",
+      "title": "用命名卷让 Redis 数据不随容器消失",
+      "goal": "创建命名卷 redis-data，并把它挂到 redis:7 的数据目录 /data",
+      "hint": "先建卷，再用 -v 挂到镜像声明的数据目录",
+      "sample": "docker volume create redis-data && docker run -d -v redis-data:/data --name cache redis:7",
+      "require": [
+        {
+          "p": "docker\\s+volume\\s+create",
+          "tip": "应先用 docker volume create 创建命名卷"
+        },
+        {
+          "p": "redis-data",
+          "tip": "卷名应为 redis-data"
+        },
+        {
+          "p": "-v\\s*redis-data:/data",
+          "tip": "缺少 -v redis-data:/data 挂到数据目录"
+        },
+        {
+          "p": "redis:7",
+          "tip": "应基于 redis:7 镜像启动容器"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "/Users|/tmp|/home",
+          "tip": "本题要求命名卷，不要把宿主机目录直接当数据目录"
+        }
+      ],
+      "level": "medium"
+    }
+  ]
+}

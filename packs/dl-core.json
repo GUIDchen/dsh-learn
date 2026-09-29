@@ -1,0 +1,303 @@
+{
+  "id": "dl-core",
+  "name": "深度学习训练日常（环境、GPU、训练、日志）",
+  "track": "dl",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "dl.gpu-available",
+      "track": "dl",
+      "title": "一句话确认 PyTorch 能不能用 GPU",
+      "goal": "用 python3 一行命令打印 CUDA 是否可用以及可见的 GPU 数量",
+      "hint": "torch.cuda.is_available() 与 device_count() 是训练前的第一道体检",
+      "sample": "python3 -c \"import torch; print(torch.cuda.is_available(), torch.cuda.device_count())\"",
+      "require": [
+        {
+          "p": "import\\s+torch",
+          "tip": "应导入 torch"
+        },
+        {
+          "p": "cuda\\.is_available",
+          "tip": "缺少 torch.cuda.is_available()"
+        },
+        {
+          "p": "device_count",
+          "tip": "缺少 device_count()，看不到有几张卡"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "nvidia-smi.*is_available",
+          "tip": "nvidia-smi 只能看驱动，判断 PyTorch 能不能用要问 torch 自己"
+        }
+      ],
+      "verify": {
+        "cmd": "python3 --version",
+        "expect": "Python 3",
+        "note": "前置检查：训练脚本需要 python3"
+      },
+      "level": "medium"
+    },
+    {
+      "id": "dl.train-cli",
+      "track": "dl",
+      "title": "起一次可复现的训练",
+      "goal": "跑 train.py：50 轮、批大小 32、用 CUDA、固定随机种子 42",
+      "hint": "种子固定才谈得上复现；--device cuda 显式指定，别依赖默认",
+      "sample": "python3 train.py --epochs 50 --batch-size 32 --device cuda --seed 42",
+      "require": [
+        {
+          "p": "python3?\\s+train\\.py",
+          "tip": "应运行 train.py"
+        },
+        {
+          "p": "--epochs[= ]50",
+          "tip": "缺少 --epochs 50"
+        },
+        {
+          "p": "--batch-size[= ]32|--batch_size[= ]32",
+          "tip": "缺少批大小 32"
+        },
+        {
+          "p": "--device[= ]cuda",
+          "tip": "缺少 --device cuda"
+        },
+        {
+          "p": "--seed[= ]42",
+          "tip": "缺少 --seed 42，训练不可复现"
+        }
+      ],
+      "forbid": [],
+      "level": "medium"
+    },
+    {
+      "id": "dl.gpu-memory",
+      "track": "dl",
+      "title": "看显存占用（训练 OOM 前的体检）",
+      "goal": "用 nvidia-smi 查询显存已用与总量，输出成 CSV 格式",
+      "hint": "--query-gpu 选字段，--format=csv 好解析",
+      "sample": "nvidia-smi --query-gpu=memory.used,memory.total --format=csv",
+      "require": [
+        {
+          "p": "nvidia-smi",
+          "tip": "应使用 nvidia-smi"
+        },
+        {
+          "p": "--query-gpu=",
+          "tip": "缺少 --query-gpu 指定字段"
+        },
+        {
+          "p": "memory\\.used",
+          "tip": "缺少 memory.used"
+        },
+        {
+          "p": "memory\\.total",
+          "tip": "缺少 memory.total"
+        },
+        {
+          "p": "--format=csv",
+          "tip": "缺少 --format=csv，输出不好解析"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "^\\s*nvidia-smi\\s*$",
+          "tip": "裸跑 nvidia-smi 信息太多，查询要用 --query-gpu"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "dl.tensorboard",
+      "track": "dl",
+      "title": "起 TensorBoard 看训练曲线",
+      "goal": "在 runs 目录上启动 TensorBoard，端口 6006",
+      "hint": "--logdir 指向日志目录，--port 指定端口",
+      "sample": "tensorboard --logdir runs --port 6006",
+      "require": [
+        {
+          "p": "tensorboard",
+          "tip": "应使用 tensorboard"
+        },
+        {
+          "p": "--logdir[= ]runs",
+          "tip": "缺少 --logdir runs"
+        },
+        {
+          "p": "--port[= ]6006",
+          "tip": "缺少 --port 6006"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "tensorboard\\s*\\.\\s*",
+          "tip": "模块写法（python -m tensorboard）与命令写法二选一即可，注意别写成非法调用"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "dl.resume-checkpoint",
+      "track": "dl",
+      "title": "从上次的 checkpoint 续训",
+      "goal": "从 runs/last.ckpt 断点续训，总轮数 100",
+      "hint": "续训要显式传 --resume；总轮数才是目标值，不是再加 100 轮",
+      "sample": "python3 train.py --resume runs/last.ckpt --epochs 100",
+      "require": [
+        {
+          "p": "python3?\\s+train\\.py",
+          "tip": "应运行 train.py"
+        },
+        {
+          "p": "--resume[= ]runs/last\\.ckpt",
+          "tip": "缺少 --resume 指到 runs/last.ckpt"
+        },
+        {
+          "p": "--epochs[= ]100",
+          "tip": "总轮数应为 100"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "--epochs[= ]200",
+          "tip": "续训不是把轮数翻倍，写清总轮数即可"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "dl.amp-training",
+      "track": "dl",
+      "title": "开混合精度训练（省显存、提速）",
+      "goal": "训练时开启自动混合精度与梯度缩放：用 torch 的 autocast 包住前向计算，并用 GradScaler 反向",
+      "hint": "AMP 两步：with torch.autocast(device_type=\"cuda\") 包前向，scaler.scale(loss).backward() 反向",
+      "sample": "python3 -c \"import torch; scaler = torch.amp.GradScaler('cuda'); with torch.autocast(device_type='cuda'):\n    loss = model(x).sum()\nscaler.scale(loss).backward(); scaler.step(optimizer); scaler.update()\"",
+      "require": [
+        {
+          "p": "autocast",
+          "tip": "缺少 torch.autocast 混合精度上下文"
+        },
+        {
+          "p": "GradScaler|scaler",
+          "tip": "缺少 GradScaler 梯度缩放"
+        },
+        {
+          "p": "scaler\\.scale\\(|scale\\(loss\\)",
+          "tip": "反向传播要走 scaler.scale(loss).backward()"
+        },
+        {
+          "p": "scaler\\.step|scaler\\.update",
+          "tip": "优化器更新要走 scaler.step + scaler.update"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "half\\(\\)|model\\.half\\(\\)",
+          "tip": "AMP 用 autocast，不需要手工把模型转成 half"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "dl.lr-scheduler",
+      "track": "dl",
+      "title": "加学习率调度（余弦退火）",
+      "goal": "用 torch 的余弦退火调度器（T_max=50, eta_min=1e-5）包住优化器，并在每个 epoch 后 step 一次",
+      "hint": "调度器的 step 时机要和训练循环对齐：按 epoch 调就在 epoch 末尾 step",
+      "sample": "python3 -c \"import torch; sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=1e-5); sched.step()\"",
+      "require": [
+        {
+          "p": "CosineAnnealingLR|scheduler",
+          "tip": "缺少余弦退火调度器"
+        },
+        {
+          "p": "T_max=\\s*50",
+          "tip": "缺少 T_max=50"
+        },
+        {
+          "p": "eta_min=\\s*1e-5|eta_min=1e-05",
+          "tip": "缺少 eta_min=1e-5"
+        },
+        {
+          "p": "step\\(\\)",
+          "tip": "缺少在训练循环里调用 scheduler.step()"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "torch\\.optim\\.lr_scheduler\\.StepLR",
+          "tip": "本题要求余弦退火，不是 StepLR"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "dl.grad-clip",
+      "track": "dl",
+      "title": "梯度裁剪：防止梯度爆炸",
+      "goal": "反向传播后、优化器更新前，按最大范数 1.0 裁剪梯度",
+      "hint": "顺序不能反：先 backward、再 clip_grad_norm_、最后 optimizer.step()",
+      "sample": "python3 -c \"import torch; loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0); optimizer.step()\"",
+      "require": [
+        {
+          "p": "backward\\(\\)",
+          "tip": "缺少反向传播"
+        },
+        {
+          "p": "clip_grad_norm_|clip_grad_value_",
+          "tip": "缺少梯度裁剪调用"
+        },
+        {
+          "p": "max_norm=\\s*1(\\.0)?",
+          "tip": "裁剪阈值应为 max_norm=1.0"
+        },
+        {
+          "p": "optimizer\\.step",
+          "tip": "裁剪后要有优化器更新"
+        }
+      ],
+      "forbid": [
+        {
+          "p": "clip_grad_norm_.*before|step\\(\\).*clip_grad",
+          "tip": "顺序应是 backward → clip → step"
+        }
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "dl.grad-accum-amp-effective-batch",
+      "track": "dl",
+      "title": "显存不够但 batch 不能小：梯度累积 + 混合精度的有效 batch 要算清",
+      "goal": "在混合精度与梯度缩放的保护下做梯度累积，并按微批大小与累积步数算出真正的有效 batch 打印出来",
+      "hint": "autocast 只管前向精度，GradScaler 负责缩放与跳过；累积期间 loss 要除以累积步数，否则等价于放大了学习率",
+      "sample": "python3 -c \"import torch; from torch.cuda.amp import autocast, GradScaler; micro, accum = 8, 4; scaler = GradScaler(); print(\"effective batch\", micro * accum); [scaler.scale(loss / accum).backward() for loss in []]; print(torch.cuda.is_available())\"",
+      "require": [
+        {
+          "p": "autocast",
+          "tip": "要开混合精度前向"
+        },
+        {
+          "p": "GradScaler",
+          "tip": "要有梯度缩放，否则 fp16 会溢出"
+        },
+        {
+          "p": "loss / accum|loss/accum",
+          "tip": "累积时 loss 要除以累积步数"
+        },
+        {
+          "p": "accum",
+          "tip": "要有累积步数这个变量"
+        },
+        {
+          "p": "micro",
+          "tip": "要有微批大小"
+        },
+        {
+          "p": "effective batch",
+          "tip": "要算出并打印有效 batch，别让人自己乘"
+        }
+      ],
+      "level": "hard"
+    }
+  ]
+}

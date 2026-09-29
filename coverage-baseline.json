@@ -1,0 +1,150 @@
+{
+  "generatedAt": "2026-09-27T06:12:00.006Z",
+  "tolerance": 2,
+  "overall": {
+    "minLine": 88,
+    "minBranch": 74
+  },
+  "files": {
+    "src/agent.mjs": {
+      "minLine": 87,
+      "minBranch": 66
+    },
+    "src/cli.mjs": {
+      "minLine": 96,
+      "minBranch": 62
+    },
+    "src/cli/commands/analyze.mjs": {
+      "minLine": 66,
+      "minBranch": 49
+    },
+    "src/cli/commands/learn.mjs": {
+      "minLine": 76,
+      "minBranch": 72
+    },
+    "src/cli/commands/packs.mjs": {
+      "minLine": 86,
+      "minBranch": 62
+    },
+    "src/cli/commands/projects.mjs": {
+      "minLine": 24,
+      "minBranch": 12
+    },
+    "src/cli/commands/store.mjs": {
+      "minLine": 95,
+      "minBranch": 56
+    },
+    "src/cli/commands/tasks.mjs": {
+      "minLine": 95,
+      "minBranch": 76
+    },
+    "src/cli/commands/verify.mjs": {
+      "minLine": 91,
+      "minBranch": 50
+    },
+    "src/cli/context.mjs": {
+      "minLine": 97,
+      "minBranch": 85
+    },
+    "src/core/args.mjs": {
+      "minLine": 98,
+      "minBranch": 88
+    },
+    "src/core/catalog-audit.mjs": {
+      "minLine": 98,
+      "minBranch": 82
+    },
+    "src/core/exec.mjs": {
+      "minLine": 95,
+      "minBranch": 77
+    },
+    "src/core/ingest.mjs": {
+      "minLine": 68,
+      "minBranch": 43
+    },
+    "src/core/judge.mjs": {
+      "minLine": 98,
+      "minBranch": 87
+    },
+    "src/core/knowledge.mjs": {
+      "minLine": 97,
+      "minBranch": 88
+    },
+    "src/core/ocr.mjs": {
+      "minLine": 62,
+      "minBranch": 52
+    },
+    "src/core/packs.mjs": {
+      "minLine": 98,
+      "minBranch": 81
+    },
+    "src/core/plan.mjs": {
+      "minLine": 98,
+      "minBranch": 77
+    },
+    "src/core/platform.mjs": {
+      "minLine": 98,
+      "minBranch": 86
+    },
+    "src/core/progress.mjs": {
+      "minLine": 97,
+      "minBranch": 76
+    },
+    "src/core/project.mjs": {
+      "minLine": 96,
+      "minBranch": 64
+    },
+    "src/core/repo-learn.mjs": {
+      "minLine": 95,
+      "minBranch": 66
+    },
+    "src/core/runners.mjs": {
+      "minLine": 94,
+      "minBranch": 80
+    },
+    "src/core/schema.mjs": {
+      "minLine": 93,
+      "minBranch": 66
+    },
+    "src/core/selftest.mjs": {
+      "minLine": 83,
+      "minBranch": 72
+    },
+    "src/core/site-learn.mjs": {
+      "minLine": 97,
+      "minBranch": 74
+    },
+    "src/core/tasks.mjs": {
+      "minLine": 98,
+      "minBranch": 86
+    },
+    "src/core/trust.mjs": {
+      "minLine": 93,
+      "minBranch": 74
+    },
+    "src/core/version.mjs": {
+      "minLine": 98,
+      "minBranch": 86
+    },
+    "src/store.mjs": {
+      "minLine": 92,
+      "minBranch": 76
+    },
+    "src/web/api.mjs": {
+      "minLine": 93,
+      "minBranch": 88
+    },
+    "src/web/compress.mjs": {
+      "minLine": 98,
+      "minBranch": 92
+    },
+    "src/web/server.mjs": {
+      "minLine": 86,
+      "minBranch": 76
+    },
+    "src/web/static.mjs": {
+      "minLine": 95,
+      "minBranch": 90
+    }
+  }
+}
