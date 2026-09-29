@@ -1,6 +1,6 @@
 {
   "name": "dsh-learn",
-  "version": "0.194.0",
+  "version": "0.195.0",
   "private": true,
   "type": "module",
   "description": "跨平台命令行学习与验证工具（Linux / Docker）：核心评测逻辑与平台适配分离，CLI 与 Web 双客户端共用同一内核，macOS 优先。",

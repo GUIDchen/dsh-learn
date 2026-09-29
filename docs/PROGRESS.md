@@ -8,10 +8,10 @@
 | 阶段 | 内容 | 目标 | 状态 |
 | --- | --- | --- | --- |
 | 第一阶段 · 打磨 | 界面与布局、可读性、性能、无障碍、离线体验、题库与知识点一致性、题库扩充、交互与判定体验、真环境验证、版本化发布 | 50 轮 | 已完成（第 50 轮为节点，见完成报告 5.53 节小结） |
-| 第二阶段 · 继续推进 | 同一批目标继续做，每轮都要实测证据并同步文档 | 再 200 轮（累计 250 轮） | 进行中 174 / 200（累计已记录 224 轮） |
+| 第二阶段 · 继续推进 | 同一批目标继续做，每轮都要实测证据并同步文档 | 再 200 轮（累计 250 轮） | 进行中 175 / 200（累计已记录 225 轮） |
 
-- 完成报告章节（每轮一节）：221 节，最近一节：第 224 轮
-- 当前版本：0.194.0；发布记录：212 条（docs/RELEASES.md）
+- 完成报告章节（每轮一节）：222 节，最近一节：第 225 轮
+- 当前版本：0.195.0；发布记录：213 条（docs/RELEASES.md）
 
 ## 二、交付物现状
 
@@ -25,18 +25,18 @@
 | 题库体检 | 错误 0 / 提醒 0；结构提醒 0 |
 | 测试文件 | 81 个（node --test） |
 | verify.sh 检查点 | 61 处 check 调用（实际执行项数以「最近一次实测」为准，另有原生自检 20 条断言） |
-| 最近一次实测 | 2026-09-29 00:34:29：node --test 586 / 586，verify PASS 78 / FAIL 0，版本 0.193.0 |
+| 最近一次实测 | 2026-09-29 00:55:16：node --test 588 / 588，verify PASS 78 / FAIL 0，版本 0.194.0 |
 
 ## 二之补、最近轮次记录
 
 | 轮次 | 做了什么 |
 | --- | --- |
+| 第 225 轮 | 第 54 轮：结构优化第 1 步——store.mjs 拆出 home / atomic 两层 |
 | 第 224 轮 | 第 53 轮：审阅中发现并修掉的真 bug——日期口径分家（时区） |
 | 第 223 轮 | 第 52 轮：D 类第七项——目标提醒（D 类收官） |
 | 第 222 轮 | 第 51 轮：D 类第六项——进度趋势图与成绩单导出 |
 | 第 221 轮 | 第 50 轮：D 类第五项——UI 层 i18n |
 | 第 220 轮 | 第 49 轮：E 类——可选模型接入 + 固定评测集 |
-| 第 219 轮 | 第 48 轮：D 类第四项——移动端响应式 |
 
 （每轮都记在 docs/COMPLETION-REPORT.md，这里是最近 6 轮的标题，脚本从报告里解析，不手抄。）
 
@@ -116,6 +116,7 @@
 
 | 版本 | 时间 | 题库 | 说明 |
 | --- | --- | --- | --- |
+| 0.195.0 | 2026-09-29 09:52 | 637 题 / 25 轨道 | 结构优化第1步：store.mjs 拆出 home/atomic 两层（730→606 行，导出面零丢失、24 个调用方零改动）；把仓库纳入 git（初始提交 82979f1）；缺导入守卫补上 barrel 语法识别；新增 scripts/scan-tests.mjs 定位模块加载挂起。用例 588/588、e2e 29 步 |
 | 0.194.0 | 2026-09-29 08:48 | 637 题 / 25 轨道 | 审阅中发现并修掉真 bug：日期口径分家（时区）——core/progress.mjs 用本地时区、core/trend.mjs 用 UTC，导致 UTC+8 凌晨练习时目标提醒说「今天还没练」而进度已显示连续天数+1；新增 core/day.mjs 作为 dayKey/streakDays 唯一实现（本地时区），progress 与 trend 改为 import+re-export（调用方零改动），reminder 直接取 day.mjs；新增 test/day-timezone.test.mjs 用 TZ 子进程做跨时区回归（修前必失败）。过程事故如实记录：python 补丁误将 trend 内容写入 progress.mjs，项目无 git，用安装包内引擎副本复原并与 dist 副本 diff 一致、原 22 条用例全过后重做改动。全量 588/588、浏览器 e2e 29 步 |
 | 0.193.0 | 2026-09-29 08:26 | 637 题 / 25 轨道 | D类第七项：目标提醒（core/reminder.mjs + CLI remind + GET /api/reminder + 网页提醒条 + 原生 ⌘T 面板内一行）；补架构文档 core/reminder.mjs 并重生成 docs/API.md |
 | 0.192.0 | 2026-09-29 08:08 | 637 题 / 25 轨道 | D类第六项：进度趋势图与成绩单导出（core/trend.mjs + CLI scorecard + GET /api/scorecard + 网页右栏 SVG 柱状图与下载 + 原生 ⌘T TrendBox）；同时补架构文档 core/trend.mjs 行并重生成 docs/API.md |
@@ -123,7 +124,6 @@
 | 0.190.0 | 2026-09-29 00:30 | 637 题 / 25 轨道 | E类：可选模型接入 + 固定评测集（核心见 core/model.mjs 与 docs/BENCHMARK.md；同时刷新静态守卫基线，原因是新文件 model.mjs 里字符串内容被词法器误报） |
 | 0.189.0 | 2026-09-29 00:22 | 637 题 / 25 轨道 | D类第四项：移动端响应式（Web侧特性，CLI/原生端无对应面，如实说明不凑数）——页面三栏 grid 原本只有 1280/1080 断点，缺手机断点（390 宽会横向溢出）；新增 @media (max-width:820px)：三栏塌成一栏、粘性面板转静态、pp-grid 单列、按钮/输入最小 36px 触控高度、pre/table 限宽自滚、页栏换行、内边距走间距阶梯。证据：e2e 用 CDP 设备模拟 390×844 断言无横向溢出（scrollWidth-innerWidth≤2）与 gridTemplateColumns 单轨道，再切 1280 断言多轨道恢复，e2e 20→23 步全过。坑：第一版恢复断言误以为 clear 设备度量等于宽屏（headless 窗口仅 736px 仍单栏）断言错 CSS 对，改为显式模拟 1280；第一版 padding 用 10/20px 被间距阶梯守卫拦下 |
 | 0.188.0 | 2026-09-29 00:15 | 637 题 / 25 轨道 | D类第三项：深色模式（三端共享外观偏好）——home 里新增 preferences.json {version,theme:auto/light/dark}（store.readPrefs/writePrefs，写入留痕 prefs.write）、GET/POST /api/prefs、CLI prefs [--theme] [--json]；网页版新增 web/theme.mjs（优先级：localStorage→服务端偏好→auto 跟随系统，监听系统切换，页面栏加切换按钮，深色块覆盖页面既有变量 --bg/--fg/--muted/--line/--fill，字号走 --fs-xs）；原生端菜单「外观：跟随系统/浅色/深色」立即改 NSApp.appearance 并把偏好写回共享存储（Engine.prefs/setTheme）。坑与修法：/api/commands 与 /api/prefs 忘加进 api.mjs 的运维域移交清单导致 404（网页被兜底掩盖）；新 CSS 写死 12px 违反字号梯度守卫；theme.mjs 误把 api() 当业务函数（其实是 fetch 包装）导致 POST 没发出。证据：e2e 18→20 步全过（含点按钮变深 + 偏好写回）、build.sh exit 0、用例 prefs 3 条、全量 572/572 |
-| 0.187.0 | 2026-09-29 00:05 | 637 题 / 25 轨道 | D类第二项：命令面板与快捷键——立单一事实源 core/commands.mjs（id/标题/分组/快捷键/界面动作/CLI 等价命令，导出 searchCommands/groupedCommands/shortcutRows/renderCommands）并接三端：网页版 ⌘K/Ctrl+K 面板（DOM 动态建、↑↓ Enter Esc、⌘1-⌘4 切页、离线兜底清单+从 /api/commands 懒加载）、原生端 AppKit 菜单「命令面板…」⌘K + PaletteSheet（PaletteState 共享开关）与 Engine.commands()、CLI commands [--query] [--json]、接口 GET /api/commands。坑与修法：app.mjs 3011 超预算改为不存清单（回 2995）；原生是 AppKit 不是 Scene，.commands 编译报错改为在已有 applicationDidFinishLaunching 装 NSMenuItem（第一版重复方法报 redeclaration）；网页面板「先筛后到」加离线兜底+真过滤+拉回重渲染。证据：e2e 14→18 步全过（⌘K 打开/筛选/Esc 关闭/无异常）、build.sh exit 0、用例 3 条 |
 
 ## 六、学习侧的计划完成情况
 
