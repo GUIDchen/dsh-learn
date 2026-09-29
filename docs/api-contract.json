@@ -176,6 +176,17 @@
   ],
   "actions": [
     {
+      "name": "add",
+      "route": "/api/project",
+      "identifiers": [
+        "name",
+        "kind",
+        "text",
+        "source"
+      ],
+      "note": "往项目里收一条来源（旧实现是 if 链走完的默认分支，5.232 改成动作表后显式登记）"
+    },
+    {
       "name": "analyze",
       "route": "/api/jobs",
       "identifiers": [

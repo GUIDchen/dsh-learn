@@ -56,7 +56,8 @@
 | cli/commands/*.mjs | 命令实现按主题分文件：tasks / verify / learn / store / packs，统一签名 (ctx) → 退出码 | 各 core 模块 |
 | web/static.mjs | 静态资源：网页外壳、PWA 资源、判定内核模块 | fs |
 | web/api.mjs | 所有 /api/* 实现，与 HTTP 外壳解耦 | core + store |
-| web/routes/project.mjs | **项目域路由**（项目列表/详情/来源 + init/import/add/index/drill/jdplan/backfill/refresh/rename/delete/tasks）：从 api.mjs 按域拆出的第一块，约定「调用方只在 pathname 命中时整域移交，返回值表示是否已回响应」 |
+| web/routes/project.mjs | **项目域分发器（42 行）**：GET 交给 handleProjectGet、POST 查 ACTIONS 表；动作实现搬到 project-actions.mjs |
+| web/routes/project-actions.mjs | **项目域动作实现**（从 336 行的 if 链接出来）：delete/tasks/index/refresh/jdplan/drill/backfill/rename/import/init + 默认 add（收来源）+ GET 分支；加接口只改这里一行 |
 | web/routes/jobs.mjs | **投递域路由**（/api/jobs 增改删查 + /api/analyze JD 分析）：与 project 路由同一套「整域移交 + 返回是否已响应」约定 |
 | web/routes/flow.mjs | **流程域路由**（七步闭环：状态/简历/推荐/搜集/投递/题包/建计划）+ 只被它使用的三个装载函数（进度 + 项目 + 岗位三份数据） |
 | web/routes/research.mjs | **调研/理解域路由**（survey / describe / ocr / understand / search / research）：搜到 → 抓回 → 抽知识点与草案，OCR 走系统 Vision |

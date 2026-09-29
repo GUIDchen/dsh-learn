@@ -117,8 +117,8 @@
       "marker": "importTree("
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
-      "marker": "action === 'import'"
+      "file": "src/web/routes/project-actions.mjs",
+      "marker": "import: actionImport"
     },
     "web": {
       "file": "web/app.mjs",
@@ -165,7 +165,7 @@
       "marker": "readSourceText("
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
+      "file": "src/web/routes/project-actions.mjs",
       "marker": "url.searchParams.get('source')"
     },
     "web": {
@@ -187,8 +187,8 @@
       "marker": "projectDrillPlan("
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
-      "marker": "action === 'drill'"
+      "file": "src/web/routes/project-actions.mjs",
+      "marker": "drill: actionDrill"
     },
     "web": {
       "file": "web/app.mjs",
@@ -209,8 +209,8 @@
       "marker": "buildJdPlan("
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
-      "marker": "action === 'jdplan'"
+      "file": "src/web/routes/project-actions.mjs",
+      "marker": "jdplan: actionJdplan"
     },
     "web": {
       "file": "web/app.mjs",
@@ -253,8 +253,8 @@
       "marker": "backfillAll("
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
-      "marker": "action === 'backfill'"
+      "file": "src/web/routes/project-actions.mjs",
+      "marker": "backfill: actionBackfill"
     },
     "web": {
       "file": "web/index.html",
@@ -275,8 +275,8 @@
       "marker": "renameProject("
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
-      "marker": "action === 'rename'"
+      "file": "src/web/routes/project-actions.mjs",
+      "marker": "rename: actionRename"
     },
     "web": {
       "file": "web/app.mjs",
@@ -477,8 +477,8 @@
       "marker": "sub === 'refresh'"
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
-      "marker": "action === 'refresh'"
+      "file": "src/web/routes/project-actions.mjs",
+      "marker": "refresh: actionRefresh"
     },
     "web": {
       "file": "web/app.mjs",
@@ -609,7 +609,7 @@
       "marker": "projectSearchHit(row, query)"
     },
     "api": {
-      "file": "src/web/routes/project.mjs",
+      "file": "src/web/routes/project-actions.mjs",
       "marker": "url.searchParams.get('missingText')"
     },
     "web": {

@@ -53,10 +53,11 @@
 | `/api/understand` | 文字理解（硬要求 / 加分项 / 技术栈结构） |
 | `/api/verify` | 题目验证（只读白名单，默认 dry-run） |
 
-## POST 动作（22 个）
+## POST 动作（23 个）
 
 | action | 所在路由 | 识别的字段 | 说明 |
 | --- | --- | --- | --- |
+| `add` | /api/project | `name` / `kind` / `text` / `source` | 往项目里收一条来源（旧实现是 if 链走完的默认分支，5.232 改成动作表后显式登记） |
 | `analyze` | /api/jobs | `id` | 分析岗位记录里的 JD，结果存回记录 |
 | `apply` | /api/flow | `id` | 把岗位记录置为已投（状态时间线留痕） |
 | `backfill` | /api/project | —（批量，不需要） | 旧数据回填原文；不需要项目名（批量） |

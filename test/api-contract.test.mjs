@@ -20,7 +20,19 @@ const contract = JSON.parse(readFileSync(join(ROOT, 'docs/api-contract.json'), '
 
 test('接口契约：代码里的每个路由与 action 都已登记，登记了也都存在', function () {
   const codeRoutes = [...new Set((api.match(/pathname === '[^']+'/g) || []).map(function (x) { return x.replace(/pathname === |'/g, ''); }))].sort();
-  const codeActions = [...new Set((api.match(/action === '[^']+'/g) || []).map(function (x) { return x.replace(/action === |'/g, ''); }))].sort();
+  // action 有两种写法：老的 if 链（action === 'x'）与新的动作表（const ACTIONS = { x: fn }）。
+  // 动作表是 5.232 引入的分发方式，守卫必须认得——否则改成动作表就等于绕过了契约对账。
+  const tableActions = [];
+  const tableRe = /const ACTIONS = \{([\s\S]*?)\n\};/g;
+  let tableHit;
+  while ((tableHit = tableRe.exec(api)) !== null) {
+    (tableHit[1].match(/^\s*([A-Za-z][A-Za-z0-9]*):/gm) || []).forEach(function (line) {
+      tableActions.push(line.trim().replace(':', ''));
+    });
+  }
+  const codeActions = [...new Set([]
+    .concat((api.match(/action === '[^']+'/g) || []).map(function (x) { return x.replace(/action === |'/g, ''); }))
+    .concat(tableActions))].sort();
   const docRoutes = contract.routes.map(function (row) { return row.path; }).sort();
   const docActions = contract.actions.map(function (row) { return row.name; }).sort();
   assert.deepEqual(codeRoutes, docRoutes, '路由不一致：代码有 ' + codeRoutes.length + ' 条，契约有 ' + docRoutes.length + ' 条'

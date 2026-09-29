@@ -42,7 +42,8 @@ const BUDGETS = [
   { file: 'web/reminder.mjs', max: 140, note: '网页版目标提醒条' },
   { file: 'src/web/routes/flow.mjs', max: 260, note: '流程域路由 + 装载函数' },
   { file: 'src/web/routes/jobs.mjs', max: 220, note: '投递域路由' },
-  { file: 'src/web/routes/project.mjs', max: 400, note: '项目域路由' },
+  { file: 'src/web/routes/project.mjs', max: 120, note: '项目域分发器：GET 调 handleProjectGet、POST 查 ACTIONS 表' },
+  { file: 'src/web/routes/project-actions.mjs', max: 400, note: '项目域动作实现（每个 action 一个函数）+ ACTIONS 表' },
   { file: 'src/core/project.mjs', max: 800, note: '索引/来源/草案可再分' }
 ];
 
