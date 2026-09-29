@@ -13,9 +13,9 @@
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.198.0</string>
+  <string>0.199.0</string>
   <key>CFBundleVersion</key>
-  <string>19800</string>
+  <string>19900</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>
