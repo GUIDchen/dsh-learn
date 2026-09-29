@@ -19,7 +19,15 @@ const api = [readFileSync(join(ROOT, 'src/web/api.mjs'), 'utf8')].concat(
 const contract = JSON.parse(readFileSync(join(ROOT, 'docs/api-contract.json'), 'utf8'));
 
 test('接口契约：代码里的每个路由与 action 都已登记，登记了也都存在', function () {
-  const codeRoutes = [...new Set((api.match(/pathname === '[^']+'/g) || []).map(function (x) { return x.replace(/pathname === |'/g, ''); }))].sort();
+  // 路由有两种写法：老的 if（pathname === '/api/x'）与新的路由表（'GET /api/x': fn）。
+  // 表键必须一起收集，否则改成表驱动就等于绕过了契约对账（project 域那轮吃过一次）。
+  const tableRoutes = [];
+  const routeTableRe = /'([A-Z]+) (\/api\/[a-z0-9-]+)':/g;
+  let routeHit;
+  while ((routeHit = routeTableRe.exec(api)) !== null) tableRoutes.push(routeHit[2]);
+  const codeRoutes = [...new Set([]
+    .concat((api.match(/pathname === '[^']+'/g) || []).map(function (x) { return x.replace(/pathname === |'/g, ''); }))
+    .concat(tableRoutes))].sort();
   // action 有两种写法：老的 if 链（action === 'x'）与新的动作表（const ACTIONS = { x: fn }）。
   // 动作表是 5.232 引入的分发方式，守卫必须认得——否则改成动作表就等于绕过了契约对账。
   const tableActions = [];

@@ -7,8 +7,8 @@
       "marker": "check: tasks.check,"
     },
     "api": {
-      "file": "src/web/routes/learn.mjs",
-      "marker": "pathname === '/api/check'"
+      "file": "src/web/routes/learn-actions.mjs",
+      "marker": "POST /api/check"
     },
     "web": {
       "file": "web/app.mjs",
@@ -451,8 +451,8 @@
       "marker": "runners: verify.runners"
     },
     "api": {
-      "file": "src/web/routes/learn.mjs",
-      "marker": "pathname === '/api/runners'"
+      "file": "src/web/routes/learn-actions.mjs",
+      "marker": "GET /api/runners"
     },
     "web": {
       "absent": true,
@@ -521,7 +521,7 @@
       "marker": "assessAnswer"
     },
     "api": {
-      "file": "src/web/routes/learn.mjs",
+      "file": "src/web/routes/learn-actions.mjs",
       "marker": "assessAnswer(task, body.answer"
     },
     "web": {
@@ -565,7 +565,7 @@
       "marker": "locateMissing(task, answer, platform)"
     },
     "api": {
-      "file": "src/web/routes/learn.mjs",
+      "file": "src/web/routes/learn-actions.mjs",
       "marker": "feedback: result.missing"
     },
     "web": {

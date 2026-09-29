@@ -61,7 +61,8 @@
 | web/routes/jobs.mjs | **投递域路由**（/api/jobs 增改删查 + /api/analyze JD 分析）：与 project 路由同一套「整域移交 + 返回是否已响应」约定 |
 | web/routes/flow.mjs | **流程域路由**（七步闭环：状态/简历/推荐/搜集/投递/题包/建计划）+ 只被它使用的三个装载函数（进度 + 项目 + 岗位三份数据） |
 | web/routes/research.mjs | **调研/理解域路由**（survey / describe / ocr / understand / search / research）：搜到 → 抓回 → 抽知识点与草案，OCR 走系统 Vision |
-| web/routes/learn.mjs | **学习核心域路由**（bootstrap / drill / history / board / progress / daily / report / plan / import / export / check / verify / runners）：判定与验证走 core/judge.mjs 与 core/exec.mjs，离线判分靠下发 bootstrap 规则 |
+| web/routes/learn.mjs | **学习域分发器（25 行）**：ROUTES 表键是「方法 + 路径」，与改造前的 if 链逐条对应 |
+| web/routes/learn-actions.mjs | **学习域动作实现**（从 273 行的 if 链接出来）：bootstrap/drill/history/board/progress/daily/report/plan/import/export/check/verify/runners + 变体题 helper |
 | web/routes/ops.mjs | **运维域路由**（存储 schema 状态与迁移、整机备份与恢复、运行指标 /api/metrics、首次运行引导 /api/onboarding）：api.mjs 超预算后按域拆出的第五块 |
 | core/trust.mjs | 外部题库包的信任模型：HMAC 签名、哈希锁定（TOFU）、加载门禁 | crypto + fs |
 | core/selftest.mjs | 平台自检：把题库里的 BSD/GNU 假设拿到当前主机逐条实测 | child_process |
