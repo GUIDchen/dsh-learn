@@ -1,6 +1,6 @@
 {
   "note": "静态「用了但没声明」的基线：只允许存量，新增一律失败（差分口径见 scripts/lint-unresolved.mjs）",
-  "updatedAt": "2026-09-28T23:46:35.532Z",
+  "updatedAt": "2026-09-29T02:47:50.722Z",
   "entries": [
     {
       "file": "scripts/boss-harvest-keywords.mjs",
@@ -167,10 +167,6 @@
       "name": "node"
     },
     {
-      "file": "src/cli/commands/analyze.mjs",
-      "name": "summarize"
-    },
-    {
       "file": "src/cli/commands/describe.mjs",
       "name": "Cookie"
     },
@@ -181,10 +177,6 @@
     {
       "file": "src/cli/commands/flow.mjs",
       "name": "Cookie"
-    },
-    {
-      "file": "src/cli/commands/flow.mjs",
-      "name": "renderStudyPlan"
     },
     {
       "file": "src/cli/commands/projects.mjs",
@@ -620,10 +612,6 @@
     },
     {
       "file": "src/core/model.mjs",
-      "name": "understandText"
-    },
-    {
-      "file": "src/core/model.mjs",
       "name": "user"
     },
     {
@@ -999,16 +987,8 @@
       "name": "s"
     },
     {
-      "file": "src/web/api.mjs",
-      "name": "research"
-    },
-    {
       "file": "src/web/compress.mjs",
       "name": "application"
-    },
-    {
-      "file": "src/web/routes/research.mjs",
-      "name": "research"
     },
     {
       "file": "src/web/static.mjs",

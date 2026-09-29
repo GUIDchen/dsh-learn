@@ -108,6 +108,7 @@ function identifiers(text) {
 // 所以 x 若在同一个文件里被当变量用，运行时会 ReferenceError（本会话栽过三次）。
 const RE_EXPORTED_ONLY = new Set();
 const RE_EXPORT_RANGES = [];
+const DECL_RANGES = [];   // import 与裸 export 语句：里面的名字是声明/转发，不是使用
 const LOCALLY_IMPORTED = new Set();
 
 export function collectDeclared(text) {
@@ -115,9 +116,11 @@ export function collectDeclared(text) {
   RE_EXPORTED_ONLY.clear();
   LOCALLY_IMPORTED.clear();
   RE_EXPORT_RANGES.length = 0;
+  DECL_RANGES.length = 0;
   let m;
   const importRe = /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*(?:\*\s+as\s+([A-Za-z_$][\w$]*))?\s*from\s*['"]/g;
   while ((m = importRe.exec(text)) !== null) {
+    DECL_RANGES.push({ start: m.index, end: importRe.lastIndex });
     if (m[1]) { names.add(m[1]); LOCALLY_IMPORTED.add(m[1]); RE_EXPORTED_ONLY.delete(m[1]); }
     if (m[3]) { names.add(m[3]); LOCALLY_IMPORTED.add(m[3]); RE_EXPORTED_ONLY.delete(m[3]); }
     (m[2] || '').split(',').forEach(function (item) {
@@ -125,6 +128,10 @@ export function collectDeclared(text) {
       if (local) { const clean = local.replace(/^\*+/, ''); names.add(clean); LOCALLY_IMPORTED.add(clean); RE_EXPORTED_ONLY.delete(clean); }
     });
   }
+  // 裸导出 export { a, b }; 里也只有名字转发，不是使用（写成不带 from 的桶文件时会出现）
+  const bareExportRe = /export\s*\{[^}]*\};/g;
+  while ((m = bareExportRe.exec(text)) !== null) DECL_RANGES.push({ start: m.index, end: bareExportRe.lastIndex });
+
   // barrel 再导出：export { a, b as c } from './x.mjs' —— 这些名字在本文件里是"声明"，
   // 不是"使用"。少了这条，任何 barrel 都会被误报（store.mjs 拆 home/atomic 时踩到）。
   const reExportRe = /export\s*\{([^}]*)\}\s*from\s*['"][^'"]+['"]/g;
@@ -181,7 +188,7 @@ export function collectUsed(text) {
     const token = tokens[i];
     if (!token.word) continue;
     // 再导出语句（export { a, b } from '...'）里的名字不是"使用"，只是转发
-    if (RE_EXPORT_RANGES.some(function (range) { return token.at >= range.start && token.at < range.end; })) continue;
+    if (RE_EXPORT_RANGES.concat(DECL_RANGES).some(function (range) { return token.at >= range.start && token.at < range.end; })) continue;
     const prev = tokens[i - 1];
     if (prev && prev.punct === '.') continue;
     if (prev && prev.punct === '?' && tokens[i - 2] && tokens[i - 2].punct === '.') continue;

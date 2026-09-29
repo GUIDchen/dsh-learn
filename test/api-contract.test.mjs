@@ -12,7 +12,12 @@ import { join } from 'node:path';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // 路由按域拆到 src/web/routes/*.mjs 之后，「代码里出现的路由/action」要连它们一起扫，
 // 否则守卫会误报「契约里多出」——这正是它该抓的漂移，所以扫面必须跟着代码结构走。
-const api = [readFileSync(join(ROOT, 'src/web/api.mjs'), 'utf8')].concat(
+// 小路由实现（api-routes.mjs）与各域路由都要扫：改了文件布局就得让守卫跟上，
+// 否则「搬走实现」会让对账静默失效（本轮项目域/学习域都遇到过）。
+const api = [
+  readFileSync(join(ROOT, 'src/web/api.mjs'), 'utf8'),
+  readFileSync(join(ROOT, 'src/web/api-routes.mjs'), 'utf8')
+].concat(
   readdirSync(join(ROOT, 'src/web/routes')).filter(function (name) { return name.endsWith('.mjs'); })
     .map(function (name) { return readFileSync(join(ROOT, 'src/web/routes', name), 'utf8'); })
 ).join(String.fromCharCode(10));

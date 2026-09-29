@@ -231,7 +231,7 @@
       "marker": "corpus: corpusCommand.corpus"
     },
     "api": {
-      "file": "src/web/api.mjs",
+      "file": "src/web/api-routes.mjs",
       "marker": "pathname === '/api/corpus'"
     },
     "web": {
@@ -298,7 +298,7 @@
     },
     "api": {
       "file": "src/web/api.mjs",
-      "marker": "pathname === '/api/jobs'"
+      "marker": "paths: ['/api/jobs', '/api/analyze']"
     },
     "web": {
       "file": "web/jobs.mjs",
@@ -499,7 +499,7 @@
       "marker": "doctor: doctorCommand.doctor"
     },
     "api": {
-      "file": "src/web/api.mjs",
+      "file": "src/web/api-routes.mjs",
       "marker": "pathname === '/api/doctor'"
     },
     "web": {
@@ -543,7 +543,7 @@
       "marker": "mastery: masteryCommand.mastery"
     },
     "api": {
-      "file": "src/web/api.mjs",
+      "file": "src/web/api-routes.mjs",
       "marker": "pathname === '/api/mastery'"
     },
     "web": {
@@ -587,7 +587,7 @@
       "marker": "sub === 'new'"
     },
     "api": {
-      "file": "src/web/api.mjs",
+      "file": "src/web/api-routes.mjs",
       "marker": "action === 'validate-all'"
     },
     "web": {
