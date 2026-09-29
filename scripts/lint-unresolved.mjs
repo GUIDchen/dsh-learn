@@ -104,25 +104,39 @@ function identifiers(text) {
   return text.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) || [];
 }
 
+// 「只再导出」的名字集合：export { x } from '...' 不会在当前模块建立 x 的本地绑定，
+// 所以 x 若在同一个文件里被当变量用，运行时会 ReferenceError（本会话栽过三次）。
+const RE_EXPORTED_ONLY = new Set();
+const RE_EXPORT_RANGES = [];
+const LOCALLY_IMPORTED = new Set();
+
 export function collectDeclared(text) {
   const names = new Set();
+  RE_EXPORTED_ONLY.clear();
+  LOCALLY_IMPORTED.clear();
+  RE_EXPORT_RANGES.length = 0;
   let m;
   const importRe = /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*(?:\*\s+as\s+([A-Za-z_$][\w$]*))?\s*from\s*['"]/g;
   while ((m = importRe.exec(text)) !== null) {
-    if (m[1]) names.add(m[1]);
-    if (m[3]) names.add(m[3]);
+    if (m[1]) { names.add(m[1]); LOCALLY_IMPORTED.add(m[1]); RE_EXPORTED_ONLY.delete(m[1]); }
+    if (m[3]) { names.add(m[3]); LOCALLY_IMPORTED.add(m[3]); RE_EXPORTED_ONLY.delete(m[3]); }
     (m[2] || '').split(',').forEach(function (item) {
       const local = item.split(' as ').pop().trim();
-      if (local) names.add(local.replace(/^\*+/, ''));
+      if (local) { const clean = local.replace(/^\*+/, ''); names.add(clean); LOCALLY_IMPORTED.add(clean); RE_EXPORTED_ONLY.delete(clean); }
     });
   }
   // barrel 再导出：export { a, b as c } from './x.mjs' —— 这些名字在本文件里是"声明"，
   // 不是"使用"。少了这条，任何 barrel 都会被误报（store.mjs 拆 home/atomic 时踩到）。
   const reExportRe = /export\s*\{([^}]*)\}\s*from\s*['"][^'"]+['"]/g;
   while ((m = reExportRe.exec(text)) !== null) {
+    RE_EXPORT_RANGES.push({ start: m.index, end: reExportRe.lastIndex });
     m[1].split(',').forEach(function (item) {
       const local = item.split(' as ').pop().trim();
-      if (local) names.add(local);
+      if (!local) return;
+      names.add(local);
+      // 只有「前面没有 import/声明过」的名字才算只再导出：
+      // 既 import 又再导出的（barrel 常见写法）本地绑定是存在的。
+      if (!names.has(local) || !LOCALLY_IMPORTED.has(local)) RE_EXPORTED_ONLY.add(local);
     });
   }
   const declRe = /\b(?:function|class)\s*([A-Za-z_$][\w$]*)|\b(?:var|let|const)\s+([^;=]+?)=|\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*(?:;|,|\)|$)/g;
@@ -162,10 +176,12 @@ export function collectUsed(text) {
   const tokens = [];
   const re = /([A-Za-z_$][\w$]*)|([.\[{(),;:=?!&|+\-*/%<>~^])/g;
   let m;
-  while ((m = re.exec(text)) !== null) tokens.push({ word: m[1] || '', punct: m[2] || '' });
+  while ((m = re.exec(text)) !== null) tokens.push({ word: m[1] || '', punct: m[2] || '', at: m.index });
   for (let i = 0; i < tokens.length; i += 1) {
     const token = tokens[i];
     if (!token.word) continue;
+    // 再导出语句（export { a, b } from '...'）里的名字不是"使用"，只是转发
+    if (RE_EXPORT_RANGES.some(function (range) { return token.at >= range.start && token.at < range.end; })) continue;
     const prev = tokens[i - 1];
     if (prev && prev.punct === '.') continue;
     if (prev && prev.punct === '?' && tokens[i - 2] && tokens[i - 2].punct === '.') continue;
@@ -182,8 +198,10 @@ export function analyzeSource(text) {
   const used = collectUsed(stripped);
   const unresolved = [];
   used.forEach(function (_count, name) {
-    if (declared.has(name)) return;
     if (BUILTIN_GLOBALS.has(name)) return;
+    // 只再导出、没有本地绑定：运行时 ReferenceError（barrel 最容易踩，本会话三次）
+    if (RE_EXPORTED_ONLY.has(name)) { unresolved.push(name + '（只再导出，未 import，不能当本地变量用）'); return; }
+    if (declared.has(name)) return;
     unresolved.push(name);
   });
   return { unresolved: unresolved.sort(), declaredCount: declared.size, usedCount: used.size };

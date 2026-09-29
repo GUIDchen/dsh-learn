@@ -27,6 +27,10 @@ export {
   homeDir, storagePath, jobsPath, jobsJournalPath, goalsPath, notesPath, preferencesPath, langValues, themeValues
 } from './store/home.mjs';
 
+// 投递域已拆到 src/store/jobs.mjs。**import 建立本地绑定**（export ... from 不给本地绑定，
+// 上一轮 progress.streakDays 与本轮 store.readJobs 都栽在这上面），再原样导出给调用方。
+import { appendJobsOps, clearJobs, compactJobs, deleteJobRecord, diffJobs, readJobs, upsertJobs, writeJobs } from './store/jobs.mjs';
+export { appendJobsOps, clearJobs, compactJobs, deleteJobRecord, diffJobs, readJobs, upsertJobs, writeJobs };
 
 function recordKey(item) {
   // 每条记录在写入时就拿到唯一 id。**不要拿字段组合当身份**：同毫秒、同分数、同判定的两次练习
@@ -291,185 +295,32 @@ export function importProgress(payload) {
 // 整段不是原子操作，多进程同时改会互相覆盖（实测 20 个写入者只剩 7 条，见 scripts/stress-jobs-write.mjs）。
 // 日志按「操作」追加（upsert / delete），读取时回放合并；攒够阈值再归档成快照。
 
-function readJobsSnapshot() {
-  const data = readJsonFile(JOBS_FILE, []);
-  // v1 是裸数组，v2 是 { version, jobs }——两种都认，这样没迁移的旧数据也照常可用
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object' && Array.isArray(data.jobs)) return data.jobs;
-  return [];
-}
-
 // 读岗位日志：结尾可能是半行（进程被杀），坏行忽略并计数
-function readJobsJournal() {
-  let raw = '';
-  try {
-    raw = readFileSync(JOBS_JOURNAL, 'utf8');
-  } catch (err) {
-    return { ops: [], brokenLines: 0 };
-  }
-  const lines = raw.split('\n');
-  const ops = [];
-  let brokenLines = 0;
-  lines.forEach(function (line) {
-    const text = line.trim();
-    if (!text) return;
-    try {
-      const op = JSON.parse(text);
-      if (op && (op.op === 'upsert' || op.op === 'delete')) ops.push(op);
-      else brokenLines += 1;
-    } catch (err) {
-      brokenLines += 1;
-    }
-  });
-  return { ops: ops, brokenLines: brokenLines };
-}
 
 // 把操作回放到快照上：upsert 覆盖同 id，delete 移除
-function applyJobsOps(base, ops) {
-  const map = new Map((base || []).filter(function (job) { return job && job.id; }).map(function (job) { return [job.id, job]; }));
-  (ops || []).forEach(function (op) {
-    if (op.op === 'delete') { map.delete(op.id); return; }
-    if (op.op === 'upsert' && op.job && op.job.id) map.set(op.job.id, op.job);
-  });
-  return Array.from(map.values());
-}
 
 // 按路径读日志原文（归档抢到 inode 后要用它再读一遍）
-function readRawJobsJournalAt(target) {
-  try {
-    return { text: readFileSync(target, 'utf8') };
-  } catch (err) {
-    return { text: '' };
-  }
-}
 
 // 解析岗位操作（供归档补读使用）
-function parseJobsOps(raw) {
-  const lines = String(raw || '').split('\n');
-  const ops = [];
-  let brokenLines = 0;
-  lines.forEach(function (line) {
-    const text = line.trim();
-    if (!text) return;
-    try {
-      const op = JSON.parse(text);
-      if (op && (op.op === 'upsert' || op.op === 'delete')) ops.push(op);
-      else brokenLines += 1;
-    } catch (err) { brokenLines += 1; }
-  });
-  return { ops: ops, brokenLines: brokenLines };
-}
 
 // 读日志原文（连大小）：归档要"读完再确认没变"才能删
-function readRawJobsJournal() {
-  try {
-    const text = readFileSync(JOBS_JOURNAL, 'utf8');
-    let size = 0;
-    try { size = statSync(JOBS_JOURNAL).size; } catch (err) { size = Buffer.byteLength(text); }
-    return { text: text, size: size };
-  } catch (err) {
-    return { text: '', size: 0 };
-  }
-}
 
 // 归档：把抢到的日志并进快照（期间新写入会落到新日志文件里，不会丢）
-export function compactJobs() {
-  const result = withCompactLock(function () { return compactJobsLocked(); });
-  if (result === null) { const rows = readJobs(); return Array.isArray(rows) ? rows.length : 0; }
-  return result;
-}
 
 // 清空岗位记录（测试与"重置"用）：显式操作，不能靠 writeJobs([]) 表达删除
-export function clearJobs() {
-  const done = withCompactLock(function () {
-    writeJsonAtomic(JOBS_FILE, { version: 2, jobs: [] });
-    try { unlinkSync(JOBS_JOURNAL); } catch (err) { /* 没有日志 */ }
-    return true;
-  });
-  if (!done) {
-    writeJsonAtomic(JOBS_FILE, { version: 2, jobs: [] });
-    try { unlinkSync(JOBS_JOURNAL); } catch (err) { /* 没有日志 */ }
-  }
-  return [];
-}
 
 // 归档（调用方必须已持锁）
-function compactJobsLocked() {
-  const journal = readJobsJournal();
-  const merged = applyJobsOps(readJobsSnapshot(), journal.ops);
-  writeJsonAtomic(JOBS_FILE, { version: 2, jobs: merged });
-  try { unlinkSync(JOBS_JOURNAL); } catch (err) { /* 没有日志 */ }
-  return merged.length;
-}
-
-export function appendJobsOps(ops) {
-  if (!ops || !ops.length) return readJobs();
-  ensureHome();
-  const payload = ops.map(function (op) { return JSON.stringify(op); }).join('\n') + '\n';
-  // 锁内完成；拿不到锁会一直等（陈旧锁可抢占），不会退化成"裸写"
-  return withCompactLock(function () {
-    appendFileSync(JOBS_JOURNAL, payload);
-    if (readJobsJournal().ops.length >= JOBS_COMPACT_THRESHOLD) compactJobsLocked();
-    return readJobs();
-  });
-}
 
 // 差量：把「整份新数组」翻译成操作（调用方照旧传全量，语义不变）
-export function diffJobs(current, next) {
-  const curMap = new Map((current || []).map(function (job) { return [job.id, job]; }));
-  const nextMap = new Map((next || []).filter(function (job) { return job && job.id; }).map(function (job) { return [job.id, job]; }));
-  const ops = [];
-  nextMap.forEach(function (job, id) {
-    const before = curMap.get(id);
-    if (!before || JSON.stringify(before) !== JSON.stringify(job)) ops.push({ op: 'upsert', job: job });
-  });
-  curMap.forEach(function (job, id) {
-    if (job && !nextMap.has(id)) ops.push({ op: 'delete', id: id });
-  });
-  return ops;
-}
 
 // 简历投递记录：一个数组（口径在 core/jobs.mjs，CLI / 网页版 / 原生端同一份）。
-export function readJobs() {
-  const snapshot = readJobsSnapshot();
-  const journal = readJobsJournal();
-  const rows = applyJobsOps(snapshot, journal.ops);
-  if (journal.brokenLines) rows.brokenJournalLines = journal.brokenLines;
-  return rows;
-}
 
 // 只增改：把传入的每一行当作 upsert 追加（**不会删除**任何记录）。
 // 这样即使调用方基于陈旧读取拼出数组，也不会把别人的记录删掉——竞态由此消失。
-export function upsertJobs(jobs) {
-  const current = new Map();
-  (readJobs() || []).forEach(function (job) { if (job && job.id) current.set(job.id, job); });
-  const seen = new Map();
-  (Array.isArray(jobs) ? jobs : []).forEach(function (job) {
-    if (job && job.id) seen.set(job.id, job);
-  });
-  // 只追加"新增或内容有变化"的行：把整份数组都写成操作会放大日志（200 个写入者 → 频繁归档 → 抢锁）
-  const ops = [];
-  seen.forEach(function (job, id) {
-    const before = current.get(id);
-    if (!before || JSON.stringify(before) !== JSON.stringify(job)) ops.push({ op: 'upsert', job: job });
-  });
-  if (ops.length) appendJobsOps(ops);
-  const rows = readJobs();
-  return Array.isArray(rows) ? rows.slice() : rows;
-}
 
 // 删除必须显式调用（不能用"写一份不含它的数组"来表达删除，那正是丢记录的根源）
-export function deleteJobRecord(id) {
-  if (!id) { const rows = readJobs(); return Array.isArray(rows) ? rows.slice() : rows; }
-  appendJobsOps([{ op: 'delete', id: String(id) }]);
-  const rows = readJobs();
-  return Array.isArray(rows) ? rows.slice() : rows;
-}
 
 // 兼容老调用点：writeJobs 现在等价于 upsert（只增改）。删除请用 deleteJobRecord。
-export function writeJobs(jobs) {
-  return upsertJobs(jobs);
-}
 
 // 外观与界面偏好：三端共用一份（CLI 可改，网页与原生端读取后应用）。
 // 只存"用户显式选过的"，系统跟随（auto）是默认值——这样新装用户开箱就是跟随系统。

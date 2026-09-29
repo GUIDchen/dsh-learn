@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import { compareBaseline, lintRepository, loadBaseline } from '../scripts/lint-unresolved.mjs';
+import { analyzeSource, compareBaseline, lintRepository, loadBaseline } from '../scripts/lint-unresolved.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -21,4 +21,20 @@ test('守卫扫面足够大，且基线不膨胀（误报不能当垃圾桶）',
   assert.ok(report.findings.length <= 300, '存量过多说明误报失控，该收紧分析器或写清原因：' + report.findings.length);
   const baseline = loadBaseline(ROOT);
   assert.ok(baseline.entries.length >= report.findings.length - 5, '基线要覆盖当前存量（只允许已修掉少量）');
+});
+
+test('barrel 写法：既 import 又再导出是合法的；只再导出却被当本地变量用要报出来', function () {
+  const ok = analyzeSource([
+    "import { readJobs } from './jobs.mjs';",
+    "export { readJobs };",
+    "export function use() { return readJobs(); }"
+  ].join(String.fromCharCode(10)));
+  assert.deepEqual(ok.unresolved, [], '既 import 又再导出不该报：' + ok.unresolved.join(','));
+
+  const bad = analyzeSource([
+    "export { readJobs } from './jobs.mjs';",
+    "export function use() { return readJobs(); }"
+  ].join(String.fromCharCode(10)));
+  assert.equal(bad.unresolved.length, 1, '只再导出却被本地使用必须报：' + JSON.stringify(bad.unresolved));
+  assert.ok(bad.unresolved[0].indexOf('只再导出') > -1, bad.unresolved[0]);
 });
