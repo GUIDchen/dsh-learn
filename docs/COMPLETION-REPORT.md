@@ -179,9 +179,9 @@
 | 2 | 5.51 – 5.100 | 50 | [rounds-051-100.md](report/rounds-051-100.md) |
 | 3 | 5.101 – 5.150 | 50 | [rounds-101-150.md](report/rounds-101-150.md) |
 | 4 | 5.151 – 5.200 | 50 | [rounds-151-200.md](report/rounds-151-200.md) |
-| 5 | 5.201 – 5.229 | 29 | [rounds-201-250.md](report/rounds-201-250.md) |
+| 5 | 5.201 – 5.230 | 30 | [rounds-201-250.md](report/rounds-201-250.md) |
 
-共 **229** 节逐轮记录；小节编号唯一、不跳号（守卫 test/report-split.test.mjs 逐个核对）。
+共 **230** 节逐轮记录；小节编号唯一、不跳号（守卫 test/report-split.test.mjs 逐个核对）。
 
 ## 6. 运行入口
 

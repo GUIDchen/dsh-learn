@@ -1,8 +1,8 @@
 {
-  "at": "2026-09-29T01:58:37.300Z",
-  "tests": 588,
-  "testPass": 588,
+  "at": "2026-09-29T02:10:52.919Z",
+  "tests": 589,
+  "testPass": 589,
   "verifyPass": 78,
   "verifyFail": 0,
-  "version": "0.195.0"
+  "version": "0.196.0"
 }
