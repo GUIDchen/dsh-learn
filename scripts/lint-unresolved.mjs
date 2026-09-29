@@ -116,6 +116,15 @@ export function collectDeclared(text) {
       if (local) names.add(local.replace(/^\*+/, ''));
     });
   }
+  // barrel 再导出：export { a, b as c } from './x.mjs' —— 这些名字在本文件里是"声明"，
+  // 不是"使用"。少了这条，任何 barrel 都会被误报（store.mjs 拆 home/atomic 时踩到）。
+  const reExportRe = /export\s*\{([^}]*)\}\s*from\s*['"][^'"]+['"]/g;
+  while ((m = reExportRe.exec(text)) !== null) {
+    m[1].split(',').forEach(function (item) {
+      const local = item.split(' as ').pop().trim();
+      if (local) names.add(local);
+    });
+  }
   const declRe = /\b(?:function|class)\s*([A-Za-z_$][\w$]*)|\b(?:var|let|const)\s+([^;=]+?)=|\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*(?:;|,|\)|$)/g;
   while ((m = declRe.exec(text)) !== null) {
     identifiers(m[1] || m[2] || m[3] || '').forEach(function (name) { names.add(name); });

@@ -14,17 +14,19 @@ import { randomUUID } from 'node:crypto';
 import { leaderboard } from './core/progress.mjs';
 import { detectStorage, migrateStorageValue, storageReport } from './core/storage-schema.mjs';
 import { logEvent } from './core/log.mjs';
+import {
+  BACKUP, COMPACT_THRESHOLD, FILE, GOALS_FILE, HOME, JOBS_COMPACT_THRESHOLD, JOBS_FILE, JOBS_JOURNAL, JOURNAL,
+  LANG_VALUES, NOTES_FILE, PREFS_FILE, THEME_VALUES,
+  ensureHome, goalsPath, homeDir, jobsJournalPath, jobsPath, langValues, notesPath, preferencesPath, storagePath, themeValues
+} from './store/home.mjs';
+import { parseRecords, quarantine, readJsonFile, withCompactLock, writeJsonAtomic } from './store/atomic.mjs';
 
-const HOME = process.env.DSH_LEARN_HOME || join(homedir(), '.dsh-learn');
-const FILE = join(HOME, 'progress.json');
-const BACKUP = FILE + '.bak';
-const JOURNAL = join(HOME, 'progress.ndjson');
-// 日志攒到这么多条就归档进快照（太小会频繁重写，太大读取会变慢）
-const COMPACT_THRESHOLD = 200;
+// 对外接口保持不变：搬走的名字在这里原样再导出，24 个调用方零改动。
+export {
+  BACKUP, STORAGE_PATH, JOURNAL_PATH, BACKUP_PATH,
+  homeDir, storagePath, jobsPath, jobsJournalPath, goalsPath, notesPath, preferencesPath, langValues, themeValues
+} from './store/home.mjs';
 
-export const STORAGE_PATH = FILE;
-export const JOURNAL_PATH = JOURNAL;
-export const BACKUP_PATH = BACKUP;
 
 function recordKey(item) {
   // 每条记录在写入时就拿到唯一 id。**不要拿字段组合当身份**：同毫秒、同分数、同判定的两次练习
@@ -44,32 +46,6 @@ function dedupe(records) {
   return Array.from(map.values()).sort(function (a, b) {
     return String(a.at || '').localeCompare(String(b.at || ''));
   });
-}
-
-function ensureHome() {
-  mkdirSync(HOME, { recursive: true });
-}
-
-function parseRecords(text) {
-  try {
-    const data = JSON.parse(text);
-    if (Array.isArray(data)) return { records: data, broken: false };
-    if (data && Array.isArray(data.records)) return { records: data.records, broken: false };
-    return { records: [], broken: true };
-  } catch (err) {
-    return { records: [], broken: true };
-  }
-}
-
-function quarantine(file) {
-  if (!existsSync(file)) return null;
-  const target = file + '.corrupt-' + Date.now();
-  try {
-    renameSync(file, target);
-    return target;
-  } catch (err) {
-    return null;
-  }
 }
 
 // 读快照：坏了就用 .bak，.bak 也坏就把坏文件改名留档并返回空
@@ -176,45 +152,6 @@ function readRawJournal(file) {
 //   2. 归档改成"rename 抢 inode + 补读" → 仍有偶发：补读与 unlink 之间还能追加；
 //   3. 写入也持锁 → 窗口彻底消失（本工具真实并发只有 CLI/网页/原生几个客户端，串行代价可忽略）。
 // 拿不到锁就跳过归档（日志继续增长，记录不会丢），而不是硬上。
-function withCompactLock(fn) {
-  ensureHome();
-  const lock = join(HOME, '.compact.lock');
-  const started = Date.now();
-  const hardStop = started + 30000;
-  for (;;) {
-    try {
-      const fd = openSync(lock, 'wx');
-      try {
-        return fn();
-      } finally {
-        try { closeSync(fd); } catch (err) { /* 已关 */ }
-        try { unlinkSync(lock); } catch (err) { /* 已被清 */ }
-      }
-    } catch (err) {
-      if (err.code !== 'EEXIST') {
-        // 故障注入实测：只读 home / 写满磁盘时，原始 EACCES/ENOSPC 对用户毫无指向性，
-        // 这里补上「是哪个目录、怎么办」，并保留原始 code/cause 便于程序判断。
-        const hint = (err.code === 'EACCES' || err.code === 'EPERM')
-          ? ('　（目录不可写：检查 ' + HOME + ' 的权限，或设置 DSH_LEARN_HOME 指到可写目录）')
-          : (err.code === 'ENOSPC' ? '　（磁盘写满：先清理空间；本次写入没有执行）' : '');
-        const wrapped = new Error('存储写入失败：' + (err.message || err) + hint);
-        wrapped.code = err.code;
-        wrapped.cause = err;
-        throw wrapped;
-      }
-      // 陈旧锁（持有者挂了）直接抢占
-      try {
-        if (Date.now() - statSync(lock).mtimeMs > 5000) { unlinkSync(lock); continue; }
-      } catch (gone) { /* 锁刚被释放，下一轮就能拿到 */ }
-      if (Date.now() > hardStop) {
-        throw new Error('存储写锁 30 秒未释放（可能有卡死的进程持有 ' + lock + '），本次写入未执行，请重试');
-      }
-      // 等锁：故意不做"拿不到就裸写"的兜底——那和归档 rename 打架，正是丢记录的来源
-      const waitUntil = Date.now() + 5;
-      while (Date.now() < waitUntil) { /* 自旋等锁 */ }
-    }
-  }
-}
 
 // 归档（调用方必须已持锁）
 function compactProgressLocked(baseRecords) {
@@ -254,11 +191,6 @@ export function record(entry) {
 }
 
 // 当前 home 目录（DSH_LEARN_HOME 或 ~/.dsh-learn）——备份/恢复、体检、CLI 都要用它
-export function homeDir() { return HOME; }
-
-export function storagePath() {
-  return FILE;
-}
 
 // 存储健康度：有没有从备份恢复、有没有被忽略的坏行、日志攒了多少。
 // CLI 与接口都会把它暴露出来，避免"数据悄悄少了几条却没人知道"。
@@ -355,14 +287,9 @@ export function importProgress(payload) {
 
 // 清空进度：日志里的待归档记录也必须一起丢掉，否则"清零"后会立刻复活。
 // ---------------- 目标与笔记（同样是原子写，坏了不拖累进度） ----------------
-const GOALS_FILE = join(HOME, 'goals.json');
-const NOTES_FILE = join(HOME, 'notes.json');
-const JOBS_FILE = join(HOME, 'jobs.json');
 // 岗位记录也用「追加日志 + 定期归档」：写单文件是原子的，但 readJobs → 改 → writeJobs
 // 整段不是原子操作，多进程同时改会互相覆盖（实测 20 个写入者只剩 7 条，见 scripts/stress-jobs-write.mjs）。
 // 日志按「操作」追加（upsert / delete），读取时回放合并；攒够阈值再归档成快照。
-const JOBS_JOURNAL = join(HOME, 'jobs.ndjson');
-const JOBS_COMPACT_THRESHOLD = 500;
 
 function readJobsSnapshot() {
   const data = readJsonFile(JOBS_FILE, []);
@@ -502,10 +429,6 @@ export function diffJobs(current, next) {
   return ops;
 }
 
-export function jobsJournalPath() {
-  return JOBS_JOURNAL;
-}
-
 // 简历投递记录：一个数组（口径在 core/jobs.mjs，CLI / 网页版 / 原生端同一份）。
 export function readJobs() {
   const snapshot = readJobsSnapshot();
@@ -548,36 +471,8 @@ export function writeJobs(jobs) {
   return upsertJobs(jobs);
 }
 
-function readJsonFile(file, fallback) {
-  if (!existsSync(file)) return fallback;
-  try {
-    return JSON.parse(readFileSync(file, 'utf8'));
-  } catch (err) {
-    return fallback;
-  }
-}
-
-function writeJsonAtomic(file, data) {
-  ensureHome();
-  const tmp = file + '.tmp-' + process.pid;
-  try {
-    writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
-    renameSync(tmp, file);
-  } catch (err) {
-    // 写失败（目标被目录占位、只读、写满）不能留下半成品：清掉临时文件再抛
-    try { unlinkSync(tmp); } catch (gone) { /* 没写成功也没有它 */ }
-    throw err;
-  }
-  return file;
-}
-
 // 外观与界面偏好：三端共用一份（CLI 可改，网页与原生端读取后应用）。
 // 只存"用户显式选过的"，系统跟随（auto）是默认值——这样新装用户开箱就是跟随系统。
-const PREFS_FILE = join(HOME, 'preferences.json');
-const THEME_VALUES = ['auto', 'light', 'dark'];
-const LANG_VALUES = ['zh-CN', 'en'];
-
-export function preferencesPath() { return PREFS_FILE; }
 
 export function readPrefs() {
   const data = readJsonFile(PREFS_FILE, {});
@@ -607,18 +502,6 @@ export function writePrefs(patch) {
   return next;
 }
 
-export function langValues() { return LANG_VALUES.slice(); }
-
-export function themeValues() { return THEME_VALUES.slice(); }
-
-export function goalsPath() {
-  return GOALS_FILE;
-}
-
-export function notesPath() {
-  return NOTES_FILE;
-}
-
 // 学习目标：每天做几题、每天投入多少分钟（0 表示不设）
 export function readGoals() {
   const data = readJsonFile(GOALS_FILE, {});
@@ -638,10 +521,6 @@ export function writeGoals(patch) {
   };
   writeJsonAtomic(GOALS_FILE, next);
   return next;
-}
-
-export function jobsPath() {
-  return JOBS_FILE;
 }
 
 // 三份存储的 schema 现状（只读；CLI storage status、接口 GET /api/storage、doctor 都用它）
@@ -679,9 +558,6 @@ export function migrateStorage(options) {
   });
   return { ok: true, dryRun: Boolean(opts.dryRun), steps: steps, log: logFile, after: opts.dryRun ? null : storageStatus() };
 }
-
-
-
 
 // 题目笔记：每道题一条，方便记下自己的坑与心得
 export function readNotes() {
