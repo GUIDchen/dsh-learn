@@ -109,7 +109,9 @@ export function ocrImage(imagePath, options) {
 
   const helper = ensureOcrHelper(opts);
   if (!helper.ok) return { ok: false, reason: helper.reason };
-  const run = spawnSync(helper.path, [image], { encoding: 'utf8', timeout: opts.timeout || 60000, killSignal: 'SIGKILL' });
+  // 60s 在机器负载高时不够（实测 60.036s 正好撞线失败）；120s 给足余量，仍可用 opts.timeout / DSH_LEARN_OCR_TIMEOUT 覆盖
+  const runTimeout = Number(opts.timeout || process.env.DSH_LEARN_OCR_TIMEOUT || 120000);
+  const run = spawnSync(helper.path, [image], { encoding: 'utf8', timeout: runTimeout, killSignal: 'SIGKILL' });
   if (run.status !== 0) {
     const detail = ((run.stdout || '') + (run.stderr || '')).trim().split('\n').filter(Boolean).slice(-1)[0] || '未知原因';
     return { ok: false, reason: 'OCR 失败：' + detail, helper: helper.path };
