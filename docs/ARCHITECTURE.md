@@ -49,7 +49,7 @@
 | store.mjs | 进度存储：快照原子写 + 追加日志 + 备份回退、排行榜、导入导出 | fs |
 | agent.mjs | 把一台机器变成只读 runner，供远程调度（需 token） | http + exec |
 | app/macos/main.swift | 客户端外壳：窗口、菜单、App Nap 抑制与生命周期 | AppKit |
-| app/macos/Engine.swift | 引擎侧：找 node/项目目录、自己挑空闲端口拉起服务、bootstrap/check/history/progress 的 HTTP 客户端 | Foundation |
+| app/macos/Engine.swift（+ EngineModels / EngineHTTP） | 引擎侧：找 node/项目目录、自己挑空闲端口拉起服务、bootstrap/check/history/progress 的 HTTP 客户端 | Foundation |
 | app/macos/NativeUI.swift | 原生三栏界面（题单 / 作答 / 判定结果），状态集中在 Store | SwiftUI |
 | app/macos/selftest.swift | 客户端接口自检：跑一遍真实链路，verify.sh 每次执行 | Foundation |
 | cli/context.mjs | CLI 参数解析与公共工具（out / requireTask / usage），命令实现不互相 import | args + platform |

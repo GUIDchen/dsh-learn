@@ -87,7 +87,7 @@ mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 # 3. 编译（-swift-version 5：避开 Swift 6 严格并发对 main-actor 的要求）
 echo "==> 编译 Swift"
 swiftc -O -swift-version 5 \
-  "$HERE/main.swift" "$HERE/Engine.swift" "$HERE/NativeUI.swift" "$HERE/ProjectsFilter.swift" "$HERE/VerdictPanel.swift" "$HERE/Panels.swift" "$HERE/Preferences.swift" \
+  "$HERE/main.swift" "$HERE/Engine.swift" "$HERE/EngineModels.swift" "$HERE/EngineHTTP.swift" "$HERE/NativeUI.swift" "$HERE/ProjectsFilter.swift" "$HERE/VerdictPanel.swift" "$HERE/Panels.swift" "$HERE/Preferences.swift" \
   -o "$CONTENTS/MacOS/dsh-learn" \
   -framework Cocoa -framework SwiftUI
 
