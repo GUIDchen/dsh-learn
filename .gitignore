@@ -13,3 +13,9 @@ docs/evidence/*.png
 
 # 真实抓取的岗位原文（第三方站点内容）不随公开仓库发布；聚合报告 docs/samples/boss-*.md 保留
 docs/samples/boss/
+
+# 个人学习计划（与项目无关，不公开）
+edgeguard/
+
+# 早期界面截图（已被 docs/evidence 取代，且含本机数据）
+screenshots/
