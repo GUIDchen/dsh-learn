@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const files = ['Engine.swift', 'NativeUI.swift', 'main.swift', 'Preferences.swift', 'selftest.swift', 'ProjectsFilter.swift', 'VerdictPanel.swift'];
+const files = ['Engine.swift', 'EngineModels.swift', 'EngineHTTP.swift', 'NativeUI.swift', 'Pages.swift', 'Panels.swift', 'main.swift', 'Preferences.swift', 'selftest.swift', 'ProjectsFilter.swift', 'VerdictPanel.swift'];
 const sources = files.map(function (name) { return { name: name, text: readFileSync(join(ROOT, 'app/macos', name), 'utf8') }; });
 const ui = sources.filter(function (row) { return row.name === 'NativeUI.swift'; })[0].text;
 // 图标/无障碍统计算全部 UI 文件：叶子视图已拆到 ProjectsFilter.swift / VerdictPanel.swift
@@ -85,7 +85,9 @@ test('原生端：项目/仓库页是扁平两栏，不再嵌套滚动', functio
   const ui = readFileSync(new URL('../app/macos/NativeUI.swift', import.meta.url), 'utf8');
   const at = ui.indexOf('struct RepoPage: View {');
   assert.ok(at > -1, '要有 RepoPage');
-  const body = ui.slice(at, ui.indexOf('\nstruct ProjectSection', at));
+  // ProjectSection 已外移到 Pages.swift，结束标记改用「RepoPage 之后的第一个 struct」
+  const nextStruct = ui.indexOf('\nstruct ', at + 10);
+  const body = ui.slice(at, nextStruct > 0 ? nextStruct : ui.length);
   assert.ok(body.indexOf('HSplitView') > -1, '用左右两栏布局');
   assert.ok(body.indexOf('ProjectPage()') === -1, '不该再嵌入旧的 ProjectPage（会嵌套滚动）');
   assert.ok(body.indexOf('List(store.projects)') === -1, '项目列表用 ForEach 渲染，不套 List');
