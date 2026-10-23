@@ -151,7 +151,7 @@
       "marker": "id=\"ppFilter\""
     },
     "native": {
-      "file": "app/macos/NativeUI.swift",
+      "file": "app/macos/Pages.swift",
       "marker": "visibleProjects"
     },
     "test": "test/page.test.mjs",

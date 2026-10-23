@@ -6,7 +6,7 @@
 ![license](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522-339933.svg)
 ![deps](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
-![tests](https://img.shields.io/badge/tests-589%20passing-brightgreen.svg)
+![tests](https://img.shields.io/badge/tests-590%20passing-brightgreen.svg)
 
 ---
 
@@ -88,7 +88,7 @@ src/web/      网页版服务端（保序路由表 + 按域拆分的路由模块
 web/          浏览器端模块（面板 / 命令面板 / 深浅色 / i18n / 趋势 / 提醒）
 app/macos/    原生客户端（SwiftUI，显式文件清单编译）
 scripts/      发布、验收、题库审计、浏览器 e2e、基准…
-test/         589 条用例
+test/         590 条用例
 ```
 
 分层规则：\`core\` 不依赖存储与界面；存储是唯一读写入口；三个客户端只通过核心模块与 HTTP 共享逻辑。
@@ -98,7 +98,7 @@ test/         589 条用例
 
 这个项目的每一轮改动都必须留下**可复现的证据**：
 
-- **589 条用例**：\`node --test\`，覆盖判定、平台变体、存储并发（20→400 写入者零丢失）、故障注入（只读目录 / 坏 JSON / 陈旧锁 / 目录占位）、API 契约、能力对照、体量预算。
+- **590 条用例**：\`node --test\`，覆盖判定、平台变体、存储并发（20→400 写入者零丢失）、故障注入（只读目录 / 坏 JSON / 陈旧锁 / 目录占位）、API 契约、能力对照、体量预算。
 - **78 项验收**：\`bash scripts/verify.sh\`，含语法体检、题库审计、三端冒烟、浏览器层 e2e（29 步）、原生客户端自检。
 - **静态守卫**：漏 import、体量预算、文档与代码对账（API 契约 / 三端能力对照 / 架构模块表 / 题库数字）。
 - **可复现基准**：[docs/BENCHMARK.md](docs/BENCHMARK.md) 用固定评测集对比规则引擎与可选模型。

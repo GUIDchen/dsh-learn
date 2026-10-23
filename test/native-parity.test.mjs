@@ -82,7 +82,8 @@ test('判定结果主动播报：原生端与网页版的实时区域对齐', fu
 // 界面结构回归：项目/仓库页曾经把整页 ProjectPage（HSplitView + List + ScrollView）
 // 塞进外层 ScrollView，嵌套滚动让列表塌成一行、标题与说明文字重叠（用户截图报的问题）。
 test('原生端：项目/仓库页是扁平两栏，不再嵌套滚动', function () {
-  const ui = readFileSync(new URL('../app/macos/NativeUI.swift', import.meta.url), 'utf8');
+  // RepoPage 已外移到 Pages.swift（原生端所有整页都在那里）
+  const ui = readFileSync(new URL('../app/macos/Pages.swift', import.meta.url), 'utf8');
   const at = ui.indexOf('struct RepoPage: View {');
   assert.ok(at > -1, '要有 RepoPage');
   // ProjectSection 已外移到 Pages.swift，结束标记改用「RepoPage 之后的第一个 struct」
