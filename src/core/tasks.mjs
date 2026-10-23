@@ -89,3 +89,16 @@ export function listTasksByLevel(level, track) {
     return true;
   });
 }
+
+// 变体题：给同一道题附上「同一条命令在别的平台怎么写」（web 学习域与 CLI tasks 共用一份）
+export function otherPlatformSamples(task, current) {
+  const variants = (task && task.variants) || null;
+  if (!variants) return null;
+  const out = {};
+  Object.keys(variants).forEach(function (platform) {
+    if (platform === current) return;
+    const sample = variants[platform] && variants[platform].sample;
+    if (sample) out[platform] = sample;
+  });
+  return Object.keys(out).length ? out : null;
+}

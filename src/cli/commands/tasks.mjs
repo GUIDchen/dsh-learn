@@ -1,5 +1,5 @@
 // 题目相关命令：list / show / check。
-import { listTasks, listTasksByLevel, levelLabel, levelStats, LEVELS } from '../../core/tasks.mjs';
+import { listTasks, listTasksByLevel, levelLabel, levelStats, LEVELS, otherPlatformSamples } from '../../core/tasks.mjs';
 import { assessAnswer } from '../../core/exec.mjs';
 import { locateMissing } from '../../core/feedback.mjs';
 import { judge, resolveTask, platformBlocker } from '../../core/judge.mjs';
@@ -59,17 +59,6 @@ export async function show(ctx) {
 }
 
 // 其他平台的参考答案（当前平台不下发自己那一条）
-function otherPlatformSamples(task, current) {
-  const variants = (task && task.variants) || null;
-  if (!variants) return null;
-  const out = {};
-  Object.keys(variants).forEach(function (platform) {
-    if (platform === current) return;
-    const sample = variants[platform] && variants[platform].sample;
-    if (sample) out[platform] = sample;
-  });
-  return Object.keys(out).length ? out : null;
-}
 
 export async function check(ctx) {
   const { args, platform, client, asJson, out, requireTask } = ctx;

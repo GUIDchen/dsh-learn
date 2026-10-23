@@ -3,7 +3,6 @@
 // 拆出理由与 project 域同一套：if 链让「加一条接口」= 在 273 行里找位置；改成 ROUTES 表后是加一行。
 // learn.mjs 只留分发器（约 25 行）；本文件含 13 个动作 + 变体题 helper。
 
-
 import { assessAnswer } from '../../core/exec.mjs';
 import { locateMissing } from '../../core/feedback.mjs';
 import { PARTIAL_SCORE, PASS_SCORE, judge, platformBlocker, resolveTask } from '../../core/judge.mjs';
@@ -11,7 +10,7 @@ import { buildPlan } from '../../core/plan.mjs';
 import { detectPlatform, getProfile, listPlatforms } from '../../core/platform.mjs';
 import { dailyPick, goalProgress, pickPractice, renderReport, streakDays, summarize, taskStats } from '../../core/progress.mjs';
 import { listRunners, verifyWith } from '../../core/runners.mjs';
-import { TASKS, findTask, listTasks, listTracks } from '../../core/tasks.mjs';
+import { TASKS, findTask, listTasks, listTracks, otherPlatformSamples } from '../../core/tasks.mjs';
 import { LEVEL_LABELS } from '../../core/text.mjs';
 import { logEvent } from '../../core/log.mjs';
 import { board, exportProgress, importProgress, load, readGoals, record, storageHealth } from '../../store.mjs';
@@ -60,7 +59,6 @@ async function learnBootstrap(ctx) {
         });
         return;
 }
-
 
 // GET /api/drill（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnDrill(ctx) {
@@ -112,7 +110,6 @@ async function learnDrill(ctx) {
         return;
 }
 
-
 // GET /api/history（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnHistory(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
@@ -139,14 +136,12 @@ async function learnHistory(ctx) {
         return;
 }
 
-
 // GET /api/board（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnBoard(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
         sendJson(res, 200, { board: board() });
         return;
 }
-
 
 // GET /api/progress（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnProgress(ctx) {
@@ -171,7 +166,6 @@ async function learnProgress(ctx) {
         return;
 }
 
-
 // GET /api/daily（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnDaily(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
@@ -188,7 +182,6 @@ async function learnDaily(ctx) {
         return;
 }
 
-
 // GET /api/report（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnReport(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
@@ -200,7 +193,6 @@ async function learnReport(ctx) {
         res.end(markdown);
         return;
 }
-
 
 // POST /api/plan（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnPlan(ctx) {
@@ -216,7 +208,6 @@ async function learnPlan(ctx) {
         return;
 }
 
-
 // POST /api/import（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnImport(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
@@ -228,14 +219,12 @@ async function learnImport(ctx) {
         return;
 }
 
-
 // GET /api/export（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnExport(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
         sendJson(res, 200, exportProgress());
         return;
 }
-
 
 // POST /api/check（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnCheck(ctx) {
@@ -284,7 +273,6 @@ async function learnCheck(ctx) {
         return;
 }
 
-
 // POST /api/verify（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnVerify(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
@@ -303,7 +291,6 @@ async function learnVerify(ctx) {
         return;
 }
 
-
 // GET /api/runners（从 handleLearnRoute 的 if 链整块搬出，内容与缩进原样）
 async function learnRunners(ctx) {
   const { sendJson, req, res, url, pathname, serverPlatform, readBody, readLargeBody } = ctx;
@@ -314,18 +301,6 @@ async function learnRunners(ctx) {
           })
         });
         return;
-}
-
-function otherPlatformSamples(task, current) {
-  const variants = (task && task.variants) || null;
-  if (!variants) return null;
-  const out = {};
-  Object.keys(variants).forEach(function (platform) {
-    if (platform === current) return;
-    const sample = variants[platform] && variants[platform].sample;
-    if (sample) out[platform] = sample;
-  });
-  return Object.keys(out).length ? out : null;
 }
 
 // 环境探测：几个只读命令 + 诊断结论

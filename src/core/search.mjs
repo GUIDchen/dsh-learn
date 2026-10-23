@@ -5,7 +5,7 @@
 // 默认引擎顺序 bing → duckduckgo；也可以用 DSH_LEARN_SEARCH_ENDPOINT 指向自建端点（engine=custom）。
 import { analyzeText } from './knowledge.mjs';
 import { buildDraftPack } from './site-learn.mjs';
-import { detectBlockedPage, fetchText } from './ingest.mjs';
+import { decodeEntities, detectBlockedPage, fetchText } from './ingest.mjs';   // 实体解码与抓页共用同一份（含 hex 实体）
 
 // HTTP 头只能是 ASCII：这里不要写中文
 export const SEARCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15';
@@ -23,17 +23,6 @@ export function searchEndpoint(engine, options) {
   const name = engine || opts.engine || 'bing';
   if (name === 'custom') return opts.endpoint || process.env.DSH_LEARN_SEARCH_ENDPOINT || '';
   return opts.endpoint || ENGINE_TEMPLATES[name] || ENGINE_TEMPLATES.bing;
-}
-
-function decodeEntities(text) {
-  return String(text || '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;|&#39;/g, "'")
-    .replace(/&nbsp;|&ensp;|&emsp;/g, ' ')
-    .replace(/&#(\d+);/g, function (m, code) { return String.fromCodePoint(Number(code)); });
 }
 
 function stripTags(text) {
