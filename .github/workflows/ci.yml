@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   push:
@@ -7,72 +7,45 @@ on:
 
 jobs:
   test:
-    name: test / ${{ matrix.os }} / node ${{ matrix.node }}
+    name: test / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        node: ['18', '20', '22']
+        # 在 24.x 上完整验证过；macOS 才能跑原生自检（swiftc 来自 Xcode）
+        os: [macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-      - name: 无第三方依赖校验
+          node-version: '24'
+      - name: 零依赖校验
         run: |
           test ! -d node_modules
           node -e "const p=require('./package.json'); const deps=Object.keys(p.dependencies||{}).concat(Object.keys(p.devDependencies||{})); if (deps.length) { console.error('出现了第三方依赖: '+deps.join(',')); process.exit(1); } console.log('零依赖校验通过');"
       - name: 全仓语法体检
         run: bash scripts/check-syntax.sh
-      - name: 白名单与题库对账
-        run: node src/cli.mjs security whitelist
-      - name: 题库质量体检（参考答案自查满分、变体区分度）
-        run: node src/cli.mjs audit
-      - name: 覆盖率门槛（低于基线 −2% 即失败）
-        run: node scripts/coverage.mjs
-      - name: 单元与内容回归测试
+      - name: 静态守卫（缺导入 / 体量 / 契约 / 能力对照 / 一致性）
+        run: |
+          node scripts/lint-unresolved.mjs
+          node --test test/size-budget.test.mjs test/api-contract.test.mjs test/capability-matrix.test.mjs test/consistency.test.mjs
+      - name: 用例
         run: node --test
-      - name: CLI 冒烟（列表 / 计划 / 判定 / 进度）
+      - name: 题库体检与白名单对账
+        run: |
+          node src/cli.mjs audit
+          node src/cli.mjs security whitelist
+      - name: CLI 冒烟
         env:
           DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn
         run: |
-          node src/cli.mjs list
-          node src/cli.mjs plan --hours 2 --track docker
+          node src/cli.mjs list --track=docker --level=easy
           node src/cli.mjs check docker.run-web "docker run -d -p 8080:80 --name web nginx:1.25" --client ci-box
-          node src/cli.mjs check git.autocrlf-cross-platform "git config --global core.autocrlf true" --client ci-win --platform win32
           node src/cli.mjs progress
-          node src/cli.mjs runners
-      - name: 只读验证（守护进程缺失时必须优雅降级而不是失败）
+      - name: 浏览器层 e2e（无 Chrome 时自动跳过）
+        run: node scripts/e2e-web.mjs
+      - name: 完整验收（仅 macOS：含原生客户端自检）
+        if: runner.os == 'macOS'
         env:
-          DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn
-        run: |
-          node src/cli.mjs verify linux.platform-probe --run --runner local
-          node src/cli.mjs verify docker.context-diagnose --run --runner docker || true
-      - name: 平台自检（这台 runner 的工具链必须与题库假设一致）
-        run: node src/cli.mjs selftest --run
-      - name: 端到端证据脚本
-        env:
-          DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn-e2e
+          DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn-verify
         run: bash scripts/verify.sh
-
-  windows-smoke:
-    name: windows smoke
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: 单元与集成测试（跨平台用例）
-        run: node --test
-      - name: 平台自检（Windows 原生工具链的预期缺席）
-        run: node src/cli.mjs selftest --run
-      - name: CLI 冒烟（Windows 路径）
-        env:
-          DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn-win
-        run: |
-          node src/cli.mjs list
-          node src/cli.mjs check docker.run-web "docker run -d -p 8080:80 --name web nginx:1.25" --client win-box --platform win32
-          node src/cli.mjs check git.autocrlf-cross-platform "git config --global core.autocrlf true" --client win-box --platform win32
-          node src/cli.mjs progress

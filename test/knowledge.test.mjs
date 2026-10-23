@@ -171,7 +171,7 @@ test('链接抓取：非 http 直接拒绝，抓不到正文给可执行建议',
 });
 
 test('截图 OCR：本机识别出中文（macOS 自带 Vision，离线）', async function () {
-  const fixture = new URL('../docs/evidence/web-a11y-2026.png', import.meta.url).pathname;
+  const fixture = new URL('../test/fixtures/web-a11y-2026.png', import.meta.url).pathname;
   if (!existsSync(fixture) || process.platform !== 'darwin') {
     assert.ok(true, '跳过：没有截图样例或不是 macOS');
     return;

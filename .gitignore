@@ -8,5 +8,8 @@ node_modules/
 *.tmp-*
 *.compacting-*
 
-# 证据截图体积大（63 张约 18MB）但被完成报告引用，先保留；将来可迁 LFS
-# docs/evidence/
+# 证据截图（含本机数据）不随公开仓库发布；保留 last-verify.json（验收摘要，progress-doc 会读）
+docs/evidence/*.png
+
+# 真实抓取的岗位原文（第三方站点内容）不随公开仓库发布；聚合报告 docs/samples/boss-*.md 保留
+docs/samples/boss/

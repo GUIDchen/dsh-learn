@@ -161,7 +161,7 @@ test('网页 HTML 输入：只剥一次标签，知识点与草案题都要出�
 
 // 截图 → 知识点 → 题目，整条链路（含 Vision OCR）在本机跑一遍；没有截图样例或不是 macOS 就跳过。
 test('截图 OCR 到草案题：整条链路真跑一次', async function () {
-  const fixture = new URL('../docs/evidence/terminal-note-screenshot.png', import.meta.url).pathname;
+  const fixture = new URL('../test/fixtures/terminal-note-screenshot.png', import.meta.url).pathname;
   if (!existsSync(fixture) || process.platform !== 'darwin') {
     assert.ok(true, '跳过：没有截图样例或不是 macOS');
     return;

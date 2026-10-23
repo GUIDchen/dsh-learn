@@ -798,7 +798,7 @@ test('POST /api/analyze 分析 JD 文本，GET /api/knowledge 给出字典', asy
 });
 
 test('项目截图上传：走同一套 8MB 上限，并且真的 OCR 出知识点（网页版与原生端都走这条路）', async function () {
-  const fixture = join(process.cwd(), 'docs/evidence/terminal-note-screenshot.png');
+  const fixture = join(process.cwd(), 'test/fixtures/terminal-note-screenshot.png');
   if (!existsSync(fixture) || process.platform !== 'darwin') {
     assert.ok(true, '跳过：没有截图夹具或不是 macOS');
     return;
