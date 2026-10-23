@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { isAllowed, runReadonlyCommand } from './core/exec.mjs';
 import { detectPlatform, getProfile } from './core/platform.mjs';
 import { parseArgs } from './core/args.mjs';
+import { isMain } from './core/runtime.mjs';
 
 function sameToken(a, b) {
   const left = createHash('sha256').update(String(a || '')).digest();
@@ -102,17 +103,7 @@ export function createAgentServer(options) {
   });
 }
 
-function isMain() {
-  const entry = process.argv[1];
-  if (!entry) return false;
-  try {
-    return resolve(entry) === fileURLToPath(import.meta.url);
-  } catch (err) {
-    return false;
-  }
-}
-
-if (isMain()) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   // --help 就该只打印用法：之前它会去起服务（端口被占时还会报 EADDRINUSE，让人以为是自己端口配错了）
   if (argv.indexOf('--help') > -1 || argv.indexOf('-h') > -1) {

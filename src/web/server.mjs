@@ -11,11 +11,12 @@ import { serveStatic } from './static.mjs';
 import { handleApi } from './api.mjs';
 import { sendSmart } from './compress.mjs';
 import { logEvent } from '../core/log.mjs';
+import { isMain } from '../core/runtime.mjs';
 
 // --help 只打印用法：之前它会真的起服务（端口被占时报 EADDRINUSE，看起来像自己配错了端口）
 const argv = process.argv.slice(2);
-// isMain() 是函数声明（会提升），所以能在这里用；被当库 import 时即使命令行里有 --help 也不该打印用法
-if (isMain() && (argv.indexOf('--help') > -1 || argv.indexOf('-h') > -1)) {
+// isMain(import.meta.url) 是函数声明（会提升），所以能在这里用；被当库 import 时即使命令行里有 --help 也不该打印用法
+if (isMain(import.meta.url) && (argv.indexOf('--help') > -1 || argv.indexOf('-h') > -1)) {
   console.log('用法：node src/web/server.mjs [--host=127.0.0.1] [--port=8787]');
   console.log('');
   console.log('启动网页版（三栏界面 + PWA + 离线判定）。默认只监听回环，跨机访问必须显式 --host。');
@@ -107,16 +108,6 @@ export function createAppServer() {
   });
 }
 
-function isMain() {
-  const entry = process.argv[1];
-  if (!entry) return false;
-  try {
-    return resolve(entry) === fileURLToPath(import.meta.url);
-  } catch (err) {
-    return false;
-  }
-}
-
 // 父进程看门狗：桌面壳把父进程 pid 传进来（DSH_LEARN_PARENT_PID）。
 // 父进程被 kill -9 或崩溃时不会走正常的清理逻辑，服务就会变成没人管的孤儿进程占着端口。
 // 每 2 秒问一次"父进程还在吗"，不在了就自己退出。只在环境变量存在时启用，
@@ -140,7 +131,7 @@ export function watchParent(pidValue, exit) {
   return timer;
 }
 
-if (isMain()) {
+if (isMain(import.meta.url)) {
   // PORT 传 0 时让内核挑一个空闲端口，并把最终地址打印成机器可解析的一行：
   // macOS 桌面壳（app/macos）就是靠这行拿到地址的，避免两端各写一套找端口逻辑。
   const server = createAppServer().listen(PORT, HOST, function () {

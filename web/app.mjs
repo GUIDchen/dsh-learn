@@ -1,6 +1,6 @@
 // 纯格式化工具已搬到 web/format.mjs（浏览器原生 ESM，不需要打包器）
 import { initRepo } from './repo.mjs';
-import { baseName, escapeText, levelText } from './format.mjs';
+import { baseName, escapeText, levelText, percentText } from './format.mjs';
 import { initPackPanel } from './pack.mjs';
 import { initJobsPanel } from './jobs.mjs';
 import { initPanels } from './panels.mjs';
@@ -110,14 +110,6 @@ function bar(percent, width) {
 
 // 完成度文案：与 core/progress.mjs 的 percentText 同一口径（浏览器不能直接 import 它，
 // 因为它是 Node 侧模块）。587 道题里通过几道时取整会显示 0%，做过事却像没做。
-function percentText(passed, total, rounded) {
-  const safeTotal = Math.max(1, Number(total) || 1);
-  const safePassed = Number(passed) || 0;
-  const value = typeof rounded === 'number' ? rounded : Math.round(safePassed / safeTotal * 100);
-  if (value === 0 && safePassed > 0) return (Math.round(safePassed / safeTotal * 1000) / 10) + '%';
-  return value + '%';
-}
-
 // ---------------- 离线队列 ----------------
 function readQueue() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (err) { return []; }

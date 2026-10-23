@@ -419,7 +419,7 @@ fi
 if command -v swiftc >/dev/null; then
   NATIVE_BIN="$TMP/dsh-native-selftest"
   # NativeUI.swift 也要编进来：自检里有针对 Store（筛选描述与重置）的断言
-  swiftc -O -swift-version 5 app/macos/selftest.swift app/macos/Engine.swift app/macos/EngineModels.swift app/macos/EngineHTTP.swift app/macos/Preferences.swift app/macos/NativeUI.swift app/macos/ProjectsFilter.swift app/macos/VerdictPanel.swift app/macos/Panels.swift -o "$NATIVE_BIN" -framework Cocoa -framework SwiftUI >/dev/null 2>&1
+  swiftc -O -swift-version 5 app/macos/selftest.swift app/macos/Engine.swift app/macos/EngineModels.swift app/macos/EngineHTTP.swift app/macos/Preferences.swift app/macos/NativeUI.swift app/macos/ProjectsFilter.swift app/macos/VerdictPanel.swift app/macos/Panels.swift app/macos/Pages.swift -o "$NATIVE_BIN" -framework Cocoa -framework SwiftUI >/dev/null 2>&1
   if [ -x "$NATIVE_BIN" ]; then
     NATIVE_HOME="$TMP/native-home"
     mkdir -p "$NATIVE_HOME"

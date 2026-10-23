@@ -30,6 +30,7 @@ import * as prefsCommand from './cli/commands/prefs.mjs';
 import * as modelCommand from './cli/commands/model.mjs';
 import * as scorecardCommand from './cli/commands/scorecard.mjs';
 import * as remindCommand from './cli/commands/remind.mjs';
+import { isMain } from './core/runtime.mjs';
 
 // 命令表：命令名 -> 处理函数。新增命令只改这里，不用再改 if/else 链。
 const COMMANDS = {
@@ -119,17 +120,8 @@ export async function dispatch(argv) {
 }
 
 // 只有被当作入口直接运行时才执行；被测试 import 时只暴露命令表。
-function isMain() {
-  const entry = process.argv[1];
-  if (!entry) return false;
-  try {
-    return resolve(entry) === fileURLToPath(import.meta.url);
-  } catch (err) {
-    return false;
-  }
-}
 
-if (isMain()) {
+if (isMain(import.meta.url)) {
   dispatch(process.argv.slice(2)).then(function (code) {
     if (typeof code === 'number' && code !== 0) process.exit(code);
   }).catch(function (err) {

@@ -85,6 +85,7 @@
 | core/storage-schema.mjs | **存储 schema 版本化**：progress v2 / jobs v2（裸数组 → {version, jobs}）/ goals v1 的检测与迁移值生成（纯函数）；读侧兼容旧形状，写侧只写新形状 |
 | core/backup.mjs | **整机备份/恢复**：把 home 里的用户资产（progress/jobs/goals/notes/projects/trust）打成可逐文件校验的 JSON 包；dry-run 出计划、恢复前给会被覆盖的文件留 pre-restore 副本 |
 | core/log.mjs | **结构化日志与指标**：NDJSON 一行一事件（HTTP 请求/判定/迁移/备份），轮转保留一代、坏行容忍；summarizeEvents 聚合请求量/延迟 p50-p95/错误率 |
+| core/runtime.mjs | **进程入口判断**：isMain(import.meta.url)，原来在 cli/server/agent 里各有一份完全相同的实现 |
 | core/onboarding.mjs | **首次运行引导**：把「从零到第一题」拆成六步（平台/首题/项目/练习清单/目标/备份），判定只读本地事实（离线可用），输出每步命令与下一步——CLI、接口、网页、原生共用同一份 |
 | core/commands.mjs | **命令面板的单一事实源**：id/标题/分组/快捷键/CLI 等价命令/界面动作；网页版 ⌘K、原生端菜单、CLI commands 都读它 |
 | core/model.mjs | **可选模型接入**：OpenAI 兼容端点（env 配置，key 只读环境变量）；默认离线、任何失败都回退 core/understand.mjs 的规则引擎并带回原因 |

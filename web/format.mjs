@@ -22,3 +22,12 @@ export function levelText(level) {
   if (level === 'medium') return '中等';
   return '未标难度';
 }
+
+// 百分比：整数时直接给整数；0.1% 这种极小值保留一位小数（避免"0%"看起来像没通过）
+export function percentText(passed, total, rounded) {
+  const safeTotal = Math.max(1, Number(total) || 1);
+  const safePassed = Number(passed) || 0;
+  const value = typeof rounded === 'number' ? rounded : Math.round(safePassed / safeTotal * 100);
+  if (value === 0 && safePassed > 0) return (Math.round(safePassed / safeTotal * 1000) / 10) + '%';
+  return value + '%';
+}
