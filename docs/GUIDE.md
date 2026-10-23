@@ -27,7 +27,7 @@
 
 分析是纯本地的词条匹配 + 知识图谱，不需要联网、不需要模型 API，命中依据会指回原文片段；字典在 src/core/knowledge.mjs，改字典不用改代码。
 
-**截图 OCR**：macOS 用系统自带的 Vision 框架（首次自动 swiftc 编译一个小助手到 ~/.dsh-learn/bin），图片不出本机；Linux/Windows 接外部 OCR——装了 tesseract 就自动用（中文需 tesseract-ocr-chi-sim），或用 DSH_LEARN_OCR 指定自己的可执行文件，都没有时会明确告诉你装哪个。
+**截图 OCR**：macOS 用系统自带的 Vision 框架（首次自动 swiftc 编译一个小助手到 ~/Library/Caches/dsh-learn（共享缓存，按源码哈希命名）），图片不出本机；Linux/Windows 接外部 OCR——装了 tesseract 就自动用（中文需 tesseract-ocr-chi-sim），或用 DSH_LEARN_OCR 指定自己的可执行文件，都没有时会明确告诉你装哪个。
 
 **登录墙站点**：链接抓取支持带 cookie：--cookie "name=value; ..." 或用 --cookie-file（Netscape cookies.txt 也行）。浏览器登录后从开发者工具复制 Cookie 头即可；仍然抓不到（页面靠 JS 渲染）时，直接把 JD 文字粘进文本框最稳。
 

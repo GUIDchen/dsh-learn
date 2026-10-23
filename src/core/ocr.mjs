@@ -1,6 +1,9 @@
 // 截图 OCR：macOS 上用系统自带的 Vision 框架，纯本地、不联网、零第三方依赖。
-// 首次使用时用 swiftc 把 tools/ocr.swift 编译到 ~/.dsh-learn/bin/dsh-ocr（之后的调用直接跑二进制）。
+// 首次使用时用 swiftc 把 tools/ocr.swift 编译好，放进**共享缓存**（按源码哈希命名，源码改了自动重编）。
+// 为什么不是按 home 放：测试、验收、发布前哨都会用临时 home，按 home 存会导致每处都重编一次
+// （实测每次 60–90 秒，还容易被机器负载拖成超时）。同一份源码在一台机器上只该编一次。
 // 非 macOS 或没有 swiftc 时如实说明，不假装能识别。
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -10,9 +13,21 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const OCR_SOURCE = resolve(HERE, '../../tools/ocr.swift');
 
+// 共享缓存目录：DSH_LEARN_OCR_CACHE 可覆盖；默认放到 macOS 的 Caches 下（不进 home，换 home 不重编）
+export function ocrCacheDir() {
+  return process.env.DSH_LEARN_OCR_CACHE || join(homedir(), 'Library', 'Caches', 'dsh-learn');
+}
+
+// home 参数保留兼容（调用方不必改），但二进制放共享缓存，并按 Swift 源码哈希命名：
+// 源码一改，哈希变、自动重编；改回旧源码还能命中旧产物。
 export function ocrHelperPath(home) {
-  const base = home || process.env.DSH_LEARN_HOME || join(homedir(), '.dsh-learn');
-  return join(base, 'bin', 'dsh-ocr');
+  try {
+    const hash = createHash('sha1').update(readFileSync(OCR_SOURCE, 'utf8')).digest('hex').slice(0, 12);
+    return join(ocrCacheDir(), 'dsh-ocr-' + hash);
+  } catch (err) {
+    const base = home || process.env.DSH_LEARN_HOME || join(homedir(), '.dsh-learn');
+    return join(base, 'bin', 'dsh-ocr');
+  }
 }
 
 function hasSwiftc() {
