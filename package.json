@@ -1,6 +1,6 @@
 {
   "name": "dsh-learn",
-  "version": "0.204.0",
+  "version": "0.205.0",
   "private": true,
   "type": "module",
   "description": "Cross-platform practice-and-verify tool for command-line skills (ops/backend interviews): 637 graded tasks, platform variants, offline judge, shared by CLI, web and a native macOS app.",
