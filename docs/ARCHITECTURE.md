@@ -58,6 +58,7 @@
 | web/api.mjs | **保序路由表 + 域移交**（52 行）：域条目用 paths、小路由条目用 method+path，顺序与改造前逐条一致（/api/analyze 归投递域等）|
 | web/routes/project.mjs | **项目域分发器（42 行）**：GET 交给 handleProjectGet、POST 查 ACTIONS 表；动作实现搬到 project-actions.mjs |
 | web/api-routes.mjs | **小路由实现**（从 332 行的 api.mjs 整块搬出）：review/goal/note/knowledge/doctor/pack/mastery/corpus/draft/probe + probeServer；api.mjs 只留保序路由表 |
+| web/repo.mjs | **项目/仓库渲染组**（从 2999 行的 app.mjs 拆出）：项目结果、项目列表、来源详情/按钮、草案列表；依赖以 initRepo(deps) 注入（含 ppSelected 读写访问器，因为它是 app 里的 let） |
 | web/routes/project-actions.mjs | **项目域动作实现**（从 336 行的 if 链接出来）：delete/tasks/index/refresh/jdplan/drill/backfill/rename/import/init + 默认 add（收来源）+ GET 分支；加接口只改这里一行 |
 | web/routes/jobs.mjs | **投递域路由**（/api/jobs 增改删查 + /api/analyze JD 分析）：与 project 路由同一套「整域移交 + 返回是否已响应」约定 |
 | web/routes/flow.mjs | **流程域路由**（七步闭环：状态/简历/推荐/搜集/投递/题包/建计划）+ 只被它使用的三个装载函数（进度 + 项目 + 岗位三份数据） |

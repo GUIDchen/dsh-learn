@@ -169,7 +169,7 @@
       "marker": "url.searchParams.get('source')"
     },
     "web": {
-      "file": "web/app.mjs",
+      "file": "web/repo.mjs",
       "marker": "function showSourceText"
     },
     "native": {

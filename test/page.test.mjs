@@ -1,7 +1,7 @@
 // 网页版页面本身的回归测试：手写的 500 行模块脚本必须能被解析，关键能力也要在。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,7 +15,13 @@ const script = readFileSync(appPath, 'utf8');
 const jobsScript = readFileSync(join(ROOT, 'web/jobs.mjs'), 'utf8');
 const panelsScript = readFileSync(join(ROOT, 'web/panels.mjs'), 'utf8');
 // 「页面能力存在」类断言扫全部页面模块：能力已经按页拆到 app/jobs/panels，只扫一个文件会误报
-const pageScripts = [script, jobsScript, panelsScript].join(String.fromCharCode(10));
+// 浏览器端已按功能拆成多个模块（jobs/panels/repo/…）：守卫必须扫**全部** web/*.mjs，
+// 否则「把逻辑搬到新模块」就会让这些页面级断言静默失效（本项目已经踩过两次）。
+const webDir = join(ROOT, 'web');
+const pageScripts = readdirSync(webDir)
+  .filter(function (name) { return name.endsWith('.mjs') && name !== 'sw.js'; })
+  .map(function (name) { return readFileSync(join(webDir, name), 'utf8'); })
+  .join(String.fromCharCode(10));
 
 // 离线时本机只缓存了一份平台的题库（bootstrap 缓存），所以"切平台"这件事在离线状态下做不到。
 // 实测踩到的两个坑：
@@ -150,56 +156,56 @@ test('网页版也能建项目、解析仓库（与 CLI 同一份 core）', func
     'projectRepoUrl', 'projectRepoUrlBtn', 'projectResult'].forEach(function (id) {
     assert.ok(html.indexOf('id="' + id + '"') > -1, '缺少元素 ' + id);
   });
-  assert.ok(script.indexOf("api('/api/project'") > -1, '要走 /api/project 接口');
-  assert.ok(script.indexOf('function renderProjectResult') > -1, '要有结果渲染');
-  assert.ok(script.indexOf('function renderProjectList') > -1, '要有项目列表渲染');
-  assert.ok(script.indexOf('readAsDataURL') > -1, '截图要按 dataURL 上传（服务端走 Vision OCR）');
-  assert.ok(script.indexOf('pack promote') > -1, '结果里要提示入库三步（改写 → promote → audit）');
+  assert.ok(pageScripts.indexOf("api('/api/project'") > -1, '要走 /api/project 接口');
+  assert.ok(pageScripts.indexOf('function renderProjectResult') > -1, '要有结果渲染');
+  assert.ok(pageScripts.indexOf('function renderProjectList') > -1, '要有项目列表渲染');
+  assert.ok(pageScripts.indexOf('readAsDataURL') > -1, '截图要按 dataURL 上传（服务端走 Vision OCR）');
+  assert.ok(pageScripts.indexOf('pack promote') > -1, '结果里要提示入库三步（改写 → promote → audit）');
   // 克隆路线要在界面上说清：复用 / 直连 / 走了镜像 / 本地目录，可信度不同
-  assert.ok(script.indexOf('来源方式：') > -1, '结果区要显示来源方式');
-  assert.ok(script.indexOf("payload.via === 'reuse'") > -1, '要能区分"复用上次克隆"与真去下载');
+  assert.ok(pageScripts.indexOf('来源方式：') > -1, '结果区要显示来源方式');
+  assert.ok(pageScripts.indexOf("payload.via === 'reuse'") > -1, '要能区分"复用上次克隆"与真去下载');
 });
 
 test('草案能一键转正式包（预览与列表分开放）', function () {
   ['draftList', 'draftDetail', 'projectDraftsBtn'].forEach(function (id) {
     assert.ok(html.indexOf('id="' + id + '"') > -1, '缺少元素 ' + id);
   });
-  assert.ok(script.indexOf('function loadDrafts') > -1, '要能列出项目里的草案');
-  assert.ok(script.indexOf('function runDraft') > -1, '要有预览/转换入口');
-  assert.ok(script.indexOf('id="draftPromoteNow"') > -1 || script.indexOf('draftPromoteNow') > -1, '预览后要能直接转正式包');
-  assert.ok(script.indexOf("download=\"' + escapeText(name) + '\"") > -1 || script.indexOf('download=') > -1, '要给出正式包下载');
-  assert.ok(script.indexOf('renderDraftResult(payload)') > -1, '要渲染校验结果（补了哪些 level、多少条复核提醒）');
-  assert.ok(script.indexOf('loadDrafts();') > -1, '解析出草案后要自动列出，少一步手动操作');
-  assert.ok(script.indexOf('function openProject') > -1, '要能点开项目看来源');
-  assert.ok(script.indexOf('function startDrillWith') > -1, '要有一份共用的「变成开练清单」函数');
-  assert.ok(script.indexOf('async function startDrillFromProject') > -1, '项目要能一键开练');
-  assert.ok(script.indexOf('projectDrillBtn') > -1, '项目详情里要有开练按钮');
-  assert.ok(script.indexOf('startDrillFromProject(name)') > -1, '开练按钮要绑到项目映射上');
+  assert.ok(pageScripts.indexOf('function loadDrafts') > -1, '要能列出项目里的草案');
+  assert.ok(pageScripts.indexOf('function runDraft') > -1, '要有预览/转换入口');
+  assert.ok(pageScripts.indexOf('id="draftPromoteNow"') > -1 || pageScripts.indexOf('draftPromoteNow') > -1, '预览后要能直接转正式包');
+  assert.ok(pageScripts.indexOf("download=\"' + escapeText(name) + '\"") > -1 || pageScripts.indexOf('download=') > -1, '要给出正式包下载');
+  assert.ok(pageScripts.indexOf('renderDraftResult(payload)') > -1, '要渲染校验结果（补了哪些 level、多少条复核提醒）');
+  assert.ok(pageScripts.indexOf('loadDrafts();') > -1, '解析出草案后要自动列出，少一步手动操作');
+  assert.ok(pageScripts.indexOf('function openProject') > -1, '要能点开项目看来源');
+  assert.ok(pageScripts.indexOf('function startDrillWith') > -1, '要有一份共用的「变成开练清单」函数');
+  assert.ok(pageScripts.indexOf('async function startDrillFromProject') > -1, '项目要能一键开练');
+  assert.ok(pageScripts.indexOf('projectDrillBtn') > -1, '项目详情里要有开练按钮');
+  assert.ok(pageScripts.indexOf('startDrillFromProject(name)') > -1, '开练按钮要绑到项目映射上');
   // 项目可以深链：地址里带 #project=名字 直接打开，并且记住上次看的项目
-  assert.ok(script.indexOf('function setProjectHash') > -1, '打开项目要写进地址');
-  assert.ok(script.indexOf('function readProjectHash') > -1, '要能从地址里读出项目名');
-  assert.ok(script.indexOf('dsh-learn-last-project') > -1, '要记住上次看的项目');
+  assert.ok(pageScripts.indexOf('function setProjectHash') > -1, '打开项目要写进地址');
+  assert.ok(pageScripts.indexOf('function readProjectHash') > -1, '要能从地址里读出项目名');
+  assert.ok(pageScripts.indexOf('dsh-learn-last-project') > -1, '要记住上次看的项目');
   // 题号也要能进地址：发一条"就是这一题"的链接，对方点开直接开练
-  assert.ok(script.indexOf('function setTaskHash') > -1, '选题要写进地址（#task=题号）');
-  assert.ok(script.indexOf('function readTaskHash') > -1, '要能从地址里读出题号');
-  assert.ok(script.indexOf('function restoreTaskView') > -1, '启动时要恢复题号');
-  assert.ok(script.indexOf('setTaskHash(taskId)') > -1, '切题时要同步地址');
+  assert.ok(pageScripts.indexOf('function setTaskHash') > -1, '选题要写进地址（#task=题号）');
+  assert.ok(pageScripts.indexOf('function readTaskHash') > -1, '要能从地址里读出题号');
+  assert.ok(pageScripts.indexOf('function restoreTaskView') > -1, '启动时要恢复题号');
+  assert.ok(pageScripts.indexOf('setTaskHash(taskId)') > -1, '切题时要同步地址');
   assert.ok(/function writeHash[\s\S]*?params\.delete\(key\)/.test(script), '写地址要只改自己那一项（开项目别把题号抹掉）');
-  assert.ok(script.indexOf('if (!visible) resetAllFilters();') > -1, '目标题被筛选挡住时要先回到全部筛选');
-  assert.ok(script.indexOf('restoreProjectView();') > -1, '启动时要恢复项目视图');
-  assert.ok(script.indexOf("action: 'delete'") > -1, '要能删项目（带 confirm）');
-  assert.ok(script.indexOf("window.prompt('删除项目 '") > -1, '删除要二次确认，不能一点就没');
+  assert.ok(pageScripts.indexOf('if (!visible) resetAllFilters();') > -1, '目标题被筛选挡住时要先回到全部筛选');
+  assert.ok(pageScripts.indexOf('restoreProjectView();') > -1, '启动时要恢复项目视图');
+  assert.ok(pageScripts.indexOf("action: 'delete'") > -1, '要能删项目（带 confirm）');
+  assert.ok(pageScripts.indexOf("window.prompt('删除项目 '") > -1, '删除要二次确认，不能一点就没');
   // 列表与详情分开：预览完列表还在，才能继续点其它草案
-  assert.ok(script.indexOf("$('draftList')") > -1 && script.indexOf("$('draftDetail')") > -1, '列表与详情要各占一块');
+  assert.ok(pageScripts.indexOf("$('draftList')") > -1 && pageScripts.indexOf("$('draftDetail')") > -1, '列表与详情要各占一块');
   // 页面显示版本：缓存过期（老页面配新服务端）时一眼可见
-  assert.ok(script.indexOf("'版本 ' + data.appVersion") > -1, '页头要显示版本号');
-  assert.ok(script.indexOf('appVersion: data.appVersion') > -1, '版本也要进 __dshPerf，便于实测判断缓存');
+  assert.ok(pageScripts.indexOf("'版本 ' + data.appVersion") > -1, '页头要显示版本号');
+  assert.ok(pageScripts.indexOf('appVersion: data.appVersion') > -1, '版本也要进 __dshPerf，便于实测判断缓存');
   // 外壳版本对不上（SW 缓存里是旧脚本）要能被发现：服务端注入版本号，页面比对后更新 SW 并重载一次
-  assert.ok(script.indexOf("const SCRIPT_VERSION = '__VERSION__'") > -1, '外壳脚本要带版本占位符，服务端会注入真实版本');
-  assert.ok(script.indexOf('syncServiceWorker(data.appVersion)') > -1, '启动时要检查外壳版本');
+  assert.ok(pageScripts.indexOf("const SCRIPT_VERSION = '__VERSION__'") > -1, '外壳脚本要带版本占位符，服务端会注入真实版本');
+  assert.ok(pageScripts.indexOf('syncServiceWorker(data.appVersion)') > -1, '启动时要检查外壳版本');
   assert.ok(/SCRIPT_VERSION !== '__VERSION__' && SCRIPT_VERSION !== appVersion/.test(script), '要能判断"我这份脚本是旧的"');
-  assert.ok(script.indexOf('dsh-learn-shell-reloaded') > -1 && script.indexOf('location.reload()') > -1, '发现旧外壳要重载一次，但必须只重载一次');
-  assert.ok(script.indexOf('按 ⌘⇧R / Ctrl+Shift+R 强制刷新即可') > -1, '重载后还是旧的要把话说清楚，不做无限刷新');
+  assert.ok(pageScripts.indexOf('dsh-learn-shell-reloaded') > -1 && pageScripts.indexOf('location.reload()') > -1, '发现旧外壳要重载一次，但必须只重载一次');
+  assert.ok(pageScripts.indexOf('按 ⌘⇧R / Ctrl+Shift+R 强制刷新即可') > -1, '重载后还是旧的要把话说清楚，不做无限刷新');
 });
 
 test('判定结果的读法：命中片段有列表语义，满分不复读', function () {
@@ -402,12 +408,12 @@ test('切题滚动只作用于左栏容器，首屏恢复不滚页面', function
 // 加进来之后又踩过一次：确认按钮走的是项目那一路（scope 没传），状态文案也说成"已写入项目 promoted/"。
 test('网页版能一键把草案加入总题库（并如实显示状态）', function () {
   // 这些都在 app.mjs（页面脚本）里，不在 index.html 外壳里
-  assert.ok(script.indexOf('加入总题库') > -1, '项目面板要有「加入总题库」的入口');
-  assert.ok(script.indexOf('id="draftCatalogNow"') > -1, '总题库那一路要有独立的确认按钮');
-  assert.ok(script.indexOf("scope: toCatalog ? 'catalog' : 'project'") > -1, '走哪一路要显式传给接口，不能靠默认值');
-  assert.ok(script.indexOf("runDraft(payload.file, true, 'catalog')") > -1, '列表上的"加入总题库…"要先预览');
-  assert.ok(script.indexOf('已在总题库') > -1, '已经加过的草案要标出来');
-  assert.ok(script.indexOf('这些题下次启动客户端就能练到') > -1, '写完要说清"从哪一步开始能练到"');
+  assert.ok(pageScripts.indexOf('加入总题库') > -1, '项目面板要有「加入总题库」的入口');
+  assert.ok(pageScripts.indexOf('id="draftCatalogNow"') > -1, '总题库那一路要有独立的确认按钮');
+  assert.ok(pageScripts.indexOf("scope: toCatalog ? 'catalog' : 'project'") > -1, '走哪一路要显式传给接口，不能靠默认值');
+  assert.ok(pageScripts.indexOf("runDraft(payload.file, true, 'catalog')") > -1, '列表上的"加入总题库…"要先预览');
+  assert.ok(pageScripts.indexOf('已在总题库') > -1, '已经加过的草案要标出来');
+  assert.ok(pageScripts.indexOf('这些题下次启动客户端就能练到') > -1, '写完要说清"从哪一步开始能练到"');
 });
 
 // 三个页面的护栏：导航、切换不丢 hash、简历投递页的关键动作与文案。
@@ -422,10 +428,10 @@ test('三个页面：导航、切换与页面级功能', function () {
   assert.ok(html.indexOf('id="pageJobs"') > -1 && html.indexOf('id="jobCompany"') > -1 && html.indexOf('id="jobJd"') > -1, '简历投递页要有表单与 JD 输入');
   assert.ok(html.indexOf('id="pageRepo"') > -1 && html.indexOf('id="ppList"') > -1 && html.indexOf('id="ppDraftList"') > -1, '项目/仓库页要有项目列表与草案区（原项目管理页已并入）');
   // 切页只写 page 这一个键：writeHash 是"只在有变化的那一项上动手"，所以任务号/项目名不会被抹掉
-  assert.ok(script.indexOf("writeHash({ page: target === 'learn' ? '' : target })") > -1, '页面要写进 hash');
-  assert.ok(script.indexOf('readPageHash()') > -1, '刷新后要按 hash 回到原页面');
-  assert.ok(script.indexOf("if (target === 'repo') loadProjectPage();") > -1, '切到项目/仓库页要按需加载项目列表');
-  assert.ok(script.indexOf("if (target === 'jobs') jobsPanel.loadJobs();") > -1, '切到简历投递页要按需加载（引用由 web/jobs.mjs 返回）');
+  assert.ok(pageScripts.indexOf("writeHash({ page: target === 'learn' ? '' : target })") > -1, '页面要写进 hash');
+  assert.ok(pageScripts.indexOf('readPageHash()') > -1, '刷新后要按 hash 回到原页面');
+  assert.ok(pageScripts.indexOf("if (target === 'repo') loadProjectPage();") > -1, '切到项目/仓库页要按需加载项目列表');
+  assert.ok(pageScripts.indexOf("if (target === 'jobs') jobsPanel.loadJobs();") > -1, '切到简历投递页要按需加载（引用由 web/jobs.mjs 返回）');
   // 简历投递页的动作：分析 JD / 练相关题 / 建项目收 JD / 增改删
   // 这些都在 web/jobs.mjs 里（第 24 轮把投递页拆了出去）
   ['jobAnalyze', 'jobDrill', 'jobProject', 'jobEdit', 'jobDelete'].forEach(function (cls) {
@@ -435,9 +441,9 @@ test('三个页面：导航、切换与页面级功能', function () {
   assert.ok(jobsScript.indexOf('startDrillWith(tasks)') > -1, '「练相关题」要复用开练清单（依赖注入进来的同一个函数）');
   // 项目管理页的入库按钮与"已在总题库"状态
   ['ppDraftPreview', 'ppDraftCatalog', 'ppDraftStage'].forEach(function (cls) {
-    assert.ok(script.indexOf(cls) > -1, '项目管理页缺按钮：' + cls);
+    assert.ok(pageScripts.indexOf(cls) > -1, '项目管理页缺按钮：' + cls);
   });
-  assert.ok(script.indexOf("scope: catalog ? 'catalog' : 'project'") > -1, '入库要显式给 scope');
+  assert.ok(pageScripts.indexOf("scope: catalog ? 'catalog' : 'project'") > -1, '入库要显式给 scope');
 });
 
 // 识图能力与文字理解的界面护栏：按钮、能力行、结构化渲染、以及"理解 → 练这些题 / 建项目"两个出口。
@@ -575,17 +581,17 @@ test('项目/仓库页有「按目录导入」入口（与 CLI project import �
 test('项目行有重命名/移除/删除，右侧能看来源原文，学习页有提示按钮', function () {
   // 用户报的三件事 + 一个功能请求，逐项钉住
   ['ppRename', 'ppHide', 'ppDelete'].forEach(function (name) {
-    assert.ok(script.indexOf("'." + name + "'") > -1 || script.indexOf('ppRename') > -1, '缺少动作：' + name);
+    assert.ok(pageScripts.indexOf("'." + name + "'") > -1 || pageScripts.indexOf('ppRename') > -1, '缺少动作：' + name);
   });
-  assert.ok(script.indexOf('function hiddenProjects') > -1, '移除要能记住（本地隐藏）');
-  assert.ok(script.indexOf('function clearHiddenProjects') > -1, '要能恢复被移除的');
-  assert.ok(script.indexOf('function renameProjectPrompt') > -1 && script.indexOf("action: 'rename'") > -1, '重命名要走接口');
-  assert.ok(script.indexOf('function deleteProjectConfirm') > -1, '删除要二次确认');
+  assert.ok(pageScripts.indexOf('function hiddenProjects') > -1, '移除要能记住（本地隐藏）');
+  assert.ok(pageScripts.indexOf('function clearHiddenProjects') > -1, '要能恢复被移除的');
+  assert.ok(pageScripts.indexOf('function renameProjectPrompt') > -1 && pageScripts.indexOf("action: 'rename'") > -1, '重命名要走接口');
+  assert.ok(pageScripts.indexOf('function deleteProjectConfirm') > -1, '删除要二次确认');
   assert.ok(html.indexOf('id="ppSources"') > -1 && html.indexOf('id="ppSourceText"') > -1, '要有来源与原文区');
-  assert.ok(script.indexOf('function loadProjectSources') > -1 && script.indexOf('function showSourceText') > -1, '要能拉来源与原文');
+  assert.ok(pageScripts.indexOf('function loadProjectSources') > -1 && pageScripts.indexOf('function showSourceText') > -1, '要能拉来源与原文');
   assert.ok(html.indexOf('id="hintBtn"') > -1 && html.indexOf('id="taskHint"') > -1, '命令输入旁要有提示按钮与提示行');
-  assert.ok(script.indexOf('function toggleHint') > -1, '提示要能展开/收起');
-  assert.ok(script.indexOf('function toggleHint') > -1 && script.indexOf('task.hint') > -1, '提示取题目自带的 hint');
+  assert.ok(pageScripts.indexOf('function toggleHint') > -1, '提示要能展开/收起');
+  assert.ok(pageScripts.indexOf('function toggleHint') > -1 && pageScripts.indexOf('task.hint') > -1, '提示取题目自带的 hint');
 });
 
 test('项目页有筛选/排序/来源检索/回填原文（都是真实可用的入口）', function () {
@@ -593,9 +599,9 @@ test('项目页有筛选/排序/来源检索/回填原文（都是真实可用�
   assert.ok(html.indexOf('id="ppSort"') > -1, '要有排序');
   assert.ok(html.indexOf('id="ppSourceFilter"') > -1, '要有来源检索');
   assert.ok(html.indexOf('id="ppBackfillBtn"') > -1 && html.indexOf('id="ppBackfillDir"') > -1, '要有回填原文入口');
-  assert.ok(script.indexOf('function loadProjectSources') > -1 && script.indexOf('filteredSources') > -1 || script.indexOf('const shown = filter') > -1, '来源检索要真的过滤');
-  assert.ok(script.indexOf("action: 'backfill'") > -1, '回填要打接口');
-  assert.ok(script.indexOf('visible.sort') > -1, '排序要真的生效');
+  assert.ok(pageScripts.indexOf('function loadProjectSources') > -1 && pageScripts.indexOf('filteredSources') > -1 || pageScripts.indexOf('const shown = filter') > -1, '来源检索要真的过滤');
+  assert.ok(pageScripts.indexOf("action: 'backfill'") > -1, '回填要打接口');
+  assert.ok(pageScripts.indexOf('visible.sort') > -1, '排序要真的生效');
 });
 
 test('项目页有开练清单（先练哪几道 + 一键开练）', function () {
@@ -616,10 +622,10 @@ test('网页版有「按分类调研」入口（分方向矩阵）', function ()
 test('项目页有「从 JD 生成练习清单」入口，计划草案不给入题库按钮', function () {
   assert.ok(html.indexOf('id="ppJdPlanBtn"') > -1, '要有生成按钮');
   assert.ok(html.indexOf('id="ppJdPlanBox"') > -1, '要有清单显示区');
-  assert.ok(script.indexOf('function runJdPlan') > -1, '要实现生成逻辑');
-  assert.ok(script.indexOf("action: 'jdplan'") > -1, '要打 jdplan 接口');
-  assert.ok(script.indexOf("row.kind === 'plan'") > -1, '要区分计划草案');
-  assert.ok(script.indexOf('ppDraftDrill') > -1, '计划草案要能一键开练');
+  assert.ok(pageScripts.indexOf('function runJdPlan') > -1, '要实现生成逻辑');
+  assert.ok(pageScripts.indexOf("action: 'jdplan'") > -1, '要打 jdplan 接口');
+  assert.ok(pageScripts.indexOf("row.kind === 'plan'") > -1, '要区分计划草案');
+  assert.ok(pageScripts.indexOf('ppDraftDrill') > -1, '计划草案要能一键开练');
 });
 
 test('网页版有语料检索入口（关键词 + 任一词 + 命中列表）', function () {

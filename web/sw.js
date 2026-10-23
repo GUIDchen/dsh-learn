@@ -18,6 +18,7 @@ const SHELL = [
   '/palette.mjs',
   '/theme.mjs',
   '/i18n.mjs',
+  '/repo.mjs',
   '/trend.mjs',
   '/reminder.mjs',
   '/manifest.webmanifest',

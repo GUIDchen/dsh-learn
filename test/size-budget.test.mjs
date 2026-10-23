@@ -17,7 +17,8 @@ import { join } from 'node:path';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const BUDGETS = [
-  { file: 'web/app.mjs', max: 3000, note: '投递/学习面板/引导卡片已拆出；再涨就该拆流程页' },
+  { file: 'web/app.mjs', max: 2750, note: '学习/投递面板 + 引导/⌘K/主题/i18n/趋势/提醒 + 项目渲染组已拆出' },
+  { file: 'web/repo.mjs', max: 450, note: '项目/仓库渲染组：项目结果、项目列表、来源详情、草案' },
   { file: 'web/panels.mjs', max: 450, note: '学习页支撑面板（9 个面板）' },
   { file: 'web/format.mjs', max: 200, note: '纯工具别塞业务' },
   { file: 'web/jobs.mjs', max: 420, note: '投递页；再大就按"列表/表单"再分' },
