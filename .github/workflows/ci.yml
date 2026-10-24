@@ -6,14 +6,10 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: test / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # 在 24.x 上完整验证过；macOS 才能跑原生自检（swiftc 来自 Xcode）
-        os: [macos-latest, ubuntu-latest]
+  # macOS：完整验收（不跑 scripts/verify.sh——它依赖本机工具 kubectl 与 git tag，属于发布前人工步骤）
+  macos:
+    name: test / macos
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,10 +21,10 @@ jobs:
           node -e "const p=require('./package.json'); const deps=Object.keys(p.dependencies||{}).concat(Object.keys(p.devDependencies||{})); if (deps.length) { console.error('出现了第三方依赖: '+deps.join(',')); process.exit(1); } console.log('零依赖校验通过');"
       - name: 全仓语法体检
         run: bash scripts/check-syntax.sh
-      - name: 静态守卫（缺导入 / 体量 / 契约 / 能力对照 / 一致性）
+      - name: 静态守卫（缺导入 / 体量 / 契约 / 能力对照 / 一致性 / 页面 / 原生）
         run: |
           node scripts/lint-unresolved.mjs
-          node --test test/size-budget.test.mjs test/api-contract.test.mjs test/capability-matrix.test.mjs test/consistency.test.mjs
+          node --test test/size-budget.test.mjs test/api-contract.test.mjs test/capability-matrix.test.mjs test/consistency.test.mjs test/page.test.mjs test/native-parity.test.mjs test/test-hygiene.test.mjs
       - name: 用例
         run: node --test
       - name: 题库体检与白名单对账
@@ -37,15 +33,38 @@ jobs:
           node src/cli.mjs security whitelist
       - name: CLI 冒烟
         env:
-          DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn
+          DSH_LEARN_HOME: \${{ runner.temp }}/dsh-learn
         run: |
           node src/cli.mjs list --track=docker --level=easy
           node src/cli.mjs check docker.run-web "docker run -d -p 8080:80 --name web nginx:1.25" --client ci-box
           node src/cli.mjs progress
       - name: 浏览器层 e2e（无 Chrome 时自动跳过）
         run: node scripts/e2e-web.mjs
-      - name: 完整验收（仅 macOS：含原生客户端自检）
-        if: runner.os == 'macOS'
-        env:
-          DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn-verify
-        run: bash scripts/verify.sh
+      - name: 原生构建
+        run: bash app/macos/build.sh
+      - name: 原生自检（编译 + 运行）
+        run: |
+          BIN="$RUNNER_TEMP/selftest"
+          swiftc -O -swift-version 5 app/macos/selftest.swift app/macos/Engine.swift app/macos/EngineModels.swift app/macos/EngineHTTP.swift app/macos/Preferences.swift app/macos/NativeUI.swift app/macos/ProjectsFilter.swift app/macos/VerdictPanel.swift app/macos/Panels.swift app/macos/Pages.swift -o "$BIN" -framework Cocoa -framework SwiftUI
+          DSH_LEARN_ROOT="$PWD" "$BIN"
+
+  # Linux：只跑跨平台的部分（内核用例 + 结构守卫）；
+  # 完整套件里有 macOS 专属用例（原生自检/OCR/键盘），不在 Linux 上跑
+  linux:
+    name: guards / ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: 零依赖 + 语法
+        run: |
+          test ! -d node_modules
+          bash scripts/check-syntax.sh
+      - name: 结构守卫
+        run: |
+          node scripts/lint-unresolved.mjs
+          node --test test/size-budget.test.mjs test/api-contract.test.mjs test/capability-matrix.test.mjs test/consistency.test.mjs test/test-hygiene.test.mjs
+      - name: 内核用例（跨平台）
+        run: node --test test/knowledge.test.mjs test/search.test.mjs test/judge.test.mjs
