@@ -33,7 +33,7 @@ jobs:
           node src/cli.mjs security whitelist
       - name: CLI 冒烟
         env:
-          DSH_LEARN_HOME: \${{ runner.temp }}/dsh-learn
+          DSH_LEARN_HOME: ${{ runner.temp }}/dsh-learn
         run: |
           node src/cli.mjs list --track=docker --level=easy
           node src/cli.mjs check docker.run-web "docker run -d -p 8080:80 --name web nginx:1.25" --client ci-box
@@ -67,4 +67,4 @@ jobs:
           node scripts/lint-unresolved.mjs
           node --test test/size-budget.test.mjs test/api-contract.test.mjs test/capability-matrix.test.mjs test/consistency.test.mjs test/test-hygiene.test.mjs
       - name: 内核用例（跨平台）
-        run: node --test test/knowledge.test.mjs test/search.test.mjs test/judge.test.mjs
+        run: node --test test/knowledge.test.mjs test/search.test.mjs test/judge-strength.test.mjs

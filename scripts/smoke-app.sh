@@ -82,7 +82,7 @@ case "$ENGINE_CMD" in
     ;;
 esac
 
-node "$ROOT/scripts/smoke-app-check.mjs" "$PORT" "$ROOT" "$ROOT/docs/evidence/terminal-note-screenshot.png" || FAILED=1
+node "$ROOT/scripts/smoke-app-check.mjs" "$PORT" "$ROOT" "$ROOT/test/fixtures/terminal-note-screenshot.png" || FAILED=1
 
 # 退出行为：点退出（SIGTERM）与崩溃（SIGKILL）都不该留下占着端口的孤儿引擎
 kill -TERM "$APP_PID" 2>/dev/null

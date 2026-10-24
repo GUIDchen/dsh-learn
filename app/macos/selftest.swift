@@ -450,7 +450,7 @@ struct NativeSelfTest {
 
             // 截图入口：把真实 PNG 交给服务端 Vision 识别（与网页版同一条路），再验一个非图片文件
             let root = ProcessInfo.processInfo.environment["DSH_LEARN_ROOT"] ?? FileManager.default.currentDirectoryPath
-            let fixture = root + "/docs/evidence/terminal-note-screenshot.png"
+            let fixture = root + "/test/fixtures/terminal-note-screenshot.png"
             if FileManager.default.fileExists(atPath: fixture) {
                 expect(Engine.dataUrlOfImage(at: fixture)?.hasPrefix("data:image/png;base64,") == true,
                        "截图能读成 dataURL")
