@@ -139,10 +139,16 @@ await send('Network.setBypassServiceWorker', { bypass: true });
 
 // —— 场景 1：学习页 ——
 await send('Page.navigate', { url: base + '/#page=' });
-await sleep(2500);
+await sleep(1500);
 await send('Page.reload', { ignoreCache: true });
-await sleep(3500);
-const taskCount = await evaluateValue("document.querySelectorAll('#taskList button, #taskList li').length");
+// 固定 sleep 在慢机器上不够（GitHub runner 上 3.5s 时列表还是空的）：轮询到有题目为止，最多 20 秒
+let taskCount = 0;
+const listDeadline = Date.now() + 20000;
+while (Date.now() < listDeadline) {
+  taskCount = await evaluateValue("document.querySelectorAll('#taskList button, #taskList li').length");
+  if (Number(taskCount) > 0) break;
+  await sleep(400);
+}
 check('学习页：题目列表渲染出来了', Number(taskCount) > 0, '列表条数=' + taskCount);
 const panels = ['/app.mjs', '/jobs.mjs', '/panels.mjs'];
 const loaded = panels.filter(function (name) { return modules.some(function (m) { return m.url === name && m.status === 200; }); });
